@@ -553,15 +553,15 @@ function renderExperienceHtml() {
             <div class="exp-card-header">
                 <div>
                     <span class="exp-company">Kuaishou (快手)</span>
-                    <span class="exp-role-title">· Senior Backend Engineer / Tech Manager</span>
+                    <span class="exp-role-title">· 资深服务端开发工程师 / 项目主 R (Senior Backend Engineer / Tech Lead)</span>
                 </div>
-                <span class="exp-period">2016 — 2022</span>
+                <span class="exp-period">2020.12 — 2022.05</span>
             </div>
             <div class="exp-detail-text">
                 <ul>
-                    <li>历经快手从高速成长到香港主板成功上市全程，主导支付交易结算微服务中台重构与架构升级。</li>
-                    <li>抗住春晚红包与大促极限洪峰考验，单集群峰值承载 QPS 10,000+，全年核心业务 SLA 达成 99.99%（不可用时间小于 52 分钟）。</li>
-                    <li>研发分布式交易防资损幂等引擎、跨机房双活容灾及自适应流量削峰填谷方案，确保海量资金级交易零资损。</li>
+                    <li><strong>电商“理想家”创新房产业务（0 到 1 架构与高并发）：</strong>负责楼盘、线索等核心模块设计与研发。采用 DDD（领域驱动设计）理念与微服务拆分架构，主导多个独立微服务从 0 到 1 的项目搭建、研发与稳定上线，通过深层链路优化将楼盘落地页峰值承载能力提升至 QPS 10,000+。</li>
+                    <li><strong>本地生活平台建设（项目主 R 与跨团队协同）：</strong>深度参与快手面向本地商家的 O2O 闭环平台建设，作为项目主 R（Tech Owner）统筹负责本地商品、交易结算、营销中心等核心服务模块；跨部门协调多团队高效协同开发，保障复杂需求的高质量交付。</li>
+                    <li><strong>工程全生命周期质量把控与团队培养：</strong>建立严密的研发全生命周期工程质量机制（需求前严格技术方案评审、开发中追求高内聚低耦合的代码扩展性与可维护性、上线前主导组内 Code Review、上线后完善高可用监控告警覆盖及全链路运行数据看板复盘）；负责团队新人带教指导，帮助新人快速融入业务开发与敏捷交付。</li>
                 </ul>
             </div>
         </div>
@@ -869,12 +869,12 @@ function renderPublicHtml() {
                     <div class="exp-head">
                         <div>
                             <span class="exp-company">Kuaishou (快手)</span>
-                            <span class="exp-role-badge">· Senior Backend / Tech Manager</span>
+                            <span class="exp-role-badge">· Senior Backend / Tech Lead</span>
                         </div>
-                        <span class="exp-date">2016 — 2022</span>
+                        <span class="exp-date">2020 — 2022</span>
                     </div>
                     <div class="exp-desc" id="exp-desc-kuaishou">
-                        历经快手高速成长至香港上市，主导核心支付结算微服务重构。支撑单集群峰值 10,000+ QPS 极限冲击，零资损保障核心 SLA 99.99%。
+                        负责本地生活与电商“理想家”创新房产业务。基于 DDD 微服务从 0 到 1 搭建楼盘与线索系统，支撑落地页 QPS 10,000+；担任本地生活核心模块项目主 R，统筹商品/交易/营销跨团队协同与高可用工程闭环。
                     </div>
                 </div>
             </div>
@@ -911,7 +911,7 @@ function renderPublicHtml() {
                 valEducation: "博士 (Ph.D.), Abide 大学 | 软件工程学士, 北京邮电大学 (BUPT)",
                 valLanguages: "中文 (母语), 英文 (流利)",
                 expEbay: "主导全局电商 AI Platform 基础底座建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。",
-                expKuaishou: "历经快手高速成长至香港上市，主导核心支付结算微服务重构。支撑单集群峰值 10,000+ QPS 极限冲击，零资损保障核心 SLA 99.99%。",
+                expKuaishou: "负责本地生活与电商“理想家”创新房产业务。基于 DDD 微服务从 0 到 1 搭建楼盘与线索系统，支撑落地页 QPS 10,000+；担任本地生活核心模块项目主 R，统筹商品/交易/营销跨团队协同与高可用工程闭环。",
                 footerCopyright: "© 2026 维托里奥 崔 · All Rights Reserved"
             },
             en: {
@@ -933,7 +933,7 @@ function renderPublicHtml() {
                 valEducation: "Ph.D., Abide University | B.E. in Software Engineering, BUPT",
                 valLanguages: "Mandarin (Native), English (Fluent)",
                 expEbay: "Built organization-wide AI Platform infrastructure; deployed LLM-based intelligent customer support agents for global e-commerce users.",
-                expKuaishou: "Scaled core financial payment pipelines (10k+ peak QPS, 99.99% SLA), automated failover & monitoring architectures.",
+                expKuaishou: "Engineered backend services for Kuaishou Local Life and 'Ideal Home' (innovative e-commerce real estate). Architected property and lead services from 0 to 1 with DDD microservices (10,000+ peak QPS); served as Tech Owner (Project Lead) orchestrating cross-functional teams across products, transactions, and marketing systems.",
                 footerCopyright: "© 2026 Vittorio Cui · All Rights Reserved"
             }
         };
