@@ -126,6 +126,15 @@ const DEFAULT_COMMENTS = [
     "content": "老师讲得很接地气，想请教下在实际做 vLLM 推理优化时，PagedAttention 面对超长 Prompt 吞吐瓶颈的主要调优方向？",
     "createdAt": "2026-03-06 09:15",
     "status": "pending"
+  },
+  {
+    "id": "comm-gb-1",
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "云原生架构师",
+    "content": "崔老师的主页风格太纯粹了，李新野式的极简排版看着非常舒服！祝博客越办越好！",
+    "createdAt": "2026-03-01 15:30",
+    "status": "approved"
   }
 ];
 
@@ -385,7 +394,10 @@ function renderArticlesPageHtml(articlesJson) {
     <div class="container">
         <div class="top-nav-bar">
             <a href="/" class="back-btn">← 返回主页</a>
-            <a href="/admin" class="admin-link">[管理后台]</a>
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <a href="/guestbook" style="font-size: 0.88rem; color: var(--accent); text-decoration: underline;">留言板</a>
+                <a href="/admin" class="admin-link">[管理后台]</a>
+            </div>
         </div>
 
         <header class="page-header">
@@ -550,6 +562,219 @@ function renderArticlesPageHtml(articlesJson) {
         }
 
         renderList();
+    </script>
+</body>
+</html>`;
+}
+
+/**
+ * 1.5 独立留言板页面 HTML (GET /guestbook 或 /messages)
+ */
+function renderGuestbookHtml() {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>留言板 — 维托里奥 崔</title>
+    <style>
+        ${COMMON_CSS}
+        .top-nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .back-btn {
+            font-size: 0.92rem;
+            color: var(--accent);
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .page-header { margin-bottom: 28px; }
+        .page-title {
+            font-family: var(--font-serif);
+            font-size: 2.1rem;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text-main);
+        }
+        .page-subtitle {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+        .guestbook-form-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 22px 24px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        }
+        .msg-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 18px 20px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        }
+        .msg-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 6px;
+        }
+        .msg-author {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--accent);
+        }
+        .msg-date {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--text-light);
+        }
+        .msg-content {
+            font-size: 0.9rem;
+            color: var(--text-main);
+            line-height: 1.68;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav-bar">
+            <a href="/" class="back-btn">← 返回主页</a>
+            <div style="display:flex; gap:16px; align-items:center;">
+                <a href="/articles" style="font-size:0.88rem; color:var(--accent); text-decoration:underline;">文章列表</a>
+                <a href="/admin" class="admin-link">[管理后台]</a>
+            </div>
+        </div>
+
+        <header class="page-header">
+            <h1 class="page-title">留言板</h1>
+            <p class="page-subtitle">欢迎在此交流探讨、留下您的想法或建议（留言经管理员审核后公开展示）</p>
+        </header>
+
+        <!-- 发表留言表单 -->
+        <div class="guestbook-form-box">
+            <h3 style="font-family:var(--font-serif); font-size:1.15rem; font-weight:500; margin-bottom:14px; color:var(--text-main);">发表留言</h3>
+            <form onsubmit="handleGuestbookSubmit(event)">
+                <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center;">
+                    <label style="font-size:0.85rem; color:var(--text-muted); white-space:nowrap;">您的称呼:</label>
+                    <input type="text" id="gb-author" placeholder="例如: 某技术同行 (可自定义，默认: 匿名读者)" style="flex:1; padding:8px 12px; font-size:0.88rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main);" />
+                </div>
+                <div style="margin-bottom:12px;">
+                    <textarea id="gb-content" required rows="4" placeholder="写下您的技术探讨、阅读感受或问题交流...（留言将在管理员审核通过后公开展示）" style="width:100%; box-sizing:border-box; padding:10px 12px; font-size:0.9rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main); font-family:var(--font-sans); resize:vertical;"></textarea>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <span id="gb-status-msg" style="font-size:0.84rem;"></span>
+                    <button type="submit" id="gb-submit-btn" style="background:var(--accent); color:white; border:none; border-radius:4px; padding:8px 22px; font-size:0.88rem; font-weight:500; cursor:pointer;">提交留言</button>
+                </div>
+            </form>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
+            <h3 style="font-family:var(--font-serif); font-size:1.2rem; font-weight:500; color:var(--text-main);">💬 全部公开留言 (<span id="gb-count">0</span>)</h3>
+            <span style="font-size:0.78rem; color:var(--text-light);">已审核通过的公开留言</span>
+        </div>
+
+        <!-- 留言列表展示 -->
+        <div id="gb-messages-list">
+            <div style="font-size:0.85rem; color:var(--text-light); font-style:italic; padding:20px 0;">加载留言中...</div>
+        </div>
+
+        <footer>
+            <span>© 2026 维托里奥 崔 · All Rights Reserved</span>
+            <a href="/admin" class="admin-link">[管理后台]</a>
+        </footer>
+    </div>
+
+    <script>
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        async function loadGuestbookMessages() {
+            const listEl = document.getElementById('gb-messages-list');
+            const countEl = document.getElementById('gb-count');
+            try {
+                const res = await fetch('/api/comments');
+                const data = await res.json();
+                const approved = Array.isArray(data) ? data : [];
+                countEl.innerText = approved.length;
+                if (approved.length === 0) {
+                    listEl.innerHTML = '<div style="background:var(--bg-card); border:1px dashed var(--border); border-radius:6px; padding:32px; text-align:center; color:var(--text-light); font-size:0.88rem;">暂无公开留言，欢迎成为第一个交流的读者。</div>';
+                    return;
+                }
+                listEl.innerHTML = approved.map(c => 
+                    '<div class="msg-card">' +
+                        '<div class="msg-head">' +
+                            '<div>' +
+                                '<span class="msg-author">' + escapeHtml(c.author || '匿名读者') + '</span>' +
+                                (c.articleTitle ? '<span style="font-size:0.75rem; color:var(--text-light); margin-left:8px;">(' + escapeHtml(c.articleTitle) + ')</span>' : '') +
+                            '</div>' +
+                            '<span class="msg-date">' + escapeHtml(c.createdAt || '') + '</span>' +
+                        '</div>' +
+                        '<div class="msg-content">' + escapeHtml(c.content || '') + '</div>' +
+                    '</div>'
+                ).join('');
+            } catch (e) {
+                listEl.innerHTML = '<div style="font-size:0.85rem; color:var(--text-light);">加载留言失败，请刷新重试</div>';
+            }
+        }
+
+        async function handleGuestbookSubmit(e) {
+            e.preventDefault();
+            const authorInput = document.getElementById('gb-author');
+            const contentInput = document.getElementById('gb-content');
+            const statusMsg = document.getElementById('gb-status-msg');
+            const btn = document.getElementById('gb-submit-btn');
+
+            const author = (authorInput && authorInput.value.trim()) || '匿名读者';
+            const content = (contentInput && contentInput.value.trim()) || '';
+            if (!content) return;
+
+            btn.disabled = true;
+            btn.innerText = '提交中...';
+            statusMsg.style.color = 'var(--text-light)';
+            statusMsg.innerText = '正在提交...';
+
+            try {
+                const res = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        articleId: 'guestbook',
+                        articleTitle: '全站公开留言板',
+                        author: author,
+                        content: content
+                    })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    contentInput.value = '';
+                    statusMsg.style.color = '#28a745';
+                    statusMsg.innerText = '✓ 留言已成功提交，待管理员审核通过后公开展示。';
+                } else {
+                    statusMsg.style.color = '#dc3545';
+                    statusMsg.innerText = '提交失败，请稍后重试。';
+                }
+            } catch (err) {
+                statusMsg.style.color = '#dc3545';
+                statusMsg.innerText = '网络异常，提交失败。';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '提交留言';
+            }
+        }
+
+        loadGuestbookMessages();
     </script>
 </body>
 </html>`;
@@ -937,10 +1162,11 @@ function renderPublicHtml() {
                     你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，对国内外AI技术发展趋势以及产品发展趋势非常了解。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。
                 </p>
 
-                <!-- 仅保留“文章”与“Email”，点击文章跳转到 /articles -->
+                <!-- 导航：文章、Email 与 留言板 -->
                 <div class="header-links">
                     <a class="header-link" href="/articles" id="link-articles">文章</a>
                     <a class="header-link" href="mailto:${CONFIG.email}" id="link-email">Email</a>
+                    <a class="header-link" href="/guestbook" id="link-guestbook">留言板</a>
                 </div>
             </div>
         </header>
@@ -1054,6 +1280,7 @@ function renderPublicHtml() {
                 displayName: "维托里奥 崔",
                 intro: "你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，对国内外AI技术发展趋势以及产品发展趋势非常了解。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。",
                 linkArticles: "文章",
+                linkGuestbook: "留言板",
                 titleAbout: "关于我",
                 lblPos: "职位:",
                 lblFocus: "核心领域:",
@@ -1076,6 +1303,7 @@ function renderPublicHtml() {
                 displayName: "Vittorio Cui",
                 intro: "Hello, I am currently an AI Researcher. Known for my crisp, elegant, and witty writing style, my published essays are widely enjoyed by readers globally. Currently dedicated to realizing AGI, with a profound understanding of global AI technological and product trends. Previously partnered with world-class clients including eBay, Ocean Network Express (ONE), and IBM to deploy enterprise agentic systems.",
                 linkArticles: "Articles",
+                linkGuestbook: "Guestbook",
                 titleAbout: "About Me",
                 lblPos: "Position:",
                 lblFocus: "Core Focus:",
@@ -1102,6 +1330,7 @@ function renderPublicHtml() {
             document.getElementById('author-display-name').innerText = data.displayName;
             document.getElementById('header-intro-text').innerText = data.intro;
             document.getElementById('link-articles').innerText = data.linkArticles;
+            document.getElementById('link-guestbook').innerText = data.linkGuestbook;
             document.getElementById('title-about').innerText = data.titleAbout;
             document.getElementById('lbl-pos').innerText = data.lblPos;
             document.getElementById('lbl-focus').innerText = data.lblFocus;
@@ -1792,6 +2021,16 @@ export default {
         headers: {
           "Content-Type": "text/html;charset=UTF-8",
           "Cache-Control": "public, max-age=120"
+        }
+      });
+    }
+
+    // 12.5. 独立留言板页面 GET /guestbook 或 /messages
+    if (path === "/guestbook" || path === "/messages") {
+      return new Response(renderGuestbookHtml(), {
+        headers: {
+          "Content-Type": "text/html;charset=UTF-8",
+          "Cache-Control": "public, max-age=60"
         }
       });
     }
