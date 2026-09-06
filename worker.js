@@ -214,6 +214,87 @@ async function saveComments(env, comments) {
   }
 }
 
+const DEFAULT_PROFILE = {
+  nameZh: "维托里奥 崔",
+  nameEn: "Vittorio Cui",
+  email: "velosovittoria545@gmail.com",
+  introZh: "你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，对国内外AI技术发展趋势以及产品发展趋势非常了解。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。",
+  introEn: "Hello, I am currently an AI Researcher. Known for my crisp, elegant, and witty writing style, my published essays are widely enjoyed by readers globally. Currently dedicated to realizing AGI, with a profound understanding of global AI technological and product trends. Previously partnered with world-class clients including eBay, Ocean Network Express (ONE), and IBM to deploy enterprise agentic systems.",
+  positionZh: "AI 研究员",
+  positionEn: "AI Researcher",
+  focusZh: "AI, 软件开发, 系统设计, 团队管理",
+  focusEn: "AI, Software Development, System Design, Team Management",
+  techZh: "Python, Java (Spring Boot), Go, C++, vLLM, LangGraph, MCP, Redis, PostgreSQL, Docker",
+  techEn: "Python, Java (Spring Boot), Go, C++, vLLM, LangGraph, MCP, Redis, PostgreSQL, Docker",
+  eduZh: "博士 (Ph.D.), Abide 大学 | 软件工程学士, 北京邮电大学 (BUPT)",
+  eduEn: "Ph.D., Abide University | B.E. in Software Engineering, BUPT",
+  langZh: "中文 (母语), 英文 (流利)",
+  langEn: "Mandarin (Native), English (Fluent)",
+  expHightouchZh: "过去21个月，作为AI项目负责人，我成功主导落地了14个AI Agent与研发赋能项目，全面驱动了公司的跨部门智能化升级：\n- 迅速让团队掌握主流AI研发工具（Claude Code, OpenCode, n8n, Codex等），具备将前沿AI研发效能工具转化为团队生产力的能力。\n- 在技术与效能方面，从零搭建AI Agent专属云端环境，基于MCP架构打通Github、Slack、CircleCI等核心系统，实现自动化测试与部署闭环，使整体研发效能提升了40%。同时，通过完善核心知识库（agents.md）与开发可视化管理工具，成功赋能非技术团队独立操作，大幅降低了跨团队的沟通与协作成本。\n- 在项目管理与业务交付方面，我严格把控需求落地与质量。14个核心项目均实现了100%按期高质量交付，有效解决了工程师的底层痛点，业务部门（客户）满意度极高。通过持续引入前沿技术，在实现降本增效的同时，确保了团队的AI生产力始终保持行业领先标准。",
+  expEbayZh: "- 主导 eBay 全局 AI 基础平台底座建设与向量检索引擎优化，支持海量跨境电商 SKU 的精准多模态检索与语义召回。\n- 设计与落地千万级用户规模的客服智能体系统，实现多轮意图辨析、订单追踪与退换货业务流全自动闭环。\n- 搭建高可用 RAG 混合召回通道，建立生产级 LLM 安全护栏 (Guardrails) 与延迟敏感型模型服务降级熔断策略。",
+  expEbayEn: "- Led eBay global AI platform foundation and vector search engine optimization for multimodal semantic retrieval of millions of cross-border e-commerce SKUs.\n- Designed and deployed multi-turn customer service agent platform for 10M+ users with end-to-end order tracking and return workflow automation.\n- Architected highly available RAG hybrid recall pipeline with production-grade guardrails and latency-sensitive fallback circuits.",
+  expKuaishouZh: "- **电商“理想家”创新房产业务（0 到 1 架构与高并发）：**负责楼盘、线索等核心模块设计与研发。采用 DDD（领域驱动设计）理念与微服务拆分架构，主导多个独立微服务从 0 到 1 的项目搭建、研发与稳定上线，通过深层链路优化将楼盘落地页峰值承载能力提升至 QPS 10,000+。\n- **本地生活平台建设（项目主 R 与跨团队协同）：**深度参与快手面向本地商家的 O2O 闭环平台建设，作为项目主 R（Tech Owner）统筹负责本地商品、交易结算、营销中心等核心服务模块；跨部门协调多团队高效协同开发，保障复杂需求的高质量交付。\n- **工程全生命周期质量把控与团队培养：**建立严密的研发全生命周期工程质量机制（需求前严格技术方案评审、开发中追求高内聚低耦合的代码扩展性与可维护性、上线前主导组内 Code Review、上线后完善高可用监控告警覆盖及全链路运行数据看板复盘）；负责团队新人带教指导，帮助新人快速融入业务开发与敏捷交付。",
+  expKuaishouEn: "- **E-commerce Real Estate Platform (0-to-1 Architecture & High Concurrency):** Led core modules (properties, leads) using DDD and microservices. Handled 10,000+ peak QPS.\n- **Local Life Platform (Tech Lead):** Led O2O platform for local merchants covering products, checkout, and marketing.\n- **Engineering Quality & Mentorship:** Established end-to-end quality assurance mechanisms (spec reviews, high-cohesion/low-coupling standards, code reviews, SLA monitoring dashboards). Mentored junior engineers.",
+  clientsZh: "深度服务包括 海洋网联船务 (Ocean Network Express, ONE) 智能航运海关单证自动化 Agent 系统、IBM 云原生多智能体平台协同，以及多家出海跨境贸易与金融科技核心系统的架构设计与交付。",
+  clientsEn: "Delivered high-impact solutions for Ocean Network Express (ONE) customs documentation agent, IBM cloud-native multi-agent platform, and leading fintech/cross-border enterprises.",
+  rewardQrCode: ""
+};
+
+function formatExpText(text) {
+  if (!text) return '';
+  const lines = text.split('\n');
+  let res = '';
+  let inList = false;
+  for (let l of lines) {
+    let raw = l.trim();
+    if (!raw) continue;
+    let formatted = raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    if (raw.startsWith('- ') || raw.startsWith('* ')) {
+      if (!inList) { res += '<ul>'; inList = true; }
+      res += '<li>' + formatted.substring(2) + '</li>';
+    } else {
+      if (inList) { res += '</ul>'; inList = false; }
+      res += '<p>' + formatted + '</p>';
+    }
+  }
+  if (inList) res += '</ul>';
+  return res;
+}
+
+async function getProfile(env) {
+  if (env && env.BLOG_KV) {
+    try {
+      const data = await env.BLOG_KV.get("PROFILE_DATA", "json");
+      if (data && typeof data === "object") {
+        return Object.assign({}, DEFAULT_PROFILE, data);
+      }
+    } catch (e) {
+      console.error("KV Read Error for profile:", e);
+    }
+  }
+  return DEFAULT_PROFILE;
+}
+
+async function saveProfile(env, profile) {
+  if (env && env.BLOG_KV) {
+    await env.BLOG_KV.put("PROFILE_DATA", JSON.stringify(profile));
+  }
+}
+
+async function saveUploadedImage(env, imgId, base64Data) {
+  if (env && env.BLOG_KV) {
+    await env.BLOG_KV.put("IMG_" + imgId, base64Data);
+  }
+}
+
+async function getUploadedImage(env, imgId) {
+  if (env && env.BLOG_KV) {
+    return await env.BLOG_KV.get("IMG_" + imgId);
+  }
+  return null;
+}
+
 function checkAuth(request, env) {
   const cookie = request.headers.get("Cookie") || "";
   const token = generateAuthToken(env);
@@ -303,12 +384,31 @@ const COMMON_CSS = `
         color: var(--accent);
         text-decoration: underline;
     }
+    .reader-content-body img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 6px;
+        display: block;
+        margin: 18px auto;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+    }
+    .reader-content-body figure {
+        margin: 20px 0;
+        text-align: center;
+    }
+    .reader-content-body figcaption {
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        color: var(--text-light);
+        margin-top: 6px;
+    }
 `;
 
 /**
  * 1. 独立文章列表页面 HTML (GET /articles)
  */
-function renderArticlesPageHtml(articlesJson) {
+function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
+  const activeRewardQr = rewardQrSrc || ("data:image/jpeg;base64," + CONFIG.rewardQrBase64);
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -470,7 +570,7 @@ function renderArticlesPageHtml(articlesJson) {
                     如果本文对您的架构设计或工程实践有所帮助，欢迎微信扫码赞赏，感谢您的支持与鼓励！
                 </div>
                 <div style="display: inline-block; padding: 12px; background: #ffffff; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-                    <img src="data:image/jpeg;base64,${CONFIG.rewardQrBase64}" alt="微信赞赏码 / Reward QR Code" style="width: 175px; height: 175px; display: block; object-fit: contain; border-radius: 4px;" />
+                    <img src="${activeRewardQr}" alt="微信赞赏码 / Reward QR Code" style="width: 175px; height: 175px; display: block; object-fit: contain; border-radius: 4px;" />
                     <div style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;">微信扫一扫 · 赞赏码</div>
                 </div>
             </div>
@@ -959,13 +1059,14 @@ function renderGuestbookHtml() {
 /**
  * 2. 独立工作经历页面 HTML (GET /experience)
  */
-function renderExperienceHtml() {
+function renderExperienceHtml(profile) {
+  profile = profile || DEFAULT_PROFILE;
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>工作经历 (Work Experience) — 维托里奥 崔</title>
+    <title>工作经历 (Work Experience) — ${escapeHtml(profile.nameZh)}</title>
     <style>
         ${COMMON_CSS}
         .top-nav-bar {
@@ -1065,8 +1166,8 @@ function renderExperienceHtml() {
         <header class="page-header">
             <h1 class="page-title">工作经历与工程履历</h1>
             <p class="page-subtitle">
-                <strong>维托里奥 崔 (Vittorio Cui)</strong> · AI 研究员。<br>
-                目前致力于实现 AGI，对国内外 AI 技术与产品发展趋势非常了解。深耕大模型部署 (vLLM / 推理加速)、Agent 系统设计与万级 QPS、99.99% SLA 的高可用微服务底盘工程。
+                <strong>${escapeHtml(profile.nameZh)} (${escapeHtml(profile.nameEn)})</strong> · ${escapeHtml(profile.positionZh)}。<br>
+                ${escapeHtml(profile.introZh)}
             </p>
         </header>
 
@@ -1080,12 +1181,7 @@ function renderExperienceHtml() {
                 <span class="exp-period">2024 — Present</span>
             </div>
             <div class="exp-detail-text">
-                <p>过去21个月，作为AI项目负责人，我成功主导落地了14个AI Agent与研发赋能项目，全面驱动了公司的跨部门智能化升级：</p>
-                <ul>
-                    <li>迅速让团队掌握主流AI研发工具（Claude Code, OpenCode, n8n, Codex等），具备将前沿AI研发效能工具转化为团队生产力的能力。</li>
-                    <li>在技术与效能方面，从零搭建AI Agent专属云端环境，基于MCP架构打通Github、Slack、CircleCI等核心系统，实现自动化测试与部署闭环，使整体研发效能提升了40%。同时，通过完善核心知识库（agents.md）与开发可视化管理工具，成功赋能非技术团队独立操作，大幅降低了跨团队的沟通与协作成本。</li>
-                    <li>在项目管理与业务交付方面，我严格把控需求落地与质量。14个核心项目均实现了100%按期高质量交付，有效解决了工程师的底层痛点，业务部门（客户）满意度极高。通过持续引入前沿技术，在实现降本增效的同时，确保了团队的AI生产力始终保持行业领先标准。</li>
-                </ul>
+                ${formatExpText(profile.expHightouchZh)}
             </div>
         </div>
 
@@ -1099,11 +1195,7 @@ function renderExperienceHtml() {
                 <span class="exp-period">2022 — 2024</span>
             </div>
             <div class="exp-detail-text">
-                <ul>
-                    <li>主导 eBay 全局 AI 基础平台底座建设与向量检索引擎优化，支持海量跨境电商 SKU 的精准多模态检索与语义召回。</li>
-                    <li>设计与落地千万级用户规模的客服智能体系统，实现多轮意图辨析、订单追踪与退换货业务流全自动闭环。</li>
-                    <li>搭建高可用 RAG 混合召回通道，建立生产级 LLM 安全护栏 (Guardrails) 与延迟敏感型模型服务降级熔断策略。</li>
-                </ul>
+                ${formatExpText(profile.expEbayZh)}
             </div>
         </div>
 
@@ -1117,19 +1209,15 @@ function renderExperienceHtml() {
                 <span class="exp-period">2020.12 — 2022.05</span>
             </div>
             <div class="exp-detail-text">
-                <ul>
-                    <li><strong>电商“理想家”创新房产业务（0 到 1 架构与高并发）：</strong>负责楼盘、线索等核心模块设计与研发。采用 DDD（领域驱动设计）理念与微服务拆分架构，主导多个独立微服务从 0 到 1 的项目搭建、研发与稳定上线，通过深层链路优化将楼盘落地页峰值承载能力提升至 QPS 10,000+。</li>
-                    <li><strong>本地生活平台建设（项目主 R 与跨团队协同）：</strong>深度参与快手面向本地商家的 O2O 闭环平台建设，作为项目主 R（Tech Owner）统筹负责本地商品、交易结算、营销中心等核心服务模块；跨部门协调多团队高效协同开发，保障复杂需求的高质量交付。</li>
-                    <li><strong>工程全生命周期质量把控与团队培养：</strong>建立严密的研发全生命周期工程质量机制（需求前严格技术方案评审、开发中追求高内聚低耦合的代码扩展性与可维护性、上线前主导组内 Code Review、上线后完善高可用监控告警覆盖及全链路运行数据看板复盘）；负责团队新人带教指导，帮助新人快速融入业务开发与敏捷交付。</li>
-                </ul>
+                ${formatExpText(profile.expKuaishouZh)}
             </div>
         </div>
 
         <!-- 战略级客户服务履历 -->
         <div class="clients-box">
             <div class="clients-title">🏛️ 深度赋能的重要机构与客户</div>
-            <p style="font-size:0.9rem; color:var(--text-muted);">
-                深度服务包括 <strong>海洋网联船务 (Ocean Network Express, ONE)</strong> 智能航运海关单证自动化 Agent 系统、<strong>IBM</strong> 云原生多智能体平台协同，以及多家出海跨境贸易与金融科技核心系统的架构设计与交付。
+            <p style="font-size:0.9rem; color:var(--text-muted); line-height:1.6;">
+                ${escapeHtml(profile.clientsZh)}
             </p>
         </div>
 
@@ -1138,16 +1226,9 @@ function renderExperienceHtml() {
         <!-- 教育背景 -->
         <section>
             <h2 class="sec-title">教育背景 (Education)</h2>
-            <table class="edu-table">
-                <tr>
-                    <td class="edu-label">Ph.D. (博士):</td>
-                    <td><strong>Abide 大学</strong> · 计算机与前沿系统研究方向</td>
-                </tr>
-                <tr>
-                    <td class="edu-label">B.E. (学士):</td>
-                    <td><strong>北京邮电大学 (BUPT)</strong> · 软件工程学士</td>
-                </tr>
-            </table>
+            <div style="font-size:0.92rem; color:var(--text-main); margin-top:10px; line-height:1.8;">
+                <strong>${escapeHtml(profile.eduZh)}</strong>
+            </div>
         </section>
 
         <footer>
@@ -1163,13 +1244,14 @@ function renderExperienceHtml() {
  * 3. 极简主页 HTML (GET /)
  * 首页不显示文章，仅展示“关于我”与“经历”
  */
-function renderPublicHtml() {
+function renderPublicHtml(profile) {
+  profile = profile || DEFAULT_PROFILE;
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>维托里奥 崔 — AI 研究员</title>
+    <title>${escapeHtml(profile.nameZh)} — ${escapeHtml(profile.positionZh)}</title>
     <style>
         ${COMMON_CSS}
 
@@ -1331,17 +1413,17 @@ function renderPublicHtml() {
             
             <div class="header-content">
                 <div class="header-title-row">
-                    <h1 class="author-name" id="author-display-name">维托里奥 崔</h1>
+                    <h1 class="author-name" id="author-display-name">${escapeHtml(profile.nameZh)}</h1>
                 </div>
                 
                 <p class="header-intro" id="header-intro-text">
-                    你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，对国内外AI技术发展趋势以及产品发展趋势非常了解。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。
+                    ${escapeHtml(profile.introZh)}
                 </p>
 
                 <!-- 导航：文章、Email 与 留言板 -->
                 <div class="header-links">
                     <a class="header-link" href="/articles" id="link-articles">文章</a>
-                    <a class="header-link" href="mailto:${CONFIG.email}" id="link-email">Email</a>
+                    <a class="header-link" href="mailto:${escapeHtml(profile.email)}" id="link-email">Email</a>
                     <a class="header-link" href="/guestbook" id="link-guestbook">留言板</a>
                 </div>
             </div>
@@ -1356,27 +1438,27 @@ function renderPublicHtml() {
                 <tbody>
                     <tr>
                         <td class="info-label" id="lbl-pos">职位:</td>
-                        <td class="info-value" id="val-position">AI 研究员</td>
+                        <td class="info-value" id="val-position">${escapeHtml(profile.positionZh)}</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-focus">核心领域:</td>
-                        <td class="info-value" id="val-focus" style="font-weight:500;">AI, 软件开发, 系统设计, 团队管理</td>
+                        <td class="info-value" id="val-focus" style="font-weight:500;">${escapeHtml(profile.focusZh)}</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-tech">技术栈:</td>
-                        <td class="info-value" id="val-tech">Python, Java (Spring Boot), Go, C++, vLLM, LangGraph, MCP, Redis, PostgreSQL, Docker</td>
+                        <td class="info-value" id="val-tech">${escapeHtml(profile.techZh)}</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-edu">教育背景:</td>
-                        <td class="info-value" id="val-education">博士 (Ph.D.), Abide 大学 | 软件工程学士, 北京邮电大学 (BUPT)</td>
+                        <td class="info-value" id="val-education">${escapeHtml(profile.eduZh)}</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-lang">日常语言:</td>
-                        <td class="info-value" id="val-languages">中文 (母语), 英文 (流利)</td>
+                        <td class="info-value" id="val-languages">${escapeHtml(profile.langZh)}</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-email">联系邮箱:</td>
-                        <td class="info-value"><a href="mailto:${CONFIG.email}">${CONFIG.email}</a></td>
+                        <td class="info-value"><a href="mailto:${escapeHtml(profile.email)}" id="val-email-link">${escapeHtml(profile.email)}</a></td>
                     </tr>
                 </tbody>
             </table>
@@ -1401,12 +1483,7 @@ function renderPublicHtml() {
                         <span class="exp-date">2024 — Present</span>
                     </div>
                     <div class="exp-desc" id="exp-desc-hightouch">
-                        <p>过去21个月，作为AI项目负责人，我成功主导落地了14个AI Agent与研发赋能项目，全面驱动了公司的跨部门智能化升级：</p>
-                        <ul>
-                            <li>迅速让团队掌握主流AI研发工具（Claude Code, OpenCode, n8n, Codex等），具备将前沿AI研发效能工具转化为团队生产力的能力。</li>
-                            <li>在技术与效能方面，从零搭建AI Agent专属云端环境，基于MCP架构打通Github、Slack、CircleCI等核心系统，实现自动化测试与部署闭环，使整体研发效能提升了40%。同时，通过完善核心知识库（agents.md）与开发可视化管理工具，成功赋能非技术团队独立操作，大幅降低了跨团队的沟通与协作成本。</li>
-                            <li>在项目管理与业务交付方面，我严格把控需求落地与质量。14个核心项目均实现了100%按期高质量交付，有效解决了工程师的底层痛点，业务部门（客户）满意度极高。通过持续引入前沿技术，在实现降本增效的同时，确保了团队的AI生产力始终保持行业领先标准。</li>
-                        </ul>
+                        ${formatExpText(profile.expHightouchZh)}
                     </div>
                 </div>
 
@@ -1420,7 +1497,7 @@ function renderPublicHtml() {
                         <span class="exp-date">2022 — 2024</span>
                     </div>
                     <div class="exp-desc" id="exp-desc-ebay">
-                        主导全局电商 AI Platform 基础底座建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。
+                        ${formatExpText(profile.expEbayZh)}
                     </div>
                 </div>
 
@@ -1434,7 +1511,7 @@ function renderPublicHtml() {
                         <span class="exp-date">2020 — 2022</span>
                     </div>
                     <div class="exp-desc" id="exp-desc-kuaishou">
-                        负责本地生活与电商“理想家”创新房产业务。基于 DDD 微服务从 0 到 1 搭建楼盘与线索系统，支撑落地页 QPS 10,000+；担任本地生活核心模块项目主 R，统筹商品/交易/营销跨团队协同与高可用工程闭环。
+                        ${formatExpText(profile.expKuaishouZh)}
                     </div>
                 </div>
             </div>
@@ -1442,7 +1519,7 @@ function renderPublicHtml() {
 
         <!-- 4. 页脚：左侧版权，右下角管理员登录入口 -->
         <footer>
-            <span id="footer-copyright">© 2026 维托里奥 崔 · All Rights Reserved</span>
+            <span id="footer-copyright">© 2026 ${escapeHtml(profile.nameZh)} · All Rights Reserved</span>
             <a href="/admin" class="admin-link" id="link-admin-login">[管理员登录]</a>
         </footer>
 
@@ -1453,8 +1530,8 @@ function renderPublicHtml() {
 
         const i18n = {
             zh: {
-                displayName: "维托里奥 崔",
-                intro: "你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，对国内外AI技术发展趋势以及产品发展趋势非常了解。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。",
+                displayName: ${JSON.stringify(profile.nameZh)},
+                intro: ${JSON.stringify(profile.introZh)},
                 linkArticles: "文章",
                 linkGuestbook: "留言板",
                 linkAdmin: "[管理员登录]",
@@ -1467,18 +1544,19 @@ function renderPublicHtml() {
                 lblEmail: "联系邮箱:",
                 titleExperience: "经历",
                 linkFullExp: "完整工作履历与客户详情 →",
-                valPosition: "AI 研究员",
-                valFocus: "AI, 软件开发, 系统设计, 团队管理",
-                valTech: "Python, Java (Spring Boot), Go, C++, vLLM, LangGraph, MCP, Redis, PostgreSQL, Docker",
-                valEducation: "博士 (Ph.D.), Abide 大学 | 软件工程学士, 北京邮电大学 (BUPT)",
-                valLanguages: "中文 (母语), 英文 (流利)",
-                expEbay: "主导全局电商 AI Platform 基础底座建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。",
-                expKuaishou: "负责本地生活与电商“理想家”创新房产业务。基于 DDD 微服务从 0 到 1 搭建楼盘与线索系统，支撑落地页 QPS 10,000+；担任本地生活核心模块项目主 R，统筹商品/交易/营销跨团队协同与高可用工程闭环。",
-                footerCopyright: "© 2026 维托里奥 崔 · All Rights Reserved"
+                valPosition: ${JSON.stringify(profile.positionZh)},
+                valFocus: ${JSON.stringify(profile.focusZh)},
+                valTech: ${JSON.stringify(profile.techZh)},
+                valEducation: ${JSON.stringify(profile.eduZh)},
+                valLanguages: ${JSON.stringify(profile.langZh)},
+                expHightouchHtml: ${JSON.stringify(formatExpText(profile.expHightouchZh))},
+                expEbayHtml: ${JSON.stringify(formatExpText(profile.expEbayZh))},
+                expKuaishouHtml: ${JSON.stringify(formatExpText(profile.expKuaishouZh))},
+                footerCopyright: "© 2026 " + ${JSON.stringify(profile.nameZh)} + " · All Rights Reserved"
             },
             en: {
-                displayName: "Vittorio Cui",
-                intro: "Hello, I am currently an AI Researcher. Known for my crisp, elegant, and witty writing style, my published essays are widely enjoyed by readers globally. Currently dedicated to realizing AGI, with a profound understanding of global AI technological and product trends. Previously partnered with world-class clients including eBay, Ocean Network Express (ONE), and IBM to deploy enterprise agentic systems.",
+                displayName: ${JSON.stringify(profile.nameEn)},
+                intro: ${JSON.stringify(profile.introEn)},
                 linkArticles: "Articles",
                 linkGuestbook: "Guestbook",
                 linkAdmin: "[Admin Login]",
@@ -1491,14 +1569,15 @@ function renderPublicHtml() {
                 lblEmail: "Email:",
                 titleExperience: "Experience",
                 linkFullExp: "Full work experience & client record →",
-                valPosition: "AI Researcher",
-                valFocus: "AI, Software Development, System Design, Team Management",
-                valTech: "Python, Java (Spring Boot), Go, C++, vLLM, LangGraph, MCP, Redis, PostgreSQL, Docker",
-                valEducation: "Ph.D., Abide University | B.E. in Software Engineering, BUPT",
-                valLanguages: "Mandarin (Native), English (Fluent)",
-                expEbay: "Built organization-wide AI Platform infrastructure; deployed LLM-based intelligent customer support agents for global e-commerce users.",
-                expKuaishou: "Engineered backend services for Kuaishou Local Life and 'Ideal Home' (innovative e-commerce real estate). Architected property and lead services from 0 to 1 with DDD microservices (10,000+ peak QPS); served as Tech Owner (Project Lead) orchestrating cross-functional teams across products, transactions, and marketing systems.",
-                footerCopyright: "© 2026 Vittorio Cui · All Rights Reserved"
+                valPosition: ${JSON.stringify(profile.positionEn)},
+                valFocus: ${JSON.stringify(profile.focusEn)},
+                valTech: ${JSON.stringify(profile.techEn)},
+                valEducation: ${JSON.stringify(profile.eduEn)},
+                valLanguages: ${JSON.stringify(profile.langEn)},
+                expHightouchHtml: ${JSON.stringify(formatExpText(profile.expHightouchEn))},
+                expEbayHtml: ${JSON.stringify(formatExpText(profile.expEbayEn))},
+                expKuaishouHtml: ${JSON.stringify(formatExpText(profile.expKuaishouEn))},
+                footerCopyright: "© 2026 " + ${JSON.stringify(profile.nameEn)} + " · All Rights Reserved"
             }
         };
 
@@ -1524,8 +1603,9 @@ function renderPublicHtml() {
             document.getElementById('val-tech').innerText = data.valTech;
             document.getElementById('val-education').innerText = data.valEducation;
             document.getElementById('val-languages').innerText = data.valLanguages;
-            document.getElementById('exp-desc-ebay').innerText = data.expEbay;
-            document.getElementById('exp-desc-kuaishou').innerText = data.expKuaishou;
+            document.getElementById('exp-desc-hightouch').innerHTML = data.expHightouchHtml;
+            document.getElementById('exp-desc-ebay').innerHTML = data.expEbayHtml;
+            document.getElementById('exp-desc-kuaishou').innerHTML = data.expKuaishouHtml;
             document.getElementById('footer-copyright').innerText = data.footerCopyright;
         }
     </script>
@@ -1692,7 +1772,7 @@ function renderAdminLoginHtml() {
 /**
  * 5. 管理后台 CMS 主界面 HTML (/admin 登录后)
  */
-function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
+function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -1800,6 +1880,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
         <div class="tabs-bar">
             <button id="tab-btn-posts" class="btn btn-primary" onclick="switchAdminTab('posts')">📝 文章管理 (<span id="cnt-articles">0</span>)</button>
             <button id="tab-btn-comments" class="btn btn-outline" onclick="switchAdminTab('comments')">💬 留言审核 (<span id="cnt-pending" style="font-weight:bold; color:var(--accent);">0</span> 待审)</button>
+            <button id="tab-btn-profile" class="btn btn-outline" onclick="switchAdminTab('profile')">👤 简历与打赏设置</button>
         </div>
 
         <!-- 1. 文章管理视图 -->
@@ -1825,6 +1906,157 @@ function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
             </div>
             <div id="comments-admin-list"></div>
         </div>
+
+        <!-- 3. 个人简历与打赏收款码视图 -->
+        <div id="view-profile" style="display:none;">
+            <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:20px;">
+                <h3 style="font-family:var(--font-serif); font-size:1.3rem; margin-bottom:12px; color:var(--text-main);">💰 读者打赏微信收款码</h3>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">
+                    读者阅读文章后点击文末【打赏作者】时展示该二维码。您可以随时上传替换为自己的真实微信/支付宝收款码。
+                </p>
+                <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
+                    <div>
+                        <img id="preview-reward-qr" src="" style="width:140px; height:140px; object-fit:contain; border:1px solid var(--border); border-radius:6px; background:#fff; padding:4px;" alt="打赏收款码" />
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <input type="file" id="upload-reward-qr-input" accept="image/*" style="display:none;" onchange="handleRewardQrUpload(event)" />
+                        <button type="button" class="btn btn-primary" onclick="document.getElementById('upload-reward-qr-input').click()">📤 上传替换收款码</button>
+                        <button type="button" class="btn btn-outline" onclick="resetRewardQrToDefault()">↺ 恢复默认收款码</button>
+                        <span id="qr-upload-status" style="font-size:0.82rem; color:var(--text-light);">支持 JPG / PNG 格式</span>
+                    </div>
+                </div>
+            </div>
+
+            <form id="profile-edit-form" onsubmit="handleSaveProfile(event)">
+                <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:20px;">
+                    <h3 style="font-family:var(--font-serif); font-size:1.3rem; margin-bottom:16px; color:var(--text-main);">👤 个人基础信息与简介</h3>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">中文姓名 (Chinese Name)</label>
+                            <input type="text" id="prof-nameZh" class="form-input" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">英文姓名 (English Name)</label>
+                            <input type="text" id="prof-nameEn" class="form-input" required />
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">职位名称 (中文)</label>
+                            <input type="text" id="prof-posZh" class="form-input" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">职位名称 (英文)</label>
+                            <input type="text" id="prof-posEn" class="form-input" required />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">联系邮箱 (Email)</label>
+                        <input type="email" id="prof-email" class="form-input" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">个人简介/自我介绍 (中文 Bio)</label>
+                        <textarea id="prof-introZh" class="form-textarea" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">个人简介/自我介绍 (英文 Bio)</label>
+                        <textarea id="prof-introEn" class="form-textarea" rows="3" required></textarea>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">核心领域 (中文 Focus)</label>
+                            <input type="text" id="prof-focusZh" class="form-input" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">核心领域 (英文 Focus)</label>
+                            <input type="text" id="prof-focusEn" class="form-input" required />
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">技术栈 (中文 Tech Stack)</label>
+                            <input type="text" id="prof-techZh" class="form-input" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">技术栈 (英文 Tech Stack)</label>
+                            <input type="text" id="prof-techEn" class="form-input" required />
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">教育背景 (中文 Education)</label>
+                            <input type="text" id="prof-eduZh" class="form-input" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">教育背景 (英文 Education)</label>
+                            <input type="text" id="prof-eduEn" class="form-input" required />
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label class="form-label">日常语言 (中文 Languages)</label>
+                            <input type="text" id="prof-langZh" class="form-input" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">日常语言 (英文 Languages)</label>
+                            <input type="text" id="prof-langEn" class="form-input" required />
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:24px;">
+                    <h3 style="font-family:var(--font-serif); font-size:1.3rem; margin-bottom:16px; color:var(--text-main);">💼 详尽工作经历与工程履历</h3>
+                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">
+                        提示：支持多行输入。以 <code>- </code> 或 <code>* </code> 开头的行将自动渲染为列表项，支持 <code>**加粗文字**</code> 语法。修改后将同步更新至主页与独立工作经历页面。
+                    </p>
+
+                    <!-- Hightouch -->
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight:600; color:var(--accent);">Hightouch 工作经历 (中文)</label>
+                        <textarea id="prof-expHightouchZh" class="form-textarea" rows="5" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Hightouch Work Experience (英文)</label>
+                        <textarea id="prof-expHightouchEn" class="form-textarea" rows="4"></textarea>
+                    </div>
+
+                    <!-- eBay -->
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight:600; color:var(--accent);">eBay 工作经历 (中文)</label>
+                        <textarea id="prof-expEbayZh" class="form-textarea" rows="4" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">eBay Work Experience (英文)</label>
+                        <textarea id="prof-expEbayEn" class="form-textarea" rows="3"></textarea>
+                    </div>
+
+                    <!-- Kuaishou -->
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight:600; color:var(--accent);">快手 (Kuaishou) 工作经历 (中文)</label>
+                        <textarea id="prof-expKuaishouZh" class="form-textarea" rows="5" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">快手 (Kuaishou) Work Experience (英文)</label>
+                        <textarea id="prof-expKuaishouEn" class="form-textarea" rows="3"></textarea>
+                    </div>
+
+                    <!-- 战略级客户服务履历 -->
+                    <div class="form-group">
+                        <label class="form-label" style="font-weight:600; color:var(--accent);">战略级重要客户与机构服务赋能 (中文)</label>
+                        <textarea id="prof-clientsZh" class="form-textarea" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Strategic Clients & Organizations (英文)</label>
+                        <textarea id="prof-clientsEn" class="form-textarea" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <div style="position:sticky; bottom:20px; background:var(--bg-card); padding:16px 20px; border-radius:8px; border:1px solid var(--border); box-shadow:0 4px 16px rgba(0,0,0,0.08); display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.88rem; color:var(--text-muted);">保存后主页、工作经历页面及文章打赏码将即时生效</span>
+                    <button type="submit" class="btn btn-primary" id="btn-save-profile" style="padding:10px 24px; font-size:0.95rem;">💾 保存简历与收款码</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- 新建/编辑文章 Modal -->
@@ -1846,7 +2078,14 @@ function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
                     <input type="text" id="item-tag" class="form-input" placeholder="例如: LLM, Agent Architecture" required />
                 </div>
                 <div class="form-group">
-                    <label class="form-label">正文内容 HTML (Content)</label>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <label class="form-label" style="margin-bottom:0;">正文内容 HTML (Content)</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="file" id="article-img-file" accept="image/*" style="display:none;" onchange="handleArticleImageUpload(event)" />
+                            <button type="button" class="btn btn-outline" style="font-size:0.78rem; padding:3px 8px;" onclick="document.getElementById('article-img-file').click()">📁 上传本地插图</button>
+                            <button type="button" class="btn btn-outline" style="font-size:0.78rem; padding:3px 8px;" onclick="insertArticleExternalImg()">🔗 插入外链图片</button>
+                        </div>
+                    </div>
                     <textarea id="item-content" class="form-textarea" rows="8" placeholder="<p>正文段落内容...</p>" required></textarea>
                 </div>
                 <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
@@ -1860,6 +2099,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
     <script>
         let articles = ${articlesJson};
         let comments = ${commentsJson};
+        let currentProfile = ${profileJson};
         let currentAdminTab = 'posts';
 
         function escapeHtml(str) {
@@ -1877,21 +2117,21 @@ function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
             currentAdminTab = tab;
             const btnPosts = document.getElementById('tab-btn-posts');
             const btnComments = document.getElementById('tab-btn-comments');
+            const btnProfile = document.getElementById('tab-btn-profile');
             const viewPosts = document.getElementById('view-posts');
             const viewComments = document.getElementById('view-comments');
+            const viewProfile = document.getElementById('view-profile');
             
-            if (tab === 'posts') {
-                btnPosts.className = 'btn btn-primary';
-                btnComments.className = 'btn btn-outline';
-                viewPosts.style.display = 'block';
-                viewComments.style.display = 'none';
-            } else {
-                btnPosts.className = 'btn btn-outline';
-                btnComments.className = 'btn btn-primary';
-                viewPosts.style.display = 'none';
-                viewComments.style.display = 'block';
-                renderAdminCommentsList();
-            }
+            btnPosts.className = tab === 'posts' ? 'btn btn-primary' : 'btn btn-outline';
+            btnComments.className = tab === 'comments' ? 'btn btn-primary' : 'btn btn-outline';
+            btnProfile.className = tab === 'profile' ? 'btn btn-primary' : 'btn btn-outline';
+
+            viewPosts.style.display = tab === 'posts' ? 'block' : 'none';
+            viewComments.style.display = tab === 'comments' ? 'block' : 'none';
+            viewProfile.style.display = tab === 'profile' ? 'block' : 'none';
+
+            if (tab === 'comments') renderAdminCommentsList();
+            if (tab === 'profile') populateProfileForm();
         }
 
         function renderAdminList() {
@@ -2058,8 +2298,181 @@ function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
             window.location.reload();
         }
 
+        function populateProfileForm() {
+            const p = currentProfile || {};
+            document.getElementById('prof-nameZh').value = p.nameZh || '';
+            document.getElementById('prof-nameEn').value = p.nameEn || '';
+            document.getElementById('prof-posZh').value = p.positionZh || '';
+            document.getElementById('prof-posEn').value = p.positionEn || '';
+            document.getElementById('prof-email').value = p.email || '';
+            document.getElementById('prof-introZh').value = p.introZh || '';
+            document.getElementById('prof-introEn').value = p.introEn || '';
+            document.getElementById('prof-focusZh').value = p.focusZh || '';
+            document.getElementById('prof-focusEn').value = p.focusEn || '';
+            document.getElementById('prof-techZh').value = p.techZh || '';
+            document.getElementById('prof-techEn').value = p.techEn || '';
+            document.getElementById('prof-eduZh').value = p.eduZh || '';
+            document.getElementById('prof-eduEn').value = p.eduEn || '';
+            document.getElementById('prof-langZh').value = p.langZh || '';
+            document.getElementById('prof-langEn').value = p.langEn || '';
+            document.getElementById('prof-expHightouchZh').value = p.expHightouchZh || '';
+            document.getElementById('prof-expHightouchEn').value = p.expHightouchEn || '';
+            document.getElementById('prof-expEbayZh').value = p.expEbayZh || '';
+            document.getElementById('prof-expEbayEn').value = p.expEbayEn || '';
+            document.getElementById('prof-expKuaishouZh').value = p.expKuaishouZh || '';
+            document.getElementById('prof-expKuaishouEn').value = p.expKuaishouEn || '';
+            document.getElementById('prof-clientsZh').value = p.clientsZh || '';
+            document.getElementById('prof-clientsEn').value = p.clientsEn || '';
+            
+            const qrImg = document.getElementById('preview-reward-qr');
+            if (p.rewardQrCode) {
+                qrImg.src = p.rewardQrCode;
+            } else {
+                qrImg.src = "data:image/jpeg;base64," + CONFIG.rewardQrBase64;
+            }
+        }
+
+        async function handleRewardQrUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const statusEl = document.getElementById('qr-upload-status');
+            statusEl.innerText = '正在上传收款码...';
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Data = e.target.result;
+                try {
+                    const res = await fetch('/api/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: base64Data, filename: file.name })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.url) {
+                        currentProfile.rewardQrCode = data.url;
+                        document.getElementById('preview-reward-qr').src = data.url;
+                        statusEl.innerText = '✅ 收款码已上传，请点击下方【保存简历与收款码】';
+                    } else {
+                        currentProfile.rewardQrCode = base64Data;
+                        document.getElementById('preview-reward-qr').src = base64Data;
+                        statusEl.innerText = '✅ 收款码已暂存，请点击下方【保存简历与收款码】';
+                    }
+                } catch (err) {
+                    currentProfile.rewardQrCode = base64Data;
+                    document.getElementById('preview-reward-qr').src = base64Data;
+                    statusEl.innerText = '✅ 收款码已暂存，请点击下方【保存简历与收款码】';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetRewardQrToDefault() {
+            currentProfile.rewardQrCode = "";
+            document.getElementById('preview-reward-qr').src = "data:image/jpeg;base64," + CONFIG.rewardQrBase64;
+            document.getElementById('qr-upload-status').innerText = '已恢复为默认收款码，请点击下方保存';
+        }
+
+        async function handleSaveProfile(event) {
+            if (event) event.preventDefault();
+            const btn = document.getElementById('btn-save-profile');
+            btn.disabled = true;
+            btn.innerText = '正在保存...';
+
+            const payload = Object.assign({}, currentProfile, {
+                nameZh: document.getElementById('prof-nameZh').value.trim(),
+                nameEn: document.getElementById('prof-nameEn').value.trim(),
+                positionZh: document.getElementById('prof-posZh').value.trim(),
+                positionEn: document.getElementById('prof-posEn').value.trim(),
+                email: document.getElementById('prof-email').value.trim(),
+                introZh: document.getElementById('prof-introZh').value.trim(),
+                introEn: document.getElementById('prof-introEn').value.trim(),
+                focusZh: document.getElementById('prof-focusZh').value.trim(),
+                focusEn: document.getElementById('prof-focusEn').value.trim(),
+                techZh: document.getElementById('prof-techZh').value.trim(),
+                techEn: document.getElementById('prof-techEn').value.trim(),
+                eduZh: document.getElementById('prof-eduZh').value.trim(),
+                eduEn: document.getElementById('prof-eduEn').value.trim(),
+                langZh: document.getElementById('prof-langZh').value.trim(),
+                langEn: document.getElementById('prof-langEn').value.trim(),
+                expHightouchZh: document.getElementById('prof-expHightouchZh').value.trim(),
+                expHightouchEn: document.getElementById('prof-expHightouchEn').value.trim(),
+                expEbayZh: document.getElementById('prof-expEbayZh').value.trim(),
+                expEbayEn: document.getElementById('prof-expEbayEn').value.trim(),
+                expKuaishouZh: document.getElementById('prof-expKuaishouZh').value.trim(),
+                expKuaishouEn: document.getElementById('prof-expKuaishouEn').value.trim(),
+                clientsZh: document.getElementById('prof-clientsZh').value.trim(),
+                clientsEn: document.getElementById('prof-clientsEn').value.trim(),
+                rewardQrCode: currentProfile.rewardQrCode || ""
+            });
+
+            try {
+                const res = await fetch('/api/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    currentProfile = payload;
+                    alert('🎉 简历履历与打赏收款码保存成功！已实时生效。');
+                } else {
+                    alert('保存失败，请检查网络或登录状态');
+                }
+            } catch (err) {
+                alert('网络请求出错：' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '💾 保存简历与收款码';
+            }
+        }
+
+        function insertTextToContentArea(text) {
+            const textarea = document.getElementById('item-content');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const val = textarea.value;
+            textarea.value = val.substring(0, start) + text + val.substring(end);
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + text.length;
+        }
+
+        async function handleArticleImageUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Data = e.target.result;
+                try {
+                    const res = await fetch('/api/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: base64Data, filename: file.name })
+                    });
+                    const data = await res.json();
+                    let url = data.url;
+                    if (!url) url = base64Data;
+                    const imgSnippet = '\n<figure>\n  <img src="' + url + '" alt="' + escapeHtml(file.name) + '" />\n  <figcaption>' + escapeHtml(file.name) + '</figcaption>\n</figure>\n';
+                    insertTextToContentArea(imgSnippet);
+                } catch (err) {
+                    const imgSnippet = '\n<figure>\n  <img src="' + base64Data + '" alt="插图" />\n  <figcaption>插图说明</figcaption>\n</figure>\n';
+                    insertTextToContentArea(imgSnippet);
+                }
+                event.target.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function insertArticleExternalImg() {
+            const url = prompt('请输入图片网络外链地址 (例如 https://...):');
+            if (url && url.trim()) {
+                const caption = prompt('请输入图片说明文字 (可选):') || '图片插图';
+                const imgSnippet = '\n<figure>\n  <img src="' + url.trim() + '" alt="' + escapeHtml(caption) + '" />\n  <figcaption>' + escapeHtml(caption) + '</figcaption>\n</figure>\n';
+                insertTextToContentArea(imgSnippet);
+            }
+        }
+
         renderAdminList();
         renderAdminCommentsList();
+        populateProfileForm();
         updateCounts();
     </script>
 </body>
@@ -2271,10 +2684,88 @@ export default {
       });
     }
 
+    // 10.5. API: 上传图片 POST /api/upload
+    if (path === "/api/upload" && method === "POST") {
+      if (!checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      try {
+        const body = await request.json();
+        const base64Data = body.image;
+        if (!base64Data) {
+          return new Response(JSON.stringify({ error: "Image data is required" }), { status: 400 });
+        }
+        const imgId = "img_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
+        await saveUploadedImage(env, imgId, base64Data);
+        return new Response(JSON.stringify({ success: true, id: imgId, url: "/api/images/" + imgId }), {
+          headers: { "Content-Type": "application/json;charset=UTF-8" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+
+    // 10.6. API: 获取上传的图片 GET /api/images/:id
+    if (path.startsWith("/api/images/") && method === "GET") {
+      const imgId = path.replace("/api/images/", "");
+      const base64Data = await getUploadedImage(env, imgId);
+      if (!base64Data) {
+        return new Response("Image not found", { status: 404 });
+      }
+      let mimeType = "image/jpeg";
+      let cleanB64 = base64Data;
+      if (base64Data.startsWith("data:")) {
+        const parts = base64Data.split(",");
+        const match = parts[0].match(/:(.*?);/);
+        if (match) mimeType = match[1];
+        cleanB64 = parts[1] || "";
+      }
+      const binaryString = atob(cleanB64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return new Response(bytes.buffer, {
+        headers: {
+          "Content-Type": mimeType,
+          "Cache-Control": "public, max-age=31536000, immutable"
+        }
+      });
+    }
+
+    // 10.7. API: 获取个人简历配置 GET /api/profile
+    if (path === "/api/profile" && method === "GET") {
+      const prof = await getProfile(env);
+      return new Response(JSON.stringify(prof), {
+        headers: {
+          "Content-Type": "application/json;charset=UTF-8",
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "public, max-age=10"
+        }
+      });
+    }
+
+    // 10.8. API: 保存个人简历配置 POST /api/profile
+    if (path === "/api/profile" && method === "POST") {
+      if (!checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      try {
+        const body = await request.json();
+        await saveProfile(env, body);
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json;charset=UTF-8" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+
     // 11. 独立文章列表页面 GET /articles 或 /blog
     if (path === "/articles" || path === "/blog") {
       const items = await getArticlesWithViews(env);
-      return new Response(renderArticlesPageHtml(JSON.stringify(items)), {
+      const prof = await getProfile(env);
+      return new Response(renderArticlesPageHtml(JSON.stringify(items), prof.rewardQrCode), {
         headers: {
           "Content-Type": "text/html;charset=UTF-8",
           "Cache-Control": "public, max-age=15"
@@ -2284,7 +2775,8 @@ export default {
 
     // 12. 独立工作经历页面 GET /experience
     if (path === "/experience" || path === "/work-experience") {
-      return new Response(renderExperienceHtml(), {
+      const prof = await getProfile(env);
+      return new Response(renderExperienceHtml(prof), {
         headers: {
           "Content-Type": "text/html;charset=UTF-8",
           "Cache-Control": "public, max-age=120"
@@ -2312,14 +2804,16 @@ export default {
       }
       const items = await getArticlesWithViews(env);
       const commentsData = await getComments(env);
+      const prof = await getProfile(env);
       const hasKv = Boolean(env && env.BLOG_KV);
-      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), hasKv), {
+      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv), {
         headers: { "Content-Type": "text/html;charset=UTF-8" }
       });
     }
 
     // 14. 公开主页 GET / (不显示文章，仅关于我与经历)
-    return new Response(renderPublicHtml(), {
+    const prof = await getProfile(env);
+    return new Response(renderPublicHtml(prof), {
       headers: {
         "Content-Type": "text/html;charset=UTF-8",
         "Cache-Control": "public, max-age=120"
