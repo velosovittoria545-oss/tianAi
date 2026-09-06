@@ -30,7 +30,7 @@ const DEFAULT_ARTICLES = [
       "en": "The AI End Game: Model Winner-Takes-All, or Tollbooth on Compute Infrastructure?"
     },
     "tag": "AI Industry Analysis, Cloud Infrastructure",
-    "date": "2026.09",
+    "date": "2026.08.14",
     "readTime": "6 min read",
     "views": 2180,
     "summary": {
