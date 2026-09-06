@@ -1024,7 +1024,7 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 const bar = document.createElement('div');
                 bar.id = 'admin-floating-badge';
                 bar.style.cssText = 'position:fixed; bottom:24px; right:24px; background:#191919; color:#ffffff; padding:8px 16px; border-radius:30px; font-size:0.84rem; box-shadow:0 4px 20px rgba(0,0,0,0.25); z-index:9999; display:flex; align-items:center; gap:12px; font-family:var(--font-sans); border:1px solid rgba(255,255,255,0.15);';
-                bar.innerHTML = '<span style="color:#4ade80;">●</span> <span style="font-weight:500;">管理员</span><a href="/admin" style="color:#fff; text-decoration:underline;">控制台</a><a href="/admin" onclick="sessionStorage.setItem('open_create', '1')" style="color:#fdba74; text-decoration:underline; font-weight:500;">➕ 发布新文章</a><a href="javascript:void(0)" onclick="quickLogout()" style="color:#fca5a5; text-decoration:underline;">登出</a>';
+                bar.innerHTML = '<span style="color:#4ade80;">●</span> <span style="font-weight:500;">管理员</span><a href="/admin" style="color:#fff; text-decoration:underline;">控制台</a><a href="/admin" onclick="sessionStorage.setItem(&#39;open_create&#39;, &#39;1&#39;)" style="color:#fdba74; text-decoration:underline; font-weight:500;">➕ 发布新文章</a><a href="javascript:void(0)" onclick="quickLogout()" style="color:#fca5a5; text-decoration:underline;">登出</a>';
                 document.body.appendChild(bar);
             }
         })();
@@ -2993,7 +2993,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
 
         function parseMarkdownToHtml(md) {
             if (!md) return { frontmatter: {}, html: '' };
-            const rawLines = md.replace(/\r/g, '').split('\n');
+            const rawLines = md.replace(/\\r/g, '').split('\\n');
             let frontmatter = {};
             let startIndex = 0;
             if (rawLines[0] && rawLines[0].trim() === '---') {
@@ -3025,7 +3025,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                         codeContent = [];
                     } else {
                         inCode = false;
-                        out.push('<pre style="background:var(--bg-subtle); padding:1rem; border-radius:6px; overflow-x:auto; font-family:var(--font-mono); font-size:0.88rem; border:1px solid var(--border); margin:1.5rem 0;"><code class="language-' + (codeLang || 'text') + '">' + escapeHtml(codeContent.join('\n')) + '</code></pre>');
+                        out.push('<pre style="background:var(--bg-subtle); padding:1rem; border-radius:6px; overflow-x:auto; font-family:var(--font-mono); font-size:0.88rem; border:1px solid var(--border); margin:1.5rem 0;"><code class="language-' + (codeLang || 'text') + '">' + escapeHtml(codeContent.join('\\n')) + '</code></pre>');
                     }
                     continue;
                 }
@@ -3057,7 +3057,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 }
             }
             if (inList) out.push('</ul>');
-            return { frontmatter: frontmatter, html: out.join('\n') };
+            return { frontmatter: frontmatter, html: out.join('\\n') };
         }
 
         function handleArticleMdImport(event) {
@@ -3072,9 +3072,9 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 // 1. Title
                 let title = fm.title;
                 if (!title) {
-                    const titleMatch = text.match(/^#\s+(.+)$/m);
+                    const titleMatch = text.match(/^#\\s+(.+)$/m);
                     if (titleMatch) title = titleMatch[1].trim();
-                    else title = file.name.replace(/\.(md|markdown|txt)$/i, '');
+                    else title = file.name.replace(/\\.(md|markdown|txt)$/i, '');
                 }
                 if (title) document.getElementById('item-title').value = title;
                 
@@ -3231,10 +3231,10 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 const data = await res.json();
                 let url = data.url;
                 if (!url) url = base64Data;
-                const imgSnippet = '\n<figure style="margin:1.5rem 0; text-align:center;">\n  <img src="' + url + '" alt="' + escapeHtml(file.name) + '" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\n  <figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">' + escapeHtml(file.name) + '</figcaption>\n</figure>\n';
+                const imgSnippet = '\\n<figure style="margin:1.5rem 0; text-align:center;">\\n  <img src="' + url + '" alt="' + escapeHtml(file.name) + '" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\\n  <figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">' + escapeHtml(file.name) + '</figcaption>\\n</figure>\\n';
                 insertTextToContentArea(imgSnippet);
             } catch (err) {
-                const imgSnippet = '\n<figure style="margin:1.5rem 0; text-align:center;">\n  <img src="' + base64Data + '" alt="插图" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\n  <figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">插图说明</figcaption>\n</figure>\n';
+                const imgSnippet = '\\n<figure style="margin:1.5rem 0; text-align:center;">\\n  <img src="' + base64Data + '" alt="插图" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\\n  <figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">插图说明</figcaption>\\n</figure>\\n';
                 insertTextToContentArea(imgSnippet);
             }
             event.target.value = '';
@@ -3244,7 +3244,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             const url = prompt('请输入图片网络外链地址 (例如 https://...):');
             if (url && url.trim()) {
                 const caption = prompt('请输入图片说明文字 (可选):') || '图片插图';
-                const imgSnippet = '\n<figure style="margin:1.5rem 0; text-align:center;">\n  <img src="' + url.trim() + '" alt="' + escapeHtml(caption) + '" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\n  <figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">' + escapeHtml(caption) + '</figcaption>\n</figure>\n';
+                const imgSnippet = '\\n<figure style="margin:1.5rem 0; text-align:center;">\\n  <img src="' + url.trim() + '" alt="' + escapeHtml(caption) + '" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\\n  <figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">' + escapeHtml(caption) + '</figcaption>\\n</figure>\\n';
                 insertTextToContentArea(imgSnippet);
             }
         }
