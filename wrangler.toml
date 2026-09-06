@@ -7,9 +7,6 @@ routes = [
   { pattern = "drvittoria.de5.net", custom_domain = true }
 ]
 
-# 环境变量设置：您可以在此直接设置后台登录密码，或在 Cloudflare 控制台添加加密密码
-[vars]
-ADMIN_PASSWORD = "vittoria2026!"
 
 # Cloudflare KV 命名空间绑定：用于全球持久化存储文章与留言数据
 [[kv_namespaces]]
