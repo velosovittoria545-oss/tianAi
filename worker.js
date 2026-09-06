@@ -301,9 +301,23 @@ async function getUploadedImage(env, imgId) {
 }
 
 function checkAuth(request, env) {
-  const cookie = request.headers.get("Cookie") || "";
   const token = generateAuthToken(env);
-  return cookie.includes("tianai_session=" + token);
+  const cookie = request.headers.get("Cookie") || "";
+  if (cookie.includes("tianai_session=" + token)) {
+    return true;
+  }
+  try {
+    const url = new URL(request.url);
+    const paramToken = url.searchParams.get("auth_token") || url.searchParams.get("token");
+    if (paramToken && paramToken === token) {
+      return true;
+    }
+  } catch(e) {}
+  const authHeader = request.headers.get("Authorization") || "";
+  if (authHeader.includes(token)) {
+    return true;
+  }
+  return false;
 }
 
 function generateAuthToken(env) {
@@ -1767,7 +1781,7 @@ function renderAdminLoginHtml() {
         async function handleLogin(e) {
             e.preventDefault();
             const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
+            const p = document.getElementById('password').value.trim();
             const btn = document.getElementById('login-btn');
             const err = document.getElementById('login-err');
             const d = adminI18n[adminLang];
@@ -1780,8 +1794,9 @@ function renderAdminLoginHtml() {
                     body: JSON.stringify({ username: u, password: p })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    window.location.href = '/admin?t=' + Date.now();
+                if (data.success && data.token) {
+                    try { localStorage.setItem('tianai_token', data.token); } catch(e) {}
+                    window.location.href = '/admin?auth_token=' + encodeURIComponent(data.token);
                 } else {
                     err.style.display = 'block';
                     err.innerText = d.errAuth;
@@ -1795,6 +1810,14 @@ function renderAdminLoginHtml() {
                 btn.innerText = d.btnText;
             }
         }
+
+        // 自动恢复凭证（如果未主动登出）
+        try {
+            const saved = localStorage.getItem('tianai_token');
+            if (saved && !window.location.search.includes('logout=true')) {
+                window.location.href = '/admin?auth_token=' + encodeURIComponent(saved);
+            }
+        } catch(e) {}
     </script>
 </body>
 </html>`;
@@ -2188,6 +2211,11 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
     </div>
 
     <script>
+        // 清理 URL 参数，保持地址栏干净整洁
+        if (window.location.search.includes('auth_token=')) {
+            window.history.replaceState({}, document.title, '/admin');
+        }
+
         let articles = ${articlesJson};
         let comments = ${commentsJson};
         let currentProfile = ${profileJson};
@@ -2397,8 +2425,9 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
         }
 
         async function handleLogout() {
+            try { localStorage.removeItem('tianai_token'); } catch(e) {}
             await fetch('/api/logout', { method: 'POST' });
-            window.location.reload();
+            window.location.href = '/admin?logout=true';
         }
 
         function populateProfileForm() {
@@ -2754,13 +2783,16 @@ export default {
     if (path === "/api/login" && method === "POST") {
       try {
         const body = await request.json();
-        const configuredPass = getAdminPassword(env);
-        if (body.username === CONFIG.adminUsername && body.password === configuredPass) {
+        const inputUser = (body.username || "").trim();
+        const inputPass = (body.password || "").trim();
+        const configuredUser = (CONFIG.adminUsername || "admin").trim();
+        const configuredPass = (getAdminPassword(env) || "").trim();
+        if (inputUser === configuredUser && inputPass === configuredPass) {
           const token = generateAuthToken(env);
           return new Response(JSON.stringify({ success: true, token }), {
             headers: {
               "Content-Type": "application/json;charset=UTF-8",
-              "Set-Cookie": "tianai_session=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
+              "Set-Cookie": "tianai_session=" + token + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800"
             }
           });
         }
@@ -2778,7 +2810,7 @@ export default {
       return new Response(JSON.stringify({ success: true }), {
         headers: {
           "Content-Type": "application/json;charset=UTF-8",
-          "Set-Cookie": "tianai_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+          "Set-Cookie": "tianai_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
         }
       });
     }
@@ -3062,6 +3094,7 @@ export default {
     // 13. 管理后台 GET /admin (未登录显示登录页面，已登录显示 CMS)
     if (path === "/admin") {
       const isAuthed = checkAuth(request, env);
+      const token = generateAuthToken(env);
       if (!isAuthed) {
         return new Response(renderAdminLoginHtml(), {
           headers: { 
@@ -3077,7 +3110,8 @@ export default {
       return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv), {
         headers: { 
           "Content-Type": "text/html;charset=UTF-8",
-          "Cache-Control": "no-store, no-cache, must-revalidate"
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "Set-Cookie": "tianai_session=" + token + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800"
         }
       });
     }
