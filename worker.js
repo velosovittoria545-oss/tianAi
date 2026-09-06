@@ -2410,15 +2410,15 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
                 html = html.substring(fmMatch[0].length);
             }
 
-            // Code blocks ```lang
-code
-```
-            html = html.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function(m, lang, code) {
+            // Code blocks
+            const codeBlockRegex = new RegExp('\x60\x60\x60([a-zA-Z0-9_-]*)\n([\s\S]*?)\x60\x60\x60', 'g');
+            html = html.replace(codeBlockRegex, function(m, lang, code) {
                 return '<pre style="background:var(--bg-subtle); padding:1rem; border-radius:6px; overflow-x:auto; font-family:var(--font-mono); font-size:0.88rem; border:1px solid var(--border); margin:1.5rem 0;"><code class="language-' + (lang || 'text') + '">' + escapeHtml(code.trim()) + '</code></pre>';
             });
 
-            // Inline code `code`
-            html = html.replace(/`([^`]+)`/g, function(m, code) {
+            // Inline code
+            const inlineCodeRegex = new RegExp('\x60([^\x60]+)\x60', 'g');
+            html = html.replace(inlineCodeRegex, function(m, code) {
                 return '<code style="background:var(--bg-subtle); padding:2px 5px; border-radius:4px; font-family:var(--font-mono); font-size:0.88em; border:1px solid var(--border);">' + escapeHtml(code) + '</code>';
             });
 
