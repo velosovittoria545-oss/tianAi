@@ -1677,7 +1677,10 @@ function renderAdminLoginHtml() {
 <body>
     <div class="login-card">
         <span class="lang-switch-btn" id="admin-lang-toggle" onclick="toggleAdminLang()">English</span>
-        <h2 id="admin-title" style="font-family:var(--font-serif); font-size:1.65rem; margin-bottom:6px; color:var(--text-main);">管理员登录</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <h2 id="admin-title" style="font-family:var(--font-serif); font-size:1.65rem; margin:0; color:var(--text-main);">管理员登录</h2>
+            <span style="font-size:0.75rem; color:#15803d; background:#f0fdf4; padding:2px 8px; border-radius:12px; border:1px solid #bbf7d0;">🟢 数据库已连通</span>
+        </div>
         <p id="admin-subtitle" style="font-size:0.86rem; color:var(--text-light); margin-bottom:22px;">维托里奥 崔 · 个人博客发布系统</p>
         <form id="login-form" onsubmit="handleLogin(event)">
             <label id="lbl-username" style="font-size:0.88rem; color:var(--text-muted);">用户名 (Username)</label>
@@ -1778,7 +1781,7 @@ function renderAdminLoginHtml() {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    window.location.reload();
+                    window.location.href = '/admin?t=' + Date.now();
                 } else {
                     err.style.display = 'block';
                     err.innerText = d.errAuth;
@@ -3061,7 +3064,10 @@ export default {
       const isAuthed = checkAuth(request, env);
       if (!isAuthed) {
         return new Response(renderAdminLoginHtml(), {
-          headers: { "Content-Type": "text/html;charset=UTF-8" }
+          headers: { 
+            "Content-Type": "text/html;charset=UTF-8",
+            "Cache-Control": "no-store, no-cache, must-revalidate"
+          }
         });
       }
       const items = await getArticlesWithViews(env);
@@ -3069,7 +3075,10 @@ export default {
       const prof = await getProfile(env);
       const hasKv = Boolean(env && env.BLOG_KV);
       return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv), {
-        headers: { "Content-Type": "text/html;charset=UTF-8" }
+        headers: { 
+          "Content-Type": "text/html;charset=UTF-8",
+          "Cache-Control": "no-store, no-cache, must-revalidate"
+        }
       });
     }
 
