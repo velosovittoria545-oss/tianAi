@@ -2183,14 +2183,11 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
         <!-- 2. 留言审核视图 -->
         <div id="view-comments" style="display:none;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
-                <div style="font-size:0.88rem; color:var(--text-muted); display:flex; align-items:center; gap:8px;">
-                    <span>状态筛选:</span>
-                    <select id="comment-filter" onchange="renderAdminCommentsList()" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px; font-size:0.85rem; background:var(--bg-card); color:var(--text-main);">
-                        <option value="all">全部留言</option>
-                        <option value="pending" selected>🟡 待审核 (Pending)</option>
-                        <option value="approved">🟢 已通过展示 (Approved)</option>
-                        <option value="rejected">🔴 已驳回/超24h屏蔽 (Rejected)</option>
-                    </select>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                    <button type="button" id="pill-filter-pending" class="btn btn-primary" style="font-size:0.82rem; padding:4px 12px;" onclick="setAdminCommentFilter('pending')">🟡 待审核 (<span id="filter-cnt-pending">0</span>)</button>
+                    <button type="button" id="pill-filter-approved" class="btn btn-outline" style="font-size:0.82rem; padding:4px 12px;" onclick="setAdminCommentFilter('approved')">🟢 已通过展示 (<span id="filter-cnt-approved">0</span>)</button>
+                    <button type="button" id="pill-filter-rejected" class="btn btn-outline" style="font-size:0.82rem; padding:4px 12px;" onclick="setAdminCommentFilter('rejected')">🔴 超过24h/已驳回 (<span id="filter-cnt-rejected">0</span>)</button>
+                    <button type="button" id="pill-filter-all" class="btn btn-outline" style="font-size:0.82rem; padding:4px 12px;" onclick="setAdminCommentFilter('all')">全部留言 (<span id="filter-cnt-all">0</span>)</button>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center;">
                     <button class="btn btn-outline" style="font-size:0.82rem; padding:4px 12px;" onclick="refreshAdminComments()">🔄 刷新最新留言</button>
@@ -2464,9 +2461,34 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             window.history.replaceState({}, document.title, '/admin');
         }
 
-        // 2. 2分钟无操作自动安全登出机制
+        // 2. 2分钟无操作自动安全登出机制 + 用户操作时自动轻量心跳续期
         let inactivityTimer = null;
+        let lastUserActionTime = Date.now();
+        let lastKeepaliveTime = 0;
         const INACTIVITY_MS = 2 * 60 * 1000; // 2 分钟 (120,000ms)
+        const KEEPALIVE_THROTTLE_MS = 30 * 1000; // 用户在操作时每 30 秒向服务端同步一次心跳
+
+        function onUserInteraction() {
+            lastUserActionTime = Date.now();
+            resetInactivityTimer();
+            const now = Date.now();
+            if (now - lastKeepaliveTime > KEEPALIVE_THROTTLE_MS) {
+                lastKeepaliveTime = now;
+                sendKeepalive();
+            }
+        }
+
+        async function sendKeepalive() {
+            try {
+                const tok = localStorage.getItem('tianai_token') || currentToken || '';
+                if (!tok) return;
+                await fetch('/api/auth/keepalive', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+            } catch(e) {}
+        }
 
         function resetInactivityTimer() {
             if (inactivityTimer) clearTimeout(inactivityTimer);
@@ -2477,7 +2499,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
         }
 
         ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt => {
-            window.addEventListener(evt, resetInactivityTimer, { passive: true });
+            window.addEventListener(evt, onUserInteraction, { passive: true });
         });
         resetInactivityTimer();
 
@@ -2509,10 +2531,32 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
+        let activeCommentFilter = 'pending';
+
+        function setAdminCommentFilter(filter) {
+            activeCommentFilter = filter;
+            ['pending', 'approved', 'rejected', 'all'].forEach(f => {
+                const el = document.getElementById('pill-filter-' + f);
+                if (el) {
+                    el.className = f === filter ? 'btn btn-primary' : 'btn btn-outline';
+                }
+            });
+            renderAdminCommentsList();
+        }
+
         function updateCounts() {
             document.getElementById('cnt-articles').innerText = articles.length;
             const pendingCount = comments.filter(c => c.status === 'pending').length;
+            const approvedCount = comments.filter(c => c.status === 'approved').length;
+            const rejectedCount = comments.filter(c => c.status === 'rejected').length;
+            const totalCount = comments.length;
+
             document.getElementById('cnt-pending').innerText = pendingCount;
+            const elP = document.getElementById('filter-cnt-pending'); if (elP) elP.innerText = pendingCount;
+            const elA = document.getElementById('filter-cnt-approved'); if (elA) elA.innerText = approvedCount;
+            const elR = document.getElementById('filter-cnt-rejected'); if (elR) elR.innerText = rejectedCount;
+            const elT = document.getElementById('filter-cnt-all'); if (elT) elT.innerText = totalCount;
+
             const banner = document.getElementById('pending-alert-banner');
             const bannerCnt = document.getElementById('banner-pending-count');
             if (banner && bannerCnt) {
@@ -2574,12 +2618,12 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
 
         function renderAdminCommentsList() {
             updateCounts();
-            const filter = document.getElementById('comment-filter') ? document.getElementById('comment-filter').value : 'all';
             const container = document.getElementById('comments-admin-list');
+            if (!container) return;
             
             let filtered = comments;
-            if (filter !== 'all') {
-                filtered = comments.filter(c => c.status === filter);
+            if (activeCommentFilter !== 'all') {
+                filtered = comments.filter(c => c.status === activeCommentFilter);
             }
             
             if (filtered.length === 0) {
@@ -2667,15 +2711,52 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             }
         }
 
+        function autoSaveArticleDraft() {
+            const id = document.getElementById('item-id').value;
+            if (id && id.startsWith('post-')) {
+                try {
+                    const draft = {
+                        title: document.getElementById('item-title').value,
+                        date: document.getElementById('item-date').value,
+                        tag: document.getElementById('item-tag').value,
+                        views: document.getElementById('item-views').value,
+                        content: document.getElementById('item-content').value
+                    };
+                    localStorage.setItem('article_editor_draft', JSON.stringify(draft));
+                } catch(e) {}
+            }
+        }
+
         function openCreateModal() {
             resetInactivityTimer();
             document.getElementById('modal-title').innerText = '新建文章';
             document.getElementById('item-id').value = 'post-' + Date.now();
-            document.getElementById('item-title').value = '';
-            document.getElementById('item-date').value = new Date().toISOString().slice(0,7).replace('-', '.');
-            document.getElementById('item-tag').value = 'AI Architecture';
-            document.getElementById('item-views').value = '1000';
-            document.getElementById('item-content').value = '<p>在这里撰写正文内容...</p>';
+            
+            let restored = false;
+            try {
+                const draftRaw = localStorage.getItem('article_editor_draft');
+                if (draftRaw) {
+                    const draft = JSON.parse(draftRaw);
+                    if (draft && (draft.title || (draft.content && draft.content.length > 30))) {
+                        if (confirm('发现您之前撰写但未保存的文章草稿【' + (draft.title || '未命名草稿') + '】，是否恢复继续编辑？')) {
+                            document.getElementById('item-title').value = draft.title || '';
+                            document.getElementById('item-date').value = draft.date || new Date().toISOString().slice(0,7).replace('-', '.');
+                            document.getElementById('item-tag').value = draft.tag || 'AI Architecture';
+                            document.getElementById('item-views').value = draft.views || '1000';
+                            document.getElementById('item-content').value = draft.content || '<p>在这里撰写正文内容...</p>';
+                            restored = true;
+                        }
+                    }
+                }
+            } catch(e) {}
+
+            if (!restored) {
+                document.getElementById('item-title').value = '';
+                document.getElementById('item-date').value = new Date().toISOString().slice(0,7).replace('-', '.');
+                document.getElementById('item-tag').value = 'AI Architecture';
+                document.getElementById('item-views').value = '1000';
+                document.getElementById('item-content').value = '<p>在这里撰写正文内容...</p>';
+            }
             document.getElementById('modal').style.display = 'flex';
         }
 
@@ -2742,6 +2823,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     if (idx >= 0) articles[idx] = payload;
                     else articles.unshift(payload);
                     renderAdminList();
+                    try { localStorage.removeItem('article_editor_draft'); } catch(e) {}
                     closeModal();
                     alert('✓ 文章保存并发布成功！');
                 } else {
@@ -2772,16 +2854,26 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
 
         async function handleLogout() {
             if (inactivityTimer) clearTimeout(inactivityTimer);
+            const tok = localStorage.getItem('tianai_token') || currentToken || '';
+
+            try {
+                await fetch('/api/logout?token=' + encodeURIComponent(tok), { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + tok
+                    },
+                    body: JSON.stringify({ token: tok }),
+                    credentials: 'include'
+                });
+            } catch(e) {
+                console.error("Logout error:", e);
+            }
+
             try { localStorage.removeItem('tianai_token'); } catch(e) {}
             try { sessionStorage.clear(); } catch(e) {}
             document.cookie = "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Secure; SameSite=Lax";
-            try {
-                await fetch('/api/logout', { 
-                    method: 'POST',
-                    credentials: 'include'
-                });
-            } catch(e) {}
-            window.location.href = '/admin?logout=true';
+            window.location.replace('/admin?logout=true&token=' + encodeURIComponent(tok));
         }
 
         function populateProfileForm() {
@@ -3115,6 +3207,11 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             }
         }
 
+        ['item-title', 'item-date', 'item-tag', 'item-views', 'item-content'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', autoSaveArticleDraft);
+        });
+
         renderAdminList();
         renderAdminCommentsList();
         populateProfileForm();
@@ -3167,13 +3264,41 @@ export default {
       }
     }
 
-    // 2. API: 登出 POST /api/logout
-    if (path === "/api/logout" && method === "POST") {
-      const token = extractRequestToken(request);
+    // 1.5 API: 会话活跃保活 POST /api/auth/keepalive
+    if (path === "/api/auth/keepalive" && (method === "POST" || method === "GET")) {
+      if (!await checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Session expired or invalid" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json;charset=UTF-8" }
+        });
+      }
+      return new Response(JSON.stringify({ success: true, refreshed: true }), {
+        headers: { "Content-Type": "application/json;charset=UTF-8" }
+      });
+    }
+
+    // 2. API: 登出 POST/GET /api/logout
+    if (path === "/api/logout" && (method === "POST" || method === "GET")) {
+      let token = extractRequestToken(request);
+      if (!token) {
+        try {
+          const urlObj = new URL(request.url);
+          token = urlObj.searchParams.get("token") || urlObj.searchParams.get("auth_token") || "";
+        } catch(e) {}
+      }
+      if (!token && method === "POST") {
+        try {
+          const body = await request.clone().json();
+          if (body && body.token) token = body.token;
+        } catch(e) {}
+      }
       if (token && env && env.BLOG_KV) {
         try { await env.BLOG_KV.delete("ADMIN_SESS_" + token); } catch(e) {}
       }
-      return new Response(JSON.stringify({ success: true }), {
+      if (env && env.BLOG_KV) {
+        try { await env.BLOG_KV.delete("ADMIN_SESSION"); } catch(e) {}
+      }
+      return new Response(JSON.stringify({ success: true, deletedToken: token }), {
         headers: {
           "Content-Type": "application/json;charset=UTF-8",
           "Set-Cookie": "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=Lax",
@@ -3520,9 +3645,15 @@ export default {
     if (path === "/admin") {
       const isLogout = url.searchParams.get("logout") === "true";
       if (isLogout) {
-        const token = extractRequestToken(request);
+        let token = extractRequestToken(request);
+        if (!token) {
+          token = url.searchParams.get("token") || url.searchParams.get("auth_token") || "";
+        }
         if (token && env && env.BLOG_KV) {
           try { await env.BLOG_KV.delete("ADMIN_SESS_" + token); } catch(e) {}
+        }
+        if (env && env.BLOG_KV) {
+          try { await env.BLOG_KV.delete("ADMIN_SESSION"); } catch(e) {}
         }
         return new Response(renderAdminLoginHtml(), {
           headers: { 
