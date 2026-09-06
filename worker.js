@@ -1017,6 +1017,29 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             }
         });
     </script>
+    <script>
+        (function() {
+            const token = localStorage.getItem('tianai_token');
+            if (token) {
+                const bar = document.createElement('div');
+                bar.id = 'admin-floating-badge';
+                bar.style.cssText = 'position:fixed; bottom:24px; right:24px; background:#191919; color:#ffffff; padding:8px 16px; border-radius:30px; font-size:0.84rem; box-shadow:0 4px 20px rgba(0,0,0,0.25); z-index:9999; display:flex; align-items:center; gap:12px; font-family:var(--font-sans); border:1px solid rgba(255,255,255,0.15);';
+                bar.innerHTML = '<span style="color:#4ade80;">●</span> <span style="font-weight:500;">管理员</span><a href="/admin" style="color:#fff; text-decoration:underline;">控制台</a><a href="/admin" onclick="sessionStorage.setItem('open_create', '1')" style="color:#fdba74; text-decoration:underline; font-weight:500;">➕ 发布新文章</a><a href="javascript:void(0)" onclick="quickLogout()" style="color:#fca5a5; text-decoration:underline;">登出</a>';
+                document.body.appendChild(bar);
+            }
+        })();
+
+        async function quickLogout() {
+            const token = localStorage.getItem('tianai_token') || '';
+            try {
+                await fetch('/api/logout?token=' + encodeURIComponent(token), { method: 'POST', credentials: 'include' });
+            } catch(e) {}
+            try { localStorage.removeItem('tianai_token'); } catch(e) {}
+            try { sessionStorage.clear(); } catch(e) {}
+            document.cookie = "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Secure; SameSite=Lax";
+            window.location.reload();
+        }
+    </script>
 </body>
 </html>`;
 }
@@ -3230,6 +3253,11 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', autoSaveArticleDraft);
         });
+
+                if (sessionStorage.getItem('open_create') === '1') {
+            sessionStorage.removeItem('open_create');
+            setTimeout(openCreateModal, 200);
+        }
 
         renderAdminList();
         renderAdminCommentsList();
