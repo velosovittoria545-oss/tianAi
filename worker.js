@@ -1,13 +1,14 @@
 /**
  * 项目名称: TianAi (天艾) — 维托里奥 崔 (Vittorio Cui) 个人主页与文章系统
- * 架构规范: 李新野 (Sinya Lee) 极简排版 + Cloudflare Workers + KV 边缘持久化
- * 布局规范:
- *   - 右上角：中英文切换按钮 (English / 中文)
- *   - 头部名称：中文模式仅显示“维托里奥 崔”，英文模式仅显示“Vittorio Cui”
- *   - 头部链接：仅保留“文章”与“Email”
- *   - 板块顺序：先“关于我”，后“经历”
- *   - 首页文章：仅显示标题 + 自定义日期的极简列表（不堆叠正文），点击展开阅读
- *   - 右下角：管理后台入口 [管理后台]
+ * 架构规范: 李新野 (Sinya Lee) 极简风格 + Cloudflare Workers + KV 边缘持久化
+ * 核心规范:
+ *   - 首页：极简排版，不显示文章，仅保留“关于我”与“经历”
+ *   - 核心领域：AI, 软件开发, 系统设计, 团队管理
+ *   - 技术栈：Python, Java (Spring Boot), Go, C++, vLLM, LangGraph, MCP, Redis, PostgreSQL, Docker
+ *   - 经历：Hightouch 21个月主导落地 14 个 AI Agent 与研发赋能项目
+ *   - 头部：仅保留“文章”与“Email”，右上角中英文切换
+ *   - 文章：点击“文章”跳转独立文章列表页面 (/articles)
+ *   - 管理后台：右下角入口，点击跳转独立登录页面 (/admin)
  */
 
 const CONFIG = {
@@ -136,7 +137,7 @@ function generateAuthToken(env) {
   return "token_" + Math.abs(hash) + "_vittorio";
 }
 
-// 页面通用 CSS
+// 通用极简 CSS
 const COMMON_CSS = `
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&display=swap');
 
@@ -168,7 +169,7 @@ const COMMON_CSS = `
     a { color: var(--accent); text-decoration: underline; transition: color 0.15s; }
     a:hover { color: var(--accent-hover); }
     .container { max-width: 680px; margin: 0 auto; position: relative; }
-    hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
     .sec-title {
         font-family: var(--font-serif);
         font-size: 1.35rem;
@@ -188,10 +189,216 @@ const COMMON_CSS = `
         color: var(--accent);
         text-decoration: underline;
     }
+    footer {
+        margin-top: 48px;
+        padding-top: 18px;
+        border-top: 1px solid var(--border);
+        font-size: 0.82rem;
+        color: var(--text-light);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .admin-link {
+        color: var(--text-light);
+        text-decoration: none;
+        font-size: 0.82rem;
+    }
+    .admin-link:hover {
+        color: var(--accent);
+        text-decoration: underline;
+    }
 `;
 
 /**
- * 1. 独立工作经历页面 HTML (GET /experience)
+ * 1. 独立文章列表页面 HTML (GET /articles)
+ */
+function renderArticlesPageHtml(articlesJson) {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章列表 — 维托里奥 崔</title>
+    <style>
+        ${COMMON_CSS}
+        .top-nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .back-btn {
+            font-size: 0.92rem;
+            color: var(--accent);
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .page-header { margin-bottom: 28px; }
+        .page-title {
+            font-family: var(--font-serif);
+            font-size: 2.1rem;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text-main);
+        }
+        .page-subtitle {
+            color: var(--text-muted);
+            font-size: 0.94rem;
+        }
+        .article-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 12px 0;
+            border-bottom: 1px dashed var(--border);
+            cursor: pointer;
+            gap: 16px;
+        }
+        .article-row:last-child { border-bottom: none; }
+        .article-title-text {
+            font-family: var(--font-serif);
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .article-row:hover .article-title-text {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+        .article-date-badge {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            color: var(--text-light);
+            white-space: nowrap;
+        }
+        #reader-view {
+            display: none;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+        }
+        .reader-close-btn {
+            display: inline-block;
+            font-size: 0.84rem;
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: underline;
+            margin-bottom: 16px;
+        }
+        .reader-article-title {
+            font-family: var(--font-serif);
+            font-size: 1.75rem;
+            font-weight: 500;
+            line-height: 1.35;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+        .reader-meta-bar {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-light);
+            padding-bottom: 12px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+        .reader-content-body {
+            font-size: 0.95rem;
+            line-height: 1.75;
+            color: var(--text-main);
+        }
+        .reader-content-body p { margin-bottom: 16px; }
+        .reader-content-body h3 {
+            font-family: var(--font-serif);
+            font-size: 1.25rem;
+            margin: 20px 0 10px 0;
+            color: var(--text-main);
+        }
+        .reader-content-body blockquote {
+            border-left: 3px solid var(--accent);
+            padding: 8px 12px;
+            font-style: italic;
+            color: var(--text-muted);
+            margin: 16px 0;
+            background: var(--bg-subtle);
+            border-radius: 0 4px 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav-bar">
+            <a href="/" class="back-btn">← 返回主页</a>
+            <a href="/admin" class="admin-link">[管理后台]</a>
+        </div>
+
+        <header class="page-header">
+            <h1 class="page-title">文章</h1>
+            <p class="page-subtitle">维托里奥 崔的技术随笔、架构实践与前沿思考</p>
+        </header>
+
+        <!-- 单篇阅读器 -->
+        <div id="reader-view">
+            <span class="reader-close-btn" onclick="closeReader()">← 返回文章列表</span>
+            <h1 class="reader-article-title" id="reader-title"></h1>
+            <div class="reader-meta-bar" id="reader-meta"></div>
+            <div class="reader-content-body" id="reader-content"></div>
+        </div>
+
+        <!-- 文章列表 -->
+        <div id="articles-list-box"></div>
+
+        <footer>
+            <span>© 2026 维托里奥 崔 · All Rights Reserved</span>
+            <a href="/admin" class="admin-link">[管理后台]</a>
+        </footer>
+    </div>
+
+    <script>
+        const ARTICLES = ${articlesJson};
+
+        function renderList() {
+            const box = document.getElementById('articles-list-box');
+            box.innerHTML = ARTICLES.map(art => {
+                const title = (art.title && (art.title.zh || art.title.en)) || art.id;
+                return '<div class="article-row" onclick="openArticle(\'' + art.id + '\')">' +
+                    '<span class="article-title-text">' + title + '</span>' +
+                    '<span class="article-date-badge">' + art.date + '</span>' +
+                '</div>';
+            }).join('');
+        }
+
+        function openArticle(id) {
+            const art = ARTICLES.find(a => a.id === id);
+            if (!art) return;
+            document.getElementById('reader-title').innerText = (art.title && art.title.zh) || '';
+            document.getElementById('reader-meta').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '');
+            document.getElementById('reader-content').innerHTML = (art.content && art.content.zh) || '';
+            const reader = document.getElementById('reader-view');
+            reader.style.display = 'block';
+            reader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closeReader() {
+            document.getElementById('reader-view').style.display = 'none';
+        }
+
+        renderList();
+    </script>
+</body>
+</html>`;
+}
+
+/**
+ * 2. 独立工作经历页面 HTML (GET /experience)
  */
 function renderExperienceHtml() {
   return `<!DOCTYPE html>
@@ -258,20 +465,14 @@ function renderExperienceHtml() {
             font-size: 0.85rem;
             color: var(--text-light);
         }
-        .exp-focus-tag {
-            font-size: 0.88rem;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-            font-style: italic;
-        }
-        .exp-detail-list {
-            list-style: disc;
-            padding-left: 20px;
-            color: var(--text-main);
+        .exp-detail-text {
             font-size: 0.92rem;
-            line-height: 1.68;
+            line-height: 1.7;
+            color: var(--text-main);
         }
-        .exp-detail-list li { margin-bottom: 8px; }
+        .exp-detail-text p { margin-bottom: 8px; }
+        .exp-detail-text ul { padding-left: 18px; list-style: disc; }
+        .exp-detail-text li { margin-bottom: 6px; }
         .clients-box {
             background: var(--bg-subtle);
             border: 1px solid var(--border);
@@ -299,7 +500,7 @@ function renderExperienceHtml() {
     <div class="container">
         <div class="top-nav-bar">
             <a href="/" class="back-btn">← 返回主页</a>
-            <a href="/admin" style="font-size:0.8rem; color:var(--text-light); text-decoration:none;">[管理后台]</a>
+            <a href="/admin" class="admin-link">[管理后台]</a>
         </div>
 
         <header class="page-header">
@@ -310,21 +511,23 @@ function renderExperienceHtml() {
             </p>
         </header>
 
-        <!-- 1. Hightouch -->
+        <!-- 1. Hightouch 详尽履历 -->
         <div class="exp-card">
             <div class="exp-card-header">
                 <div>
                     <span class="exp-company">Hightouch</span>
-                    <span class="exp-role-title">· AI Researcher</span>
+                    <span class="exp-role-title">· AI 项目负责人 / AI Researcher</span>
                 </div>
                 <span class="exp-period">2024 — Present</span>
             </div>
-            <div class="exp-focus-tag">核心方向：前沿部署工程 (FDE)、多智能体协同网络 (Multi-Agent Systems)、模型对齐与评测体系</div>
-            <ul class="exp-detail-list">
-                <li>主导企业级前沿部署工程 (Forward Deployed Engineering, FDE) 体系化建设，推动大语言模型在企业级复杂工作流中的端到端集成。</li>
-                <li>架构设计高可用多智能体协作中枢，突破长程状态机治理、Memory 语义检索及复杂业务异常回退（Fallback）防线。</li>
-                <li>负责大语言模型微调 (SFT)、DPO/RLHF 强化学习对齐优化及领域自适应评测，构建句子级反幻觉事实交叉校验机制。</li>
-            </ul>
+            <div class="exp-detail-text">
+                <p>过去21个月，作为AI项目负责人，我成功主导落地了14个AI Agent与研发赋能项目，全面驱动了公司的跨部门智能化升级：</p>
+                <ul>
+                    <li>迅速让团队掌握主流AI研发工具（Claude Code, OpenCode, n8n, Codex等），具备将前沿AI研发效能工具转化为团队生产力的能力。</li>
+                    <li>在技术与效能方面，从零搭建AI Agent专属云端环境，基于MCP架构打通Github、Slack、CircleCI等核心系统，实现自动化测试与部署闭环，使整体研发效能提升了40%。同时，通过完善核心知识库（agents.md）与开发可视化管理工具，成功赋能非技术团队独立操作，大幅降低了跨团队的沟通与协作成本。</li>
+                    <li>在项目管理与业务交付方面，我严格把控需求落地与质量。14个核心项目均实现了100%按期高质量交付，有效解决了工程师的底层痛点，业务部门（客户）满意度极高。通过持续引入前沿技术，在实现降本增效的同时，确保了团队的AI生产力始终保持行业领先标准。</li>
+                </ul>
+            </div>
         </div>
 
         <!-- 2. eBay -->
@@ -336,12 +539,13 @@ function renderExperienceHtml() {
                 </div>
                 <span class="exp-period">2022 — 2024</span>
             </div>
-            <div class="exp-focus-tag">核心方向：全局电商 AI Platform 基础底座建设、电商知识中枢与智能客服 Agent</div>
-            <ul class="exp-detail-list">
-                <li>主导 eBay 全局 AI 基础平台底座建设与向量检索引擎优化，支持海量跨境电商 SKU 的精准多模态检索与语义召回。</li>
-                <li>设计与落地千万级用户规模的客服智能体系统，实现多轮意图辨析、订单追踪与退换货业务流全自动闭环。</li>
-                <li>搭建高可用 RAG 混合召回通道，建立生产级 LLM 安全护栏 (Guardrails) 与延迟敏感型模型服务降级熔断策略。</li>
-            </ul>
+            <div class="exp-detail-text">
+                <ul>
+                    <li>主导 eBay 全局 AI 基础平台底座建设与向量检索引擎优化，支持海量跨境电商 SKU 的精准多模态检索与语义召回。</li>
+                    <li>设计与落地千万级用户规模的客服智能体系统，实现多轮意图辨析、订单追踪与退换货业务流全自动闭环。</li>
+                    <li>搭建高可用 RAG 混合召回通道，建立生产级 LLM 安全护栏 (Guardrails) 与延迟敏感型模型服务降级熔断策略。</li>
+                </ul>
+            </div>
         </div>
 
         <!-- 3. 快手 -->
@@ -353,18 +557,19 @@ function renderExperienceHtml() {
                 </div>
                 <span class="exp-period">2016 — 2022</span>
             </div>
-            <div class="exp-focus-tag">核心方向：超大规模核心交易与结算系统、高并发微服务底盘治理、SLA 99.99% 保障</div>
-            <ul class="exp-detail-list">
-                <li>历经快手从高速成长到香港主板成功上市全程，主导支付交易结算微服务中台重构与架构升级。</li>
-                <li>抗住春晚红包与大促极限洪峰考验，单集群峰值承载 QPS 10,000+，全年核心业务 SLA 达成 99.99%（不可用时间小于 52 分钟）。</li>
-                <li>研发分布式交易防资损幂等引擎、跨机房双活容灾及自适应流量削峰填谷方案，确保海量资金级交易零资损。</li>
-            </ul>
+            <div class="exp-detail-text">
+                <ul>
+                    <li>历经快手从高速成长到香港主板成功上市全程，主导支付交易结算微服务中台重构与架构升级。</li>
+                    <li>抗住春晚红包与大促极限洪峰考验，单集群峰值承载 QPS 10,000+，全年核心业务 SLA 达成 99.99%（不可用时间小于 52 分钟）。</li>
+                    <li>研发分布式交易防资损幂等引擎、跨机房双活容灾及自适应流量削峰填谷方案，确保海量资金级交易零资损。</li>
+                </ul>
+            </div>
         </div>
 
         <!-- 战略级客户服务履历 -->
         <div class="clients-box">
             <div class="clients-title">🏛️ 深度赋能的重要机构与客户</div>
-            <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom: 8px;">
+            <p style="font-size:0.9rem; color:var(--text-muted);">
                 深度服务包括 <strong>海洋网联船务 (Ocean Network Express, ONE)</strong> 智能航运海关单证自动化 Agent 系统、<strong>IBM</strong> 云原生多智能体平台协同，以及多家出海跨境贸易与金融科技核心系统的架构设计与交付。
             </p>
         </div>
@@ -386,19 +591,20 @@ function renderExperienceHtml() {
             </table>
         </section>
 
-        <div style="margin-top: 36px; display:flex; justify-content:space-between; align-items:center;">
+        <footer>
             <a href="/" class="back-btn">← 返回主页</a>
-            <a href="/admin" style="font-size:0.8rem; color:var(--text-light); text-decoration:none;">[管理后台]</a>
-        </div>
+            <a href="/admin" class="admin-link">[管理后台]</a>
+        </footer>
     </div>
 </body>
 </html>`;
 }
 
 /**
- * 2. 极简主页 HTML (GET /)
+ * 3. 极简主页 HTML (GET /)
+ * 首页不显示文章，仅展示“关于我”与“经历”
  */
-function renderPublicHtml(articlesJson) {
+function renderPublicHtml() {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -429,7 +635,7 @@ function renderPublicHtml(articlesJson) {
             color: var(--accent-hover);
         }
 
-        /* 李新野风格 Header 头部两栏布局 */
+        /* Header 头部双栏布局 */
         .header-box {
             display: flex;
             align-items: flex-start;
@@ -480,7 +686,7 @@ function renderPublicHtml(articlesJson) {
             color: var(--accent-hover);
         }
 
-        /* 紧凑 Key-Value 表格 (关于我) */
+        /* 关于我 Key-Value 表格 */
         .info-table {
             width: 100%;
             border-collapse: collapse;
@@ -500,9 +706,16 @@ function renderPublicHtml(articlesJson) {
             color: var(--text-main);
         }
 
-        /* 经历概览时间线 */
+        /* 经历项 */
         .exp-item {
-            margin-bottom: 16px;
+            margin-bottom: 22px;
+            padding-bottom: 18px;
+            border-bottom: 1px dashed var(--border);
+        }
+        .exp-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
         .exp-head {
             display: flex;
@@ -510,16 +723,17 @@ function renderPublicHtml(articlesJson) {
             align-items: baseline;
             flex-wrap: wrap;
             gap: 6px;
+            margin-bottom: 4px;
         }
         .exp-company {
             font-weight: 600;
-            font-size: 0.98rem;
+            font-size: 1.02rem;
             color: var(--text-main);
         }
         .exp-role-badge {
             color: var(--accent);
             font-weight: 500;
-            font-size: 0.88rem;
+            font-size: 0.9rem;
             margin-left: 6px;
         }
         .exp-date {
@@ -528,128 +742,19 @@ function renderPublicHtml(articlesJson) {
             color: var(--text-light);
         }
         .exp-desc {
-            font-size: 0.86rem;
+            font-size: 0.88rem;
             color: var(--text-muted);
-            line-height: 1.6;
-            margin-top: 3px;
+            line-height: 1.68;
+            margin-top: 6px;
         }
-
-        /* 文章列表 (仅显示标题 + 发布时间，极简无冗余) */
-        .article-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            padding: 10px 0;
-            border-bottom: 1px dashed var(--border);
-            cursor: pointer;
-            gap: 14px;
-        }
-        .article-row:last-child {
-            border-bottom: none;
-        }
-        .article-title-text {
-            font-family: var(--font-serif);
-            font-size: 1.12rem;
-            font-weight: 500;
-            color: var(--text-main);
-            text-decoration: none;
-            transition: color 0.15s;
-        }
-        .article-row:hover .article-title-text {
-            color: var(--accent);
-            text-decoration: underline;
-        }
-        .article-date-badge {
-            font-family: var(--font-mono);
-            font-size: 0.82rem;
-            color: var(--text-light);
-            white-space: nowrap;
-        }
-
-        /* 文章展开阅读器 */
-        #article-reader-view {
-            display: none;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 24px 28px;
-            margin-bottom: 24px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.03);
-        }
-        .reader-close-btn {
-            display: inline-block;
-            font-size: 0.84rem;
-            color: var(--accent);
-            cursor: pointer;
-            text-decoration: underline;
-            margin-bottom: 16px;
-        }
-        .reader-article-title {
-            font-family: var(--font-serif);
-            font-size: 1.75rem;
-            font-weight: 500;
-            line-height: 1.35;
-            margin-bottom: 8px;
-            color: var(--text-main);
-        }
-        .reader-meta-bar {
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            color: var(--text-light);
-            padding-bottom: 12px;
-            margin-bottom: 18px;
-            border-bottom: 1px solid var(--border);
-        }
-        .reader-content-body {
-            font-size: 0.95rem;
-            line-height: 1.75;
-            color: var(--text-main);
-        }
-        .reader-content-body p { margin-bottom: 16px; }
-        .reader-content-body h3 {
-            font-family: var(--font-serif);
-            font-size: 1.25rem;
-            margin: 20px 0 10px 0;
-            color: var(--text-main);
-        }
-        .reader-content-body blockquote {
-            border-left: 3px solid var(--accent);
-            padding: 8px 12px;
-            font-style: italic;
-            color: var(--text-muted);
-            margin: 16px 0;
-            background: var(--bg-subtle);
-            border-radius: 0 4px 4px 0;
-        }
-
-        /* 页脚布局：左侧版权，右下角管理后台 */
-        footer {
-            margin-top: 50px;
-            padding-top: 18px;
-            border-top: 1px solid var(--border);
-            font-size: 0.82rem;
-            color: var(--text-light);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .admin-link {
-            color: var(--text-light);
-            text-decoration: none;
-            font-size: 0.8rem;
-        }
-        .admin-link:hover {
-            color: var(--accent);
-            text-decoration: underline;
-        }
+        .exp-desc p { margin-bottom: 6px; }
+        .exp-desc ul { padding-left: 18px; list-style: disc; }
+        .exp-desc li { margin-bottom: 5px; }
 
         @media (max-width: 600px) {
             .header-box { flex-direction: column; align-items: flex-start; gap: 16px; }
             .avatar-img { width: 110px; height: 145px; }
             .info-label { width: 115px; }
-            .article-row { flex-direction: column; gap: 4px; }
         }
     </style>
 </head>
@@ -661,7 +766,7 @@ function renderPublicHtml(articlesJson) {
             <button class="lang-switch-btn" onclick="toggleLanguage()" id="btn-lang-toggle">English / 中文</button>
         </div>
 
-        <!-- 1. 顶部 Header (李新野极简风格) -->
+        <!-- 1. 顶部 Header -->
         <header class="header-box">
             <img class="avatar-img" src="data:image/jpeg;base64,${CONFIG.avatarBase64}" alt="维托里奥 崔" />
             
@@ -674,9 +779,9 @@ function renderPublicHtml(articlesJson) {
                     你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，对国内外AI技术发展趋势以及产品发展趋势非常了解。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。
                 </p>
 
-                <!-- 仅保留“文章”与“Email” -->
+                <!-- 仅保留“文章”与“Email”，点击文章跳转到 /articles -->
                 <div class="header-links">
-                    <a class="header-link" href="#articles-section" id="link-articles">文章</a>
+                    <a class="header-link" href="/articles" id="link-articles">文章</a>
                     <a class="header-link" href="mailto:${CONFIG.email}" id="link-email">Email</a>
                 </div>
             </div>
@@ -695,15 +800,15 @@ function renderPublicHtml(articlesJson) {
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-focus">核心领域:</td>
-                        <td class="info-value" id="val-focus" style="font-weight:500;">LLM、大模型部署（vLLM / 推理加速）、系统设计、后端技术架构</td>
+                        <td class="info-value" id="val-focus" style="font-weight:500;">AI, 软件开发, 系统设计, 团队管理</td>
+                    </tr>
+                    <tr>
+                        <td class="info-label" id="lbl-tech">技术栈:</td>
+                        <td class="info-value" id="val-tech">Python, Java (Spring Boot), Go, C++, vLLM, LangGraph, MCP, Redis, PostgreSQL, Docker</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-edu">教育背景:</td>
                         <td class="info-value" id="val-education">博士 (Ph.D.), Abide 大学 | 软件工程学士, 北京邮电大学 (BUPT)</td>
-                    </tr>
-                    <tr>
-                        <td class="info-label" id="lbl-tech">技术栈:</td>
-                        <td class="info-value">Python, Java (SpringBoot/Cloud), C/C++, vLLM, LangGraph, Redis, PostgreSQL, Cloudflare Workers, Docker</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-lang">日常语言:</td>
@@ -726,19 +831,26 @@ function renderPublicHtml(articlesJson) {
                 <a href="/experience" class="more-link" id="link-full-exp">完整工作履历与客户详情 →</a>
             </h2>
             <div id="experience-list">
+                <!-- Hightouch 核心成就（14个AI Agent项目） -->
                 <div class="exp-item">
                     <div class="exp-head">
                         <div>
                             <span class="exp-company">Hightouch</span>
-                            <span class="exp-role-badge">· AI Researcher</span>
+                            <span class="exp-role-badge">· AI 项目负责人 / AI Researcher</span>
                         </div>
                         <span class="exp-date">2024 — Present</span>
                     </div>
                     <div class="exp-desc" id="exp-desc-hightouch">
-                        前沿部署工程 (FDE) 体系建设、多智能体协作网络 (Multi-Agent Systems)、大模型预训练 / SFT / RLHF 评测与工业落地。
+                        <p>过去21个月，作为AI项目负责人，我成功主导落地了14个AI Agent与研发赋能项目，全面驱动了公司的跨部门智能化升级：</p>
+                        <ul>
+                            <li>迅速让团队掌握主流AI研发工具（Claude Code, OpenCode, n8n, Codex等），具备将前沿AI研发效能工具转化为团队生产力的能力。</li>
+                            <li>在技术与效能方面，从零搭建AI Agent专属云端环境，基于MCP架构打通Github、Slack、CircleCI等核心系统，实现自动化测试与部署闭环，使整体研发效能提升了40%。同时，通过完善核心知识库（agents.md）与开发可视化管理工具，成功赋能非技术团队独立操作，大幅降低了跨团队的沟通与协作成本。</li>
+                            <li>在项目管理与业务交付方面，我严格把控需求落地与质量。14个核心项目均实现了100%按期高质量交付，有效解决了工程师的底层痛点，业务部门（客户）满意度极高。通过持续引入前沿技术，在实现降本增效的同时，确保了团队的AI生产力始终保持行业领先标准。</li>
+                        </ul>
                     </div>
                 </div>
 
+                <!-- eBay -->
                 <div class="exp-item">
                     <div class="exp-head">
                         <div>
@@ -752,6 +864,7 @@ function renderPublicHtml(articlesJson) {
                     </div>
                 </div>
 
+                <!-- 快手 -->
                 <div class="exp-item">
                     <div class="exp-head">
                         <div>
@@ -767,25 +880,7 @@ function renderPublicHtml(articlesJson) {
             </div>
         </section>
 
-        <hr />
-
-        <!-- 4. 文章 (Articles) - 极简列表展示，不堆叠正文，自定义发布时间 -->
-        <section id="articles-section">
-            <h2 class="sec-title" id="title-articles">文章</h2>
-
-            <!-- 点击展开阅读器 -->
-            <div id="article-reader-view">
-                <span class="reader-close-btn" onclick="closeArticleReader()">← 返回文章列表</span>
-                <h1 class="reader-article-title" id="reader-title"></h1>
-                <div class="reader-meta-bar" id="reader-meta"></div>
-                <div class="reader-content-body" id="reader-content"></div>
-            </div>
-
-            <!-- 极简文章列表 -->
-            <div id="articles-list-container"></div>
-        </section>
-
-        <!-- 5. 页脚：左侧版权，右下角管理后台入口 -->
+        <!-- 4. 页脚：左侧版权，右下角管理后台入口 -->
         <footer>
             <span id="footer-copyright">© 2026 维托里奥 崔 · All Rights Reserved</span>
             <a href="/admin" class="admin-link">[管理后台]</a>
@@ -794,7 +889,6 @@ function renderPublicHtml(articlesJson) {
     </div>
 
     <script>
-        const ARTICLES = ${articlesJson};
         let currentLang = 'zh';
 
         const i18n = {
@@ -802,22 +896,20 @@ function renderPublicHtml(articlesJson) {
                 displayName: "维托里奥 崔",
                 intro: "你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，对国内外AI技术发展趋势以及产品发展趋势非常了解。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。",
                 linkArticles: "文章",
-                linkEmail: "Email",
                 titleAbout: "关于我",
                 lblPos: "职位:",
                 lblFocus: "核心领域:",
-                lblEdu: "教育背景:",
                 lblTech: "技术栈:",
+                lblEdu: "教育背景:",
                 lblLang: "日常语言:",
                 lblEmail: "联系邮箱:",
                 titleExperience: "经历",
                 linkFullExp: "完整工作履历与客户详情 →",
-                titleArticles: "文章",
                 valPosition: "AI 研究员",
-                valFocus: "LLM、大模型部署（vLLM / 推理加速）、系统设计、后端技术架构",
+                valFocus: "AI, 软件开发, 系统设计, 团队管理",
+                valTech: "Python, Java (Spring Boot), Go, C++, vLLM, LangGraph, MCP, Redis, PostgreSQL, Docker",
                 valEducation: "博士 (Ph.D.), Abide 大学 | 软件工程学士, 北京邮电大学 (BUPT)",
                 valLanguages: "中文 (母语), 英文 (流利)",
-                expHightouch: "前沿部署工程 (FDE) 体系建设、多智能体协作网络 (Multi-Agent Systems)、大模型预训练 / SFT / RLHF 评测与工业落地。",
                 expEbay: "主导全局电商 AI Platform 基础底座建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。",
                 expKuaishou: "历经快手高速成长至香港上市，主导核心支付结算微服务重构。支撑单集群峰值 10,000+ QPS 极限冲击，零资损保障核心 SLA 99.99%。",
                 footerCopyright: "© 2026 维托里奥 崔 · All Rights Reserved"
@@ -826,53 +918,25 @@ function renderPublicHtml(articlesJson) {
                 displayName: "Vittorio Cui",
                 intro: "Hello, I am currently an AI Researcher. Known for my crisp, elegant, and witty writing style, my published essays are widely enjoyed by readers globally. Currently dedicated to realizing AGI, with a profound understanding of global AI technological and product trends. Previously partnered with world-class clients including eBay, Ocean Network Express (ONE), and IBM to deploy enterprise agentic systems.",
                 linkArticles: "Articles",
-                linkEmail: "Email",
                 titleAbout: "About Me",
                 lblPos: "Position:",
                 lblFocus: "Core Focus:",
-                lblEdu: "Education:",
                 lblTech: "Tech Stack:",
+                lblEdu: "Education:",
                 lblLang: "Languages:",
                 lblEmail: "Email:",
                 titleExperience: "Experience",
                 linkFullExp: "Full work experience & client record →",
-                titleArticles: "Articles",
                 valPosition: "AI Researcher",
-                valFocus: "LLMs, LLM Deployment (vLLM / Inference Acceleration), System Design, Backend Architecture",
+                valFocus: "AI, Software Development, System Design, Team Management",
+                valTech: "Python, Java (Spring Boot), Go, C++, vLLM, LangGraph, MCP, Redis, PostgreSQL, Docker",
                 valEducation: "Ph.D., Abide University | B.E. in Software Engineering, BUPT",
                 valLanguages: "Mandarin (Native), English (Fluent)",
-                expHightouch: "Forward Deployed Engineering (FDE) playbook, multi-agent networks, full-lifecycle LLM Pre/Post-training & evaluation.",
                 expEbay: "Built organization-wide AI Platform infrastructure; deployed LLM-based intelligent customer support agents for global e-commerce users.",
                 expKuaishou: "Scaled core financial payment pipelines (10k+ peak QPS, 99.99% SLA), automated failover & monitoring architectures.",
                 footerCopyright: "© 2026 Vittorio Cui · All Rights Reserved"
             }
         };
-
-        function renderArticleList() {
-            const container = document.getElementById('articles-list-container');
-            container.innerHTML = ARTICLES.map(art => {
-                const title = (art.title && (art.title[currentLang] || art.title.zh)) || '未命名文章';
-                return '<div class="article-row" onclick="openArticle(\'' + art.id + '\')">' +
-                    '<span class="article-title-text">' + title + '</span>' +
-                    '<span class="article-date-badge">' + art.date + '</span>' +
-                '</div>';
-            }).join('');
-        }
-
-        function openArticle(id) {
-            const art = ARTICLES.find(a => a.id === id);
-            if (!art) return;
-            const reader = document.getElementById('article-reader-view');
-            document.getElementById('reader-title').innerText = (art.title && (art.title[currentLang] || art.title.zh)) || '';
-            document.getElementById('reader-meta').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '');
-            document.getElementById('reader-content').innerHTML = (art.content && (art.content[currentLang] || art.content.zh)) || '';
-            reader.style.display = 'block';
-            reader.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function closeArticleReader() {
-            document.getElementById('article-reader-view').style.display = 'none';
-        }
 
         function toggleLanguage() {
             currentLang = currentLang === 'zh' ? 'en' : 'zh';
@@ -883,37 +947,31 @@ function renderPublicHtml(articlesJson) {
             document.getElementById('title-about').innerText = data.titleAbout;
             document.getElementById('lbl-pos').innerText = data.lblPos;
             document.getElementById('lbl-focus').innerText = data.lblFocus;
-            document.getElementById('lbl-edu').innerText = data.lblEdu;
             document.getElementById('lbl-tech').innerText = data.lblTech;
+            document.getElementById('lbl-edu').innerText = data.lblEdu;
             document.getElementById('lbl-lang').innerText = data.lblLang;
             document.getElementById('lbl-email').innerText = data.lblEmail;
             document.getElementById('title-experience').innerText = data.titleExperience;
             document.getElementById('link-full-exp').innerText = data.linkFullExp;
-            document.getElementById('title-articles').innerText = data.titleArticles;
             document.getElementById('val-position').innerText = data.valPosition;
             document.getElementById('val-focus').innerText = data.valFocus;
+            document.getElementById('val-tech').innerText = data.valTech;
             document.getElementById('val-education').innerText = data.valEducation;
             document.getElementById('val-languages').innerText = data.valLanguages;
-            document.getElementById('exp-desc-hightouch').innerText = data.expHightouch;
             document.getElementById('exp-desc-ebay').innerText = data.expEbay;
             document.getElementById('exp-desc-kuaishou').innerText = data.expKuaishou;
             document.getElementById('footer-copyright').innerText = data.footerCopyright;
-            renderArticleList();
         }
-
-        renderArticleList();
     </script>
 </body>
 </html>`;
 }
 
 /**
- * 3. 管理后台 HTML (/admin)
- * 允许自定义发布时间、标题、分类、正文
+ * 4. 管理后台登录页面 HTML (/admin)
  */
-function renderAdminHtml(isAuthed, articlesJson, hasKv) {
-  if (!isAuthed) {
-    return `<!DOCTYPE html>
+function renderAdminLoginHtml() {
+  return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -925,9 +983,9 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 6px;
-            padding: 32px 36px;
-            max-width: 400px;
-            margin: 60px auto;
+            padding: 36px 40px;
+            max-width: 420px;
+            margin: 70px auto;
             box-shadow: 0 4px 16px rgba(0,0,0,0.04);
         }
         .input-box {
@@ -956,8 +1014,8 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
 </head>
 <body>
     <div class="login-card">
-        <h2 style="font-family:var(--font-serif); font-size:1.6rem; margin-bottom:6px; color:var(--text-main);">文章管理后台</h2>
-        <p style="font-size:0.86rem; color:var(--text-light); margin-bottom:20px;">维托里奥 崔 · 个人博客发布系统</p>
+        <h2 style="font-family:var(--font-serif); font-size:1.65rem; margin-bottom:6px; color:var(--text-main);">文章管理后台登录</h2>
+        <p style="font-size:0.86rem; color:var(--text-light); margin-bottom:22px;">维托里奥 崔 · 个人博客发布系统</p>
         <form id="login-form" onsubmit="handleLogin(event)">
             <label style="font-size:0.88rem; color:var(--text-muted);">用户名 (Username)</label>
             <input type="text" id="username" class="input-box" value="${CONFIG.adminUsername}" required />
@@ -965,8 +1023,8 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
             <input type="password" id="password" class="input-box" placeholder="请输入管理员密码" required />
             <div id="login-err" style="color:#d9534f; font-size:0.85rem; margin-bottom:12px; display:none;"></div>
             <button type="submit" class="btn" id="login-btn">登录后台</button>
-            <div style="margin-top:16px; text-align:center;">
-                <a href="/" style="font-size:0.84rem; color:var(--text-light);">← 返回主页</a>
+            <div style="margin-top:18px; text-align:center;">
+                <a href="/" style="font-size:0.85rem; color:var(--text-light);">← 返回主页</a>
             </div>
         </form>
     </div>
@@ -1004,15 +1062,18 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
     </script>
 </body>
 </html>`;
-  }
+}
 
-  // 管理后台主界面（支持自定义发布时间）
+/**
+ * 5. 管理后台 CMS 主界面 HTML (/admin 登录后)
+ */
+function renderAdminCmsHtml(articlesJson, hasKv) {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文章发布与管理后台 — 维托里奥 崔</title>
+    <title>文章管理后台 — 维托里奥 崔</title>
     <style>
         ${COMMON_CSS}
         body { padding: 30px 20px; }
@@ -1085,12 +1146,13 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
     <div class="cms-container">
         <div class="top-bar">
             <div>
-                <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">文章管理后台</span>
+                <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">文章发布与管理 CMS</span>
                 <span style="font-size:0.8rem; color:var(--text-light); margin-left:10px;">${hasKv ? '🟢 Cloudflare KV 实时持久化' : '🟡 体验模式'}</span>
             </div>
             <div style="display:flex; gap:10px;">
                 <button class="btn btn-primary" onclick="openCreateModal()">➕ 发布新文章</button>
-                <a href="/" class="btn btn-outline" style="text-decoration:none;">查看主页</a>
+                <a href="/articles" class="btn btn-outline" style="text-decoration:none;">文章页面</a>
+                <a href="/" class="btn btn-outline" style="text-decoration:none;">主页</a>
                 <button class="btn btn-outline" onclick="handleLogout()">登出</button>
             </div>
         </div>
@@ -1319,7 +1381,18 @@ export default {
       });
     }
 
-    // 6. 独立工作经历页面 GET /experience
+    // 6. 独立文章列表页面 GET /articles 或 /blog
+    if (path === "/articles" || path === "/blog") {
+      const items = await getArticles(env);
+      return new Response(renderArticlesPageHtml(JSON.stringify(items)), {
+        headers: {
+          "Content-Type": "text/html;charset=UTF-8",
+          "Cache-Control": "public, max-age=120"
+        }
+      });
+    }
+
+    // 7. 独立工作经历页面 GET /experience
     if (path === "/experience" || path === "/work-experience") {
       return new Response(renderExperienceHtml(), {
         headers: {
@@ -1329,19 +1402,23 @@ export default {
       });
     }
 
-    // 7. 管理后台路由 GET /admin
+    // 8. 管理后台 GET /admin (未登录显示登录页面，已登录显示 CMS)
     if (path === "/admin") {
       const isAuthed = checkAuth(request, env);
+      if (!isAuthed) {
+        return new Response(renderAdminLoginHtml(), {
+          headers: { "Content-Type": "text/html;charset=UTF-8" }
+        });
+      }
       const items = await getArticles(env);
       const hasKv = Boolean(env && env.BLOG_KV);
-      return new Response(renderAdminHtml(isAuthed, JSON.stringify(items), hasKv), {
+      return new Response(renderAdminCmsHtml(JSON.stringify(items), hasKv), {
         headers: { "Content-Type": "text/html;charset=UTF-8" }
       });
     }
 
-    // 8. 公开主页 GET /
-    const items = await getArticles(env);
-    return new Response(renderPublicHtml(JSON.stringify(items)), {
+    // 9. 公开主页 GET / (不显示文章，仅关于我与经历)
+    return new Response(renderPublicHtml(), {
       headers: {
         "Content-Type": "text/html;charset=UTF-8",
         "Cache-Control": "public, max-age=120"
