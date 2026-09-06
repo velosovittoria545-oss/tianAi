@@ -240,6 +240,11 @@ const DEFAULT_PROFILE = {
   rewardQrCode: ""
 };
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function formatExpText(text) {
   if (!text) return '';
   const lines = text.split('\n');
