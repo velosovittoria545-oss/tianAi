@@ -1,0 +1,24 @@
+{
+  "name": "tianai-portfolio",
+  "version": "1.0.0",
+  "description": "Vittoria — AI Researcher & Technical Leader Personal Website & Blog CMS on Cloudflare Workers",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "portfolio-template",
+    "ai-researcher",
+    "minimalist-blog",
+    "serverless",
+    "cms",
+    "dark-academic"
+  ],
+  "author": "Vittoria",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.100.0"
+  }
+}

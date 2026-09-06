@@ -1,0 +1,13 @@
+# Cloudflare Workers
+.wrangler/
+.dev.vars
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

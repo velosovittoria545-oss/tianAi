@@ -1,0 +1,20 @@
+name = "tianai"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+
+# 绑定自定义域名（请根据需要开启）
+# routes = [
+#   { pattern = "drvittoria.de5.net/*", zone_name = "drvittoria.de5.net" }
+# ]
+
+# 环境变量设置：您可以在此直接设置后台登录密码，或在 Cloudflare 控制台添加加密密码
+[vars]
+ADMIN_PASSWORD = "vittoria2026!"
+
+# Cloudflare KV 命名空间绑定：用于全球持久化存储文章数据
+# 步骤：
+# 1. 在 Cloudflare 控制台 -> Storage & Databases -> KV 中创建一个名为 BLOG_KV 的命名空间
+# 2. 将控制台生成的 id 替换下方的 YOUR_KV_NAMESPACE_ID 即可
+# [[kv_namespaces]]
+# binding = "BLOG_KV"
+# id = "YOUR_KV_NAMESPACE_ID"
