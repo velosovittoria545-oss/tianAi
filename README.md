@@ -1,6 +1,6 @@
 <div align="center">
 
-# TianAi (天艾)
+# TianAi (甜爱)
 ### Minimalist Editorial Portfolio & Serverless Publishing CMS
 ### 极简文人质感个人主页与 Serverless 技术博客系统
 
@@ -115,7 +115,7 @@ npm run deploy
 
 ### 项目简介
 
-**TianAi（天艾）** 是一款专为 AI 研究员、算法科学家、系统架构师及技术主管打造的极简文人质感个人主页与技术博客系统。基于 **Cloudflare Workers** 与 **Cloudflare KV** 纯 Serverless 架构构建，部署在全球边缘节点上，拥有**零服务器账单、毫秒级首屏加载、无出口流量费**等特点，排版设计融合了学术期刊的衬线美学与现代工程师的终端极简质感。
+**TianAi（甜爱）** 是一款专为 AI 研究员、算法科学家、系统架构师及技术主管打造的极简文人质感个人主页与技术博客系统。基于 **Cloudflare Workers** 与 **Cloudflare KV** 纯 Serverless 架构构建，部署在全球边缘节点上，拥有**零服务器账单、毫秒级首屏加载、无出口流量费**等特点，排版设计融合了学术期刊的衬线美学与现代工程师的终端极简质感。
 
 前端静态渲染、前台文章阅读器、读者留言板、全功能中英双语管理后台（`/admin`）以及后端 RESTful API 全部浓缩在单个轻量级 `worker.js` 文件中，开箱即用。
 

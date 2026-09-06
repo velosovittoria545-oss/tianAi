@@ -1,5 +1,5 @@
 /**
- * 项目名称: TianAi (天艾) — 维托里奥 崔 (Vittorio Cui) 个人主页与文章系统
+ * 项目名称: TianAi (甜爱) — 维托里奥 崔 (Vittorio Cui) 个人主页与文章系统
  * 架构规范: 李新野 (Sinya Lee) 极简风格 + Cloudflare Workers + KV 边缘持久化
  * 核心规范:
  *   - 首页：极简排版，不显示文章，仅保留“关于我”与“经历”
