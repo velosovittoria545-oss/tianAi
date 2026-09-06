@@ -659,7 +659,7 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             box.innerHTML = ARTICLES.map(art => {
                 const title = (art.title && (art.title.zh || art.title.en)) || art.id;
                 const viewsFormatted = formatViews(art.views);
-                return '<div class="article-row" onclick="openArticle(\'' + art.id + '\')">' +
+                return '<div class="article-row" data-id="' + art.id + '" onclick="openArticle(this.dataset.id)">' +
                     '<div>' +
                         '<div class="article-title-text">' + title + '</div>' +
                         '<div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-light); margin-top:4px;">' +
@@ -1813,9 +1813,13 @@ function renderAdminLoginHtml() {
 
         // 自动恢复凭证（如果未主动登出）
         try {
-            const saved = localStorage.getItem('tianai_token');
-            if (saved && !window.location.search.includes('logout=true')) {
-                window.location.href = '/admin?auth_token=' + encodeURIComponent(saved);
+            if (window.location.search.includes('logout=true')) {
+                localStorage.removeItem('tianai_token');
+            } else {
+                const saved = localStorage.getItem('tianai_token');
+                if (saved) {
+                    window.location.href = '/admin?auth_token=' + encodeURIComponent(saved);
+                }
             }
         } catch(e) {}
     </script>
@@ -2266,8 +2270,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
                         '</div>' +
                     '</div>' +
                     '<div style="display:flex; gap:8px;">' +
-                        '<button class="btn btn-outline" onclick="openEditModal(\'' + a.id + '\')">编辑</button>' +
-                        '<button class="btn btn-danger" onclick="deleteArticle(\'' + a.id + '\')">删除</button>' +
+                        '<button class="btn btn-outline" data-id="' + a.id + '" onclick="openEditModal(this.dataset.id)">编辑</button>' +
+                        '<button class="btn btn-danger" data-id="' + a.id + '" onclick="deleteArticle(this.dataset.id)">删除</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -2305,9 +2309,9 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
                     '</div>' +
                     '<div style="background:var(--bg-subtle); padding:10px 14px; border-radius:4px; font-size:0.88rem; color:var(--text-main); line-height:1.6; border-left:3px solid var(--accent); white-space:pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
                     '<div style="display:flex; justify-content:flex-end; gap:8px; align-items:center;">' +
-                        (c.status !== 'approved' ? '<button class="btn btn-primary" style="background:#28a745; font-size:0.8rem; padding:4px 10px;" onclick="moderateComment(\'' + c.id + '\', \'approved\')">✓ 通过展示</button>' : '') +
-                        (c.status !== 'rejected' ? '<button class="btn btn-outline" style="font-size:0.8rem; padding:4px 10px;" onclick="moderateComment(\'' + c.id + '\', \'rejected\')">✗ 驳回隐藏</button>' : '') +
-                        '<button class="btn btn-danger" style="font-size:0.8rem; padding:4px 10px;" onclick="deleteComment(\'' + c.id + '\')">删除</button>' +
+                        (c.status !== 'approved' ? '<button class="btn btn-primary" style="background:#28a745; font-size:0.8rem; padding:4px 10px;" data-id="' + c.id + '" data-status="approved" onclick="moderateComment(this.dataset.id, this.dataset.status)">✓ 通过展示</button>' : '') +
+                        (c.status !== 'rejected' ? '<button class="btn btn-outline" style="font-size:0.8rem; padding:4px 10px;" data-id="' + c.id + '" data-status="rejected" onclick="moderateComment(this.dataset.id, this.dataset.status)">✗ 驳回隐藏</button>' : '') +
+                        '<button class="btn btn-danger" style="font-size:0.8rem; padding:4px 10px;" data-id="' + c.id + '" onclick="deleteComment(this.dataset.id)">删除</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -3093,6 +3097,16 @@ export default {
 
     // 13. 管理后台 GET /admin (未登录显示登录页面，已登录显示 CMS)
     if (path === "/admin") {
+      const isLogout = url.searchParams.get("logout") === "true";
+      if (isLogout) {
+        return new Response(renderAdminLoginHtml(), {
+          headers: { 
+            "Content-Type": "text/html;charset=UTF-8",
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Set-Cookie": "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+          }
+        });
+      }
       const isAuthed = checkAuth(request, env);
       const token = generateAuthToken(env);
       if (!isAuthed) {
