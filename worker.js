@@ -1783,7 +1783,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文章与留言管理后台 — 维托里奥 崔</title>
+    <title>网站控制台 — 维托里奥 崔</title>
     <style>
         ${COMMON_CSS}
         body { padding: 30px 20px; }
@@ -1870,11 +1870,12 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
     <div class="cms-container">
         <div class="top-bar">
             <div>
-                <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">博客管理控制台</span>
+                <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">网站控制台</span>
                 <span style="font-size:0.8rem; color:var(--text-light); margin-left:10px;">${hasKv ? '🟢 Cloudflare KV 实时持久化' : '🟡 体验模式'}</span>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
                 <button class="btn btn-primary" onclick="openCreateModal()">➕ 发布新文章</button>
+                <button class="btn btn-outline" onclick="openPasswordModal()">🔑 修改密码</button>
                 <a href="/articles" class="btn btn-outline" style="text-decoration:none;">文章列表</a>
                 <a href="/" class="btn btn-outline" style="text-decoration:none;">主页</a>
                 <button class="btn btn-outline" onclick="handleLogout()">登出</button>
@@ -2117,6 +2118,49 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
         </div>
     </div>
 
+    <!-- 修改密码说明 / 安全设置 Modal -->
+    <div id="password-modal" class="modal-mask" style="display:none;">
+        <div class="modal-card" style="max-width:580px; width:95%;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="font-family:var(--font-serif); font-size:1.3rem; margin:0;">🔑 管理员密码修改指南</h3>
+                <button type="button" class="btn btn-outline" style="padding:4px 10px;" onclick="closePasswordModal()">✕ 关闭</button>
+            </div>
+            <div style="font-size:0.9rem; line-height:1.7; color:var(--text-main);">
+                <p style="margin-top:0; color:var(--text-muted); font-size:0.88rem;">
+                    甜爱网站运行在 <strong>Cloudflare 全球边缘网络</strong> 上，密码由环境变量或加密机密保护。您可以选择以下任一方式修改：
+                </p>
+
+                <div style="background:var(--bg-subtle); border-radius:6px; padding:14px; margin-bottom:14px; border:1px solid var(--border);">
+                    <div style="font-weight:600; color:var(--text-main); margin-bottom:8px;">
+                        ⚡ 方式一：Cloudflare 仪表盘直接修改（推荐 · 5秒全球生效）
+                    </div>
+                    <ol style="margin:0; padding-left:20px; font-size:0.85rem; color:var(--text-muted); display:flex; flex-direction:column; gap:4px;">
+                        <li>打开 <a href="https://dash.cloudflare.com/" target="_blank" style="color:var(--accent); text-decoration:underline;">Cloudflare 仪表盘 (dash.cloudflare.com)</a></li>
+                        <li>进入 <strong>Workers 和 Pages</strong> &rarr; 点击 <strong>tianai</strong></li>
+                        <li>点击上方 <strong>设置 (Settings)</strong> 标签页 &rarr; <strong>变量和机密 (Variables and Secrets)</strong></li>
+                        <li>找到 <code>ADMIN_PASSWORD</code> 变量点击编辑（或点击添加加密机密 Secret）</li>
+                        <li>输入新密码，点击 <strong>保存并部署 (Save and Deploy)</strong> 即可！</li>
+                    </ol>
+                </div>
+
+                <div style="background:var(--bg-subtle); border-radius:6px; padding:14px; margin-bottom:16px; border:1px solid var(--border);">
+                    <div style="font-weight:600; color:var(--text-main); margin-bottom:8px;">
+                        🛠️ 方式二：在代码仓库修改（Git 自动部署）
+                    </div>
+                    <ol style="margin:0; padding-left:20px; font-size:0.85rem; color:var(--text-muted); display:flex; flex-direction:column; gap:4px;">
+                        <li>打开本地项目中的 <code>wrangler.toml</code> 文件</li>
+                        <li>修改 <code>ADMIN_PASSWORD = "新密码"</code></li>
+                        <li>提交并推送到 GitHub 仓库即可自动触发部署</li>
+                    </ol>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end;">
+                    <button type="button" class="btn btn-primary" onclick="closePasswordModal()">我知道了</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let articles = ${articlesJson};
         let comments = ${commentsJson};
@@ -2267,6 +2311,14 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
 
         function closeModal() {
             document.getElementById('modal').style.display = 'none';
+        }
+
+        function openPasswordModal() {
+            document.getElementById('password-modal').style.display = 'flex';
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').style.display = 'none';
         }
 
         async function handleSave(e) {
