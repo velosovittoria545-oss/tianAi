@@ -971,6 +971,13 @@ function extractRequestToken(request) {
 }
 
 async function checkAuth(request, env) {
+  // 1. Cloudflare Zero Trust (Access) 邮箱免密直通校验
+  const cfUserEmail = (request.headers.get("cf-access-authenticated-user-email") || "").trim().toLowerCase();
+  const adminEmail = (DEFAULT_PROFILE.email || "velosovittoria545@gmail.com").trim().toLowerCase();
+  if (cfUserEmail && (cfUserEmail === adminEmail || cfUserEmail === "velosovittoria545@gmail.com")) {
+    return true;
+  }
+
   const token = extractRequestToken(request);
   if (!token) return false;
 
@@ -5066,7 +5073,19 @@ export default {
           }
         });
       }
-      const activeToken = extractRequestToken(request);
+      let activeToken = extractRequestToken(request);
+      if (!activeToken) {
+        activeToken = generateSessionToken();
+        if (env && env.BLOG_KV) {
+          try {
+            await env.BLOG_KV.put("ADMIN_SESS_" + activeToken, JSON.stringify({
+              token: activeToken,
+              createdAt: Date.now(),
+              lastActive: Date.now()
+            }), { expirationTtl: 86400 });
+          } catch(e) {}
+        }
+      }
       const items = await getArticlesWithViews(env);
       const commentsData = await getCommentsWithAutoExpiry(env);
       const prof = await getProfile(env);
