@@ -1,18 +1,13 @@
 /**
- * 项目名称: TianAi (天艾) — Vittorio Cui 个人主页、独立工作经历与文章系统
+ * 项目名称: TianAi (天艾) — Vittorio Cui (维托里奥 崔) 个人主页与独立工作经历系统
  * 架构规范: 李新野 (Sinya Lee) 极简双栏排版 + Cloudflare Workers + KV 边缘持久化
- * 路由支持:
- *   GET /              - 极简主页 (包含 Vittorio Cui 头像、关于我、工作经历概览、核心架构、文章、随便)
- *   GET /experience    - 独立工作经历页面 (点击 worexperice / 工作经历 跳转，详尽履历与重点客户)
- *   GET /admin         - 文章/随笔发布与管理后台
- *   GET /api/articles  - 文章与随笔列表 API
- *   POST /api/articles - 文章增删改 (需登录授权)
+ * 首页特性: 重点优先展示工作经历、全新自我介绍、全新核心领域划分、独立/experience页面
  */
 
 const CONFIG = {
   name: "Vittorio Cui",
-  chineseName: "崔",
-  title: "AI Researcher & Technical Leader",
+  chineseName: "维托里奥 崔",
+  title: "AI Researcher",
   email: "velosovittoria545@gmail.com",
   adminUsername: "admin",
   adminPassword: "vittoria2026!",
@@ -242,6 +237,8 @@ const COMMON_CSS = `
         display: flex;
         justify-content: space-between;
         align-items: baseline;
+        flex-wrap: wrap;
+        gap: 8px;
     }
     .sec-title a.more-link {
         font-family: var(--font-sans);
@@ -261,7 +258,7 @@ function renderExperienceHtml() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>工作经历 (Work Experience) — Vittorio Cui</title>
+    <title>工作经历 (Work Experience) — Vittorio Cui (维托里奥 崔)</title>
     <style>
         ${COMMON_CSS}
         .back-nav { margin-bottom: 24px; }
@@ -286,7 +283,7 @@ function renderExperienceHtml() {
         .page-subtitle {
             color: var(--text-muted);
             font-size: 0.96rem;
-            line-height: 1.6;
+            line-height: 1.65;
         }
         .exp-card {
             background: var(--bg-card);
@@ -362,10 +359,10 @@ function renderExperienceHtml() {
         </div>
 
         <header class="page-header">
-            <h1 class="page-title">工作经历与项目履历</h1>
+            <h1 class="page-title">工作经历与工程履历</h1>
             <p class="page-subtitle">
-                <strong>Vittorio Cui (崔)</strong> · AI 研究员与技术负责人。<br>
-                深耕大模型 Agent/RAG 架构、vLLM 底层推理加速，以及承载单集群峰值 10k+ QPS、99.99% SLA 的高并发微服务底盘工程。
+                <strong>Vittorio Cui (维托里奥 崔)</strong> · AI 研究员。<br>
+                目前致力于实现 AGI。深耕大模型部署 (vLLM / 推理加速)、Agent 系统设计与万级 QPS、99.99% SLA 的高可用微服务底盘工程。
             </p>
         </header>
 
@@ -380,8 +377,8 @@ function renderExperienceHtml() {
             </div>
             <div class="exp-focus-tag">核心方向：前沿部署工程 (FDE)、多智能体协同网络 (Multi-Agent Systems)、模型对齐与评测体系</div>
             <ul class="exp-detail-list">
-                <li>主导企业级前沿部署工程 (Forward Deployed Engineering, FDE) 体系化建设，推动企业客户核心业务流与大语言模型智能体深度集成。</li>
-                <li>架构设计高可用多智能体协作框架，攻克长程状态机治理、Memory 语义检索及复杂业务异常回退（Fallback）防线。</li>
+                <li>主导企业级前沿部署工程 (Forward Deployed Engineering, FDE) 体系化建设，推动大语言模型在企业级复杂工作流中的端到端集成。</li>
+                <li>架构设计高可用多智能体协作中枢，突破长程状态机治理、Memory 语义检索及复杂业务异常回退（Fallback）防线。</li>
                 <li>负责大语言模型微调 (SFT)、DPO/RLHF 强化学习对齐优化及领域自适应评测，构建句子级反幻觉事实交叉校验机制。</li>
             </ul>
         </div>
@@ -457,6 +454,7 @@ function renderExperienceHtml() {
 
 /**
  * 2. 极简主页 HTML (GET /)
+ * 首页设计遵循李新野极简风格，重点优先展示工作经历
  */
 function renderPublicHtml(articlesJson) {
   return `<!DOCTYPE html>
@@ -464,7 +462,7 @@ function renderPublicHtml(articlesJson) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${CONFIG.name} — AI Researcher & Technical Leader</title>
+    <title>${CONFIG.name} (维托里奥 崔) — AI Researcher</title>
     <style>
         ${COMMON_CSS}
 
@@ -503,14 +501,14 @@ function renderPublicHtml(articlesJson) {
         }
         .name-zh {
             font-family: var(--font-serif);
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             color: var(--text-muted);
             font-weight: 400;
         }
         .header-intro {
             font-size: 0.95rem;
             color: var(--text-muted);
-            line-height: 1.65;
+            line-height: 1.68;
             margin-bottom: 14px;
         }
         .header-links {
@@ -528,6 +526,46 @@ function renderPublicHtml(articlesJson) {
         }
         .header-link:hover {
             color: var(--accent-hover);
+        }
+
+        /* 首页重点展示：工作经历卡片 */
+        .exp-highlight-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 20px 22px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .exp-head-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .exp-company-name {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        .exp-role-badge {
+            color: var(--accent);
+            font-weight: 500;
+            font-size: 0.92rem;
+            margin-left: 6px;
+        }
+        .exp-period-tag {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        .exp-desc-line {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-top: 4px;
         }
 
         /* 紧凑 Key-Value 表格 */
@@ -548,26 +586,6 @@ function renderPublicHtml(articlesJson) {
         }
         .info-value {
             color: var(--text-main);
-        }
-
-        /* 工作经历概览时间线 */
-        .exp-row {
-            display: grid;
-            grid-template-columns: 100px 1fr;
-            gap: 12px;
-            margin-bottom: 14px;
-            font-size: 0.92rem;
-        }
-        .exp-years {
-            font-family: var(--font-mono);
-            font-size: 0.82rem;
-            color: var(--text-light);
-            padding-top: 2px;
-        }
-        .exp-role {
-            font-size: 0.82rem;
-            color: var(--text-muted);
-            margin-top: 2px;
         }
 
         /* 专项架构卡片 */
@@ -723,7 +741,6 @@ function renderPublicHtml(articlesJson) {
         @media (max-width: 600px) {
             .header-box { flex-direction: column; align-items: flex-start; gap: 16px; }
             .avatar-img { width: 110px; height: 145px; }
-            .exp-row { grid-template-columns: 1fr; gap: 4px; }
             .info-label { width: 115px; }
             .metrics-inline { flex-direction: column; gap: 4px; }
         }
@@ -732,23 +749,24 @@ function renderPublicHtml(articlesJson) {
 <body>
     <div class="container">
 
-        <!-- 1. 顶部两栏 Header (李新野风格) -->
+        <!-- 1. 顶部两栏 Header (李新野极简风格) -->
         <header class="header-box">
             <img class="avatar-img" src="data:image/jpeg;base64,${CONFIG.avatarBase64}" alt="${CONFIG.name}" />
             
             <div class="header-content">
                 <div class="header-title-row">
                     <span class="name-en" id="author-name-en">Vittorio Cui</span>
-                    <span class="name-zh" id="author-name-zh">崔</span>
+                    <span class="name-zh" id="author-name-zh">维托里奥 崔</span>
                 </div>
                 
                 <p class="header-intro" id="header-intro-text">
-                    欢迎访问我的主页。我是 <strong>AI 研究员与技术负责人</strong>，专注于大模型 Agent/RAG 架构、vLLM 底层推理优化以及万级 QPS、99.99% SLA 的高可用微服务底座建设。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。
+                    你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。
                 </p>
 
                 <div class="header-links">
+                    <a class="header-link" href="#experience-section" id="link-exp">工作经历</a>
+                    <a class="header-link" href="#about-section" id="link-about">关于我</a>
                     <a class="header-link" href="#articles-section" id="link-essays">文章</a>
-                    <a class="header-link" href="/experience" id="link-exp">工作经历</a>
                     <a class="header-link" href="#suibian-section" id="link-suibian">随便</a>
                     <a class="header-link" href="mailto:${CONFIG.email}">Email</a>
                     <a class="header-link" href="javascript:void(0)" onclick="toggleLanguage()" id="link-lang">English / 中文</a>
@@ -759,22 +777,75 @@ function renderPublicHtml(articlesJson) {
 
         <hr />
 
-        <!-- 2. 个人档案表 (关于我 / About Me) -->
-        <section>
+        <!-- 2. 首页重点展示板块：工作经历 (Work Experience) -->
+        <section id="experience-section">
+            <h2 class="sec-title">
+                <span id="title-experience">工作经历</span>
+                <a href="/experience" class="more-link" id="link-full-exp">查看完整履历与项目详情 →</a>
+            </h2>
+            <div id="experience-highlight-list">
+                <!-- Hightouch -->
+                <div class="exp-highlight-box">
+                    <div class="exp-head-row">
+                        <div>
+                            <span class="exp-company-name">Hightouch</span>
+                            <span class="exp-role-badge">· AI Researcher</span>
+                        </div>
+                        <span class="exp-period-tag">2024 — Present</span>
+                    </div>
+                    <div class="exp-desc-line" id="exp-desc-hightouch">
+                        前沿部署工程 (FDE) 体系建设、多智能体协作网络 (Multi-Agent Systems)、大模型预训练 / SFT / RLHF 评测与工业落地。
+                    </div>
+                </div>
+
+                <!-- eBay -->
+                <div class="exp-highlight-box">
+                    <div class="exp-head-row">
+                        <div>
+                            <span class="exp-company-name">eBay (亿贝)</span>
+                            <span class="exp-role-badge">· AI Tech Expert</span>
+                        </div>
+                        <span class="exp-period-tag">2022 — 2024</span>
+                    </div>
+                    <div class="exp-desc-line" id="exp-desc-ebay">
+                        主导全局电商 AI Platform 基础底盘建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。
+                    </div>
+                </div>
+
+                <!-- 快手 -->
+                <div class="exp-highlight-box">
+                    <div class="exp-head-row">
+                        <div>
+                            <span class="exp-company-name">Kuaishou (快手)</span>
+                            <span class="exp-role-badge">· Senior Backend / Tech Manager</span>
+                        </div>
+                        <span class="exp-period-tag">2016 — 2022</span>
+                    </div>
+                    <div class="exp-desc-line" id="exp-desc-kuaishou">
+                        历经快手高速成长至香港上市，主导核心支付结算微服务重构。支撑单集群峰值 10,000+ QPS 极限冲击，零资损保障核心 SLA 99.99%。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <hr />
+
+        <!-- 3. 关于我 (About Me) -->
+        <section id="about-section">
             <h2 class="sec-title" id="title-about">关于我</h2>
             <table class="info-table">
                 <tbody>
                     <tr>
                         <td class="info-label" id="lbl-pos">职位 / 角色:</td>
-                        <td class="info-value" id="val-position">AI 研究员与技术负责人</td>
+                        <td class="info-value" id="val-position">AI 研究员</td>
+                    </tr>
+                    <tr>
+                        <td class="info-label" id="lbl-focus">核心领域:</td>
+                        <td class="info-value" id="val-focus">LLM、大模型部署（vLLM / 推理加速）、系统设计、后端技术架构</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-edu">教育背景:</td>
                         <td class="info-value" id="val-education">博士 (Ph.D.), Abide 大学 | 软件工程学士, 北京邮电大学 (BUPT)</td>
-                    </tr>
-                    <tr>
-                        <td class="info-label" id="lbl-focus">核心领域:</td>
-                        <td class="info-value" id="val-focus">大模型 Agent/RAG 架构、vLLM 底层推理加速、高并发分布式系统 (10k+ QPS, 99.99% SLA)</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-tech">技术栈:</td>
@@ -798,40 +869,7 @@ function renderPublicHtml(articlesJson) {
 
         <hr />
 
-        <!-- 3. 工作经历 (Work Experience) 概览与跳转 -->
-        <section id="experience-section">
-            <h2 class="sec-title">
-                <span id="title-experience">工作经历</span>
-                <a href="/experience" class="more-link" id="link-full-exp">查看完整履历与项目详情 →</a>
-            </h2>
-            <div id="experience-list-container">
-                <div class="exp-row">
-                    <div class="exp-years">2024–Present</div>
-                    <div class="exp-main">
-                        <strong>Hightouch</strong>, AI Researcher
-                        <div class="exp-role" id="exp-desc-hightouch">前沿部署工程 (FDE) 体系建设、多智能体协作网络、大模型预训练/SFT/RLHF 评测优化</div>
-                    </div>
-                </div>
-                <div class="exp-row">
-                    <div class="exp-years">2022–2024</div>
-                    <div class="exp-main">
-                        <strong>eBay (亿贝)</strong>, AI Tech Expert
-                        <div class="exp-role" id="exp-desc-ebay">主导全局电商 AI Platform 基础底座建设，落地大语言模型智能客服与 Agent 智能体系统</div>
-                    </div>
-                </div>
-                <div class="exp-row">
-                    <div class="exp-years">2016–2022</div>
-                    <div class="exp-main">
-                        <strong>Kuaishou (快手)</strong>, Senior Backend Engineer / Tech Manager
-                        <div class="exp-role" id="exp-desc-kuaishou">支撑 QPS 10k+ 极限海量支付交易核心场景，主导支付结算微服务重构，保障核心 SLA 99.99%</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <hr />
-
-        <!-- 4. 专项独立项目与架构 (Featured Architecture) -->
+        <!-- 4. 核心系统架构 (Featured Architecture) -->
         <section>
             <h2 class="sec-title" id="title-project">核心系统架构</h2>
             <div class="arch-box">
@@ -870,7 +908,7 @@ function renderPublicHtml(articlesJson) {
 
         <hr />
 
-        <!-- 6. 随便 (Sui Bian / Casual Musings) - 随想与短记 -->
+        <!-- 6. 随便 (Sui Bian / Casual Musings) - 随性短文与思考 -->
         <section id="suibian-section">
             <h2 class="sec-title" id="title-suibian">随便</h2>
             <p style="font-size:0.86rem; color:var(--text-light); margin-bottom:14px; font-style:italic;" id="suibian-desc">
@@ -899,10 +937,11 @@ function renderPublicHtml(articlesJson) {
 
         const i18n = {
             zh: {
-                nameZh: "崔",
-                intro: "欢迎访问我的主页。我是 <strong>AI 研究员与技术负责人</strong>，专注于大模型 Agent/RAG 架构、vLLM 底层推理优化以及万级 QPS、99.99% SLA 的高可用微服务底座建设。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。",
+                nameZh: "维托里奥 崔",
+                intro: "你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。",
                 linkEssays: "文章",
                 linkExp: "工作经历",
+                linkAbout: "关于我",
                 linkSuibian: "随便",
                 titleAbout: "关于我",
                 lblPos: "职位 / 角色:",
@@ -918,22 +957,23 @@ function renderPublicHtml(articlesJson) {
                 titleArticles: "文章",
                 titleSuibian: "随便",
                 suibianDesc: "放下架构考据与基准测试，一些关于工程、生活与思考的零碎随笔。",
-                valPosition: "AI 研究员与技术负责人",
+                valPosition: "AI 研究员",
+                valFocus: "LLM、大模型部署（vLLM / 推理加速）、系统设计、后端技术架构",
                 valEducation: "博士 (Ph.D.), Abide 大学 | 软件工程学士, 北京邮电大学 (BUPT)",
-                valFocus: "大模型 Agent/RAG 架构、vLLM 底层推理加速、高并发分布式系统 (10k+ QPS, 99.99% SLA)",
                 valLanguages: "中文 (母语), 英文 (流利)",
                 projectName: "基于 AI-Agent 的企业业务操作系统 (Enterprise Business OS)",
                 projectDesc: "独立全栈设计与落地：单一数据源（Single Source of Truth）驱动所有系统，协同前端网站门户、AI 智能体集群、大模型推理中枢、全渠道通信与无人值守运营。",
                 projectModules: "模块包含：全功能 ERP 架构 (496个核心字段与50+校验链路)、游戏化 CRM 与通信流转、无头 CMS 与最低库存自动采购、全渠道多智能体无人值守回复。",
-                expHightouch: "前沿部署工程 (FDE) 体系建设、多智能体协作网络、大模型预训练/SFT/RLHF 评测优化",
-                expEbay: "主导全局电商 AI Platform 基础底座建设，落地大语言模型智能客服与 Agent 智能体系统",
-                expKuaishou: "支撑 QPS 10k+ 极限海量支付交易核心场景，主导支付结算微服务重构，保障核心 SLA 99.99%"
+                expHightouch: "前沿部署工程 (FDE) 体系建设、多智能体协作网络 (Multi-Agent Systems)、大模型预训练 / SFT / RLHF 评测与工业落地。",
+                expEbay: "主导全局电商 AI Platform 基础底盘建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。",
+                expKuaishou: "历经快手高速成长至香港上市，主导核心支付结算微服务重构。支撑单集群峰值 10,000+ QPS 极限冲击，零资损保障核心 SLA 99.99%。"
             },
             en: {
                 nameZh: "",
-                intro: "Welcome to my homepage. I am an <strong>AI Researcher & Technical Leader</strong> dedicated to cutting-edge AI R&D, Agent/RAG architectures, vLLM low-level inference optimization, and high-concurrency systems (10k+ QPS, 99.99% SLA). Partnered with global enterprise clients including eBay, Ocean Network Express (ONE), and IBM.",
+                intro: "Hi, I am currently an AI Researcher. Known for my crisp, elegant, and witty writing style, my published essays are widely enjoyed by readers globally. I am currently dedicated to realizing AGI, having partnered with world-class clients including eBay, Ocean Network Express (ONE), and IBM to deploy enterprise agentic systems.",
                 linkEssays: "Articles",
                 linkExp: "Experience",
+                linkAbout: "About Me",
                 linkSuibian: "Thoughts",
                 titleAbout: "About Me",
                 lblPos: "Position:",
@@ -949,9 +989,9 @@ function renderPublicHtml(articlesJson) {
                 titleArticles: "Articles",
                 titleSuibian: "Casual Musings",
                 suibianDesc: "Stepping away from benchmark tests and architectural diagrams—casual notes on engineering and life.",
-                valPosition: "AI Researcher & Technical Leader",
+                valPosition: "AI Researcher",
+                valFocus: "LLMs, LLM Deployment (vLLM / Inference Acceleration), System Design, Backend Architecture",
                 valEducation: "Ph.D., Abide University | B.E. in Software Engineering, BUPT",
-                valFocus: "Agent/RAG Systems, vLLM Inference Optimization, High-Concurrency (10k+ QPS, 99.99% SLA)",
                 valLanguages: "Mandarin (Native), English (Fluent)",
                 projectName: "AI-Agent Driven Enterprise Business Operating System",
                 projectDesc: "Independently designed and deployed: A Single Source of Truth (SSOT) operating engine powering dynamic portals, multi-agent clusters, LLM pipelines, and unattended operations.",
@@ -1007,6 +1047,7 @@ function renderPublicHtml(articlesJson) {
             document.getElementById('header-intro-text').innerHTML = data.intro;
             document.getElementById('link-essays').innerText = data.linkEssays;
             document.getElementById('link-exp').innerText = data.linkExp;
+            document.getElementById('link-about').innerText = data.linkAbout;
             document.getElementById('link-suibian').innerText = data.linkSuibian;
             document.getElementById('title-about').innerText = data.titleAbout;
             document.getElementById('lbl-pos').innerText = data.lblPos;
@@ -1023,8 +1064,8 @@ function renderPublicHtml(articlesJson) {
             document.getElementById('title-suibian').innerText = data.titleSuibian;
             document.getElementById('suibian-desc').innerText = data.suibianDesc;
             document.getElementById('val-position').innerText = data.valPosition;
-            document.getElementById('val-education').innerText = data.valEducation;
             document.getElementById('val-focus').innerText = data.valFocus;
+            document.getElementById('val-education').innerText = data.valEducation;
             document.getElementById('val-languages').innerText = data.valLanguages;
             document.getElementById('project-name').innerText = data.projectName;
             document.getElementById('project-desc').innerText = data.projectDesc;
@@ -1035,7 +1076,6 @@ function renderPublicHtml(articlesJson) {
             renderLists();
         }
 
-        // 初始化渲染
         renderLists();
     </script>
 </body>
@@ -1091,7 +1131,7 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
 <body>
     <div class="login-card">
         <h2 style="font-family:var(--font-serif); font-size:1.6rem; margin-bottom:6px; color:var(--text-main);">管理后台登录</h2>
-        <p style="font-size:0.86rem; color:var(--text-light); margin-bottom:20px;">Vittorio Cui 个人文章与随笔发布系统</p>
+        <p style="font-size:0.86rem; color:var(--text-light); margin-bottom:20px;">Vittorio Cui (维托里奥 崔) 个人文章与随笔系统</p>
         <form id="login-form" onsubmit="handleLogin(event)">
             <label style="font-size:0.88rem; color:var(--text-muted);">用户名 (Username)</label>
             <input type="text" id="username" class="input-box" value="${CONFIG.adminUsername}" required />
@@ -1146,7 +1186,7 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文章与随便管理后台 — ${CONFIG.name}</title>
+    <title>文章与随便管理后台 — ${CONFIG.name} (维托里奥 崔)</title>
     <style>
         ${COMMON_CSS}
         body { padding: 30px 20px; }
@@ -1251,7 +1291,7 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
                     <label class="form-label">发布分类 (Category)</label>
                     <select id="item-category" class="form-select">
                         <option value="article">文章 (严肃技术研究/架构)</option>
-                        <option value="suibian">随便 (随性杂谈/思考/笔记)</option>
+                        <option value="suibian">随便 (随性杂谈/思考/散文)</option>
                     </select>
                 </div>
                 <div class="form-group">
