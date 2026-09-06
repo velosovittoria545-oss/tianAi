@@ -1682,8 +1682,17 @@ function renderAdminLoginHtml() {
         <form id="login-form" onsubmit="handleLogin(event)">
             <label id="lbl-username" style="font-size:0.88rem; color:var(--text-muted);">用户名 (Username)</label>
             <input type="text" id="username" class="input-box" value="${CONFIG.adminUsername}" required />
-            <label id="lbl-password" style="font-size:0.88rem; color:var(--text-muted);">密码 (Password)</label>
-            <input type="password" id="password" class="input-box" placeholder="请输入管理员密码" required />
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; margin-bottom:4px;">
+                <label id="lbl-password" style="font-size:0.88rem; color:var(--text-muted);">密码 (Password)</label>
+                <label style="font-size:0.8rem; color:var(--text-light); cursor:pointer; user-select:none; display:flex; align-items:center; gap:4px;">
+                    <input type="checkbox" id="toggle-pwd-chk" onchange="togglePasswordVisibility()" style="cursor:pointer;" />
+                    <span id="lbl-show-pwd">显示密码</span>
+                </label>
+            </div>
+            <div style="position:relative; margin-bottom:16px;">
+                <input type="password" id="password" class="input-box" style="margin:0; padding-right:42px;" placeholder="请输入管理员密码" required />
+                <button type="button" onclick="togglePasswordVisibility()" id="btn-toggle-eye" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.1rem; padding:4px; color:var(--text-light); line-height:1;" title="显示/隐藏密码">👁️</button>
+            </div>
             <div id="login-err" style="color:#d9534f; font-size:0.85rem; margin-bottom:12px; display:none;"></div>
             <button type="submit" class="btn" id="login-btn">登录后台</button>
             <div style="margin-top:18px; text-align:center;">
@@ -1700,6 +1709,7 @@ function renderAdminLoginHtml() {
                 subtitle: "维托里奥 崔 · 个人博客发布系统",
                 lblUser: "用户名 (Username)",
                 lblPass: "密码 (Password)",
+                showPass: "显示密码",
                 passPlaceholder: "请输入管理员密码",
                 btnText: "登录后台",
                 btnVerifying: "正在验证...",
@@ -1714,6 +1724,7 @@ function renderAdminLoginHtml() {
                 subtitle: "Vittorio Cui · Personal Publishing System",
                 lblUser: "Username",
                 lblPass: "Password",
+                showPass: "Show Password",
                 passPlaceholder: "Enter admin password",
                 btnText: "Sign In",
                 btnVerifying: "Verifying...",
@@ -1724,6 +1735,16 @@ function renderAdminLoginHtml() {
             }
         };
 
+        function togglePasswordVisibility() {
+            const input = document.getElementById('password');
+            const chk = document.getElementById('toggle-pwd-chk');
+            const eye = document.getElementById('btn-toggle-eye');
+            const isPass = input.type === 'password';
+            input.type = isPass ? 'text' : 'password';
+            if (chk) chk.checked = isPass;
+            if (eye) eye.innerText = isPass ? '🙈' : '👁️';
+        }
+
         function toggleAdminLang() {
             adminLang = adminLang === 'zh' ? 'en' : 'zh';
             const d = adminI18n[adminLang];
@@ -1732,6 +1753,8 @@ function renderAdminLoginHtml() {
             document.getElementById('admin-subtitle').innerText = d.subtitle;
             document.getElementById('lbl-username').innerText = d.lblUser;
             document.getElementById('lbl-password').innerText = d.lblPass;
+            document.getElementById('lbl-show-pwd').innerText = d.showPass;
+            document.getElementById('btn-toggle-eye').title = d.showPass;
             document.getElementById('password').placeholder = d.passPlaceholder;
             document.getElementById('login-btn').innerText = d.btnText;
             document.getElementById('link-back-home').innerText = d.backText;
