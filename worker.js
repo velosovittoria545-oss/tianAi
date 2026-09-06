@@ -850,6 +850,20 @@ async function getCommentsWithAutoExpiry(env) {
   return comments;
 }
 
+function commentTimestampMs(c) {
+  if (c && c.createdTimestamp) return Number(c.createdTimestamp) || 0;
+  if (c && c.id && c.id.startsWith("comm-")) {
+    const idNum = parseInt(c.id.slice(5), 10);
+    if (!isNaN(idNum) && idNum > 1000000000000) return idNum;
+  }
+  if (c && c.createdAt) {
+    try {
+      return new Date(c.createdAt.replace(' ', 'T') + ':00+08:00').getTime();
+    } catch (e) {}
+  }
+  return 0;
+}
+
 const DEFAULT_PROFILE = {
   nameZh: "维托里奥 崔",
   nameEn: "Vittorio Cui",
@@ -1694,7 +1708,7 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                             '</div>' +
                             '<div style="font-size:0.86rem; color:var(--text-main); line-height:1.6; white-space:pre-wrap; margin-bottom:6px;">' + escapeHtml(r.content || '') + '</div>' +
                             '<div style="display:flex; justify-content:flex-end;">' +
-                                '<button type="button" class="action-btn' + (rLiked ? ' liked' : '') + '" onclick="toggleArtLike(\'' + c.id + '\', \'' + r.id + '\')">' +
+                                '<button type="button" class="action-btn' + (rLiked ? ' liked' : '') + '" onclick="toggleArtLike(\\'' + c.id + '\\', \\'' + r.id + '\\')">' +
                                     '👍 <span id="art-like-' + r.id + '">' + (r.likes || 0) + '</span>' +
                                 '</button>' +
                             '</div>' +
@@ -1705,9 +1719,9 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
 
                 let replyBtn = '';
                 if (isCapped) {
-                    replyBtn = '<button type="button" class="action-btn disabled" title="该留言回复已达5条上限" onclick="alert(\'该条留言回复已达 5 条上限，无法继续添加新回复。\')">💬 回复已满 (5/5)</button>';
+                    replyBtn = '<button type="button" class="action-btn disabled" title="该留言回复已达5条上限" onclick="alert(\\'该条留言回复已达 5 条上限，无法继续添加新回复。\\')">💬 回复已满 (5/5)</button>';
                 } else {
-                    replyBtn = '<button type="button" class="action-btn" onclick="toggleArtReplyForm(\'' + c.id + '\')">💬 回复 (' + repCount + '/5)</button>';
+                    replyBtn = '<button type="button" class="action-btn" onclick="toggleArtReplyForm(\\'' + c.id + '\\')">💬 回复 (' + repCount + '/5)</button>';
                 }
 
                 const repForm = '<div id="art-rep-form-' + c.id + '" class="reply-input-panel" style="display:none;">' +
@@ -1720,8 +1734,8 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                     '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
                         '<span id="art-rep-status-' + c.id + '" style="font-size:0.78rem;"></span>' +
                         '<div style="display:flex; gap:8px;">' +
-                            '<button type="button" onclick="toggleArtReplyForm(\'' + c.id + '\')" class="action-btn">取消</button>' +
-                            '<button type="button" id="art-rep-btn-' + c.id + '" onclick="submitArtReply(\'' + c.id + '\')" style="background:var(--accent); color:white; border:none; border-radius:4px; padding:4px 14px; font-size:0.82rem; font-weight:500; cursor:pointer;">发表回复</button>' +
+                            '<button type="button" onclick="toggleArtReplyForm(\\'' + c.id + '\\')" class="action-btn">取消</button>' +
+                            '<button type="button" id="art-rep-btn-' + c.id + '" onclick="submitArtReply(\\'' + c.id + '\\')" style="background:var(--accent); color:white; border:none; border-radius:4px; padding:4px 14px; font-size:0.82rem; font-weight:500; cursor:pointer;">发表回复</button>' +
                         '</div>' +
                     '</div>' +
                 '</div>';
@@ -1735,7 +1749,7 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                     repliesHtml +
                     '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">' +
                         '<div style="display:flex; gap:8px; align-items:center;">' +
-                            '<button type="button" class="action-btn' + (cLiked ? ' liked' : '') + '" onclick="toggleArtLike(\'' + c.id + '\')">' +
+                            '<button type="button" class="action-btn' + (cLiked ? ' liked' : '') + '" onclick="toggleArtLike(\\'' + c.id + '\\')">' +
                                 '👍 赞同 (<span id="art-like-' + c.id + '">' + (c.likes || 0) + '</span>)' +
                             '</button>' +
                             replyBtn +
@@ -1913,7 +1927,13 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
 /**
  * 1.5 独立留言板页面 HTML (GET /guestbook 或 /messages)
  */
-function renderGuestbookHtml() {
+function renderGuestbookHtml(initialJson) {
+  let gbInitialTotal = 0;
+  if (initialJson) {
+    try {
+      gbInitialTotal = JSON.parse(initialJson).total || 0;
+    } catch (e) {}
+  }
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -2028,13 +2048,25 @@ function renderGuestbookHtml() {
         <!-- 留言列表标题与排序切换栏 -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
             <div>
-                <h3 style="font-family:var(--font-serif); font-size:1.2rem; font-weight:500; color:var(--text-main); margin:0;">💬 全部公开留言 (<span id="gb-count">0</span>)</h3>
+                <h3 style="font-family:var(--font-serif); font-size:1.2rem; font-weight:500; color:var(--text-main); margin:0;"><span id="gb-title">💬 全部公开留言</span> (<span id="gb-count">${gbInitialTotal}</span>)</h3>
+                <div id="gb-hint" style="font-size:0.78rem; color:var(--text-light); margin-top:2px;"></div>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
                 <span style="font-size:0.78rem; color:var(--text-light);">排序：</span>
                 <button type="button" id="sort-desc-btn" class="sort-tab-btn active" onclick="switchSortOrder('desc')">▼ 最新优先</button>
                 <button type="button" id="sort-asc-btn" class="sort-tab-btn" onclick="switchSortOrder('asc')">▲ 最早优先</button>
             </div>
+        </div>
+
+        <!-- 按周查找工具栏 -->
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:10px 14px;">
+            <span style="font-size:0.85rem; color:var(--text-muted);">🔍 按周查找（固定 7 天区间，最多显示 20 条）：</span>
+            <input type="date" id="gb-week-from" style="padding:6px 10px; font-size:0.85rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main);" />
+            <button type="button" class="action-btn" onclick="searchByWeek()">查找</button>
+            <button type="button" class="action-btn" onclick="shiftWeek(-1)">◀ 上一周</button>
+            <button type="button" class="action-btn" onclick="shiftWeek(1)">下一周 ▶</button>
+            <button type="button" class="action-btn" id="gb-clear-btn" onclick="clearWeekSearch()" style="display:none;">✕ 清除查找</button>
+            <span id="gb-search-status" style="font-size:0.8rem; color:var(--text-light);"></span>
         </div>
 
         <!-- 留言列表展示 -->
@@ -2054,8 +2086,13 @@ function renderGuestbookHtml() {
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
+        window.__INITIAL_GUESTBOOK__ = ${initialJson};
+
         let allApprovedComments = [];
         let currentSort = 'desc';
+        let gbTotal = 0;
+        let currentFrom = null;
+        let currentCapped = false;
 
         function switchSortOrder(order) {
             currentSort = order;
@@ -2183,7 +2220,26 @@ function renderGuestbookHtml() {
         function renderGuestbookList() {
             const listEl = document.getElementById('gb-messages-list');
             const countEl = document.getElementById('gb-count');
-            countEl.innerText = allApprovedComments.length;
+            const titleEl = document.getElementById('gb-title');
+            const hintEl = document.getElementById('gb-hint');
+            const clearBtn = document.getElementById('gb-clear-btn');
+            if (clearBtn) clearBtn.style.display = currentFrom ? '' : 'none';
+            if (titleEl) {
+                if (currentFrom) {
+                    const startMs = new Date(currentFrom + 'T00:00:00+08:00').getTime();
+                    const endD = new Date(startMs + 7 * 24 * 60 * 60 * 1000);
+                    const endStr = endD.getFullYear() + '-' + String(endD.getMonth() + 1).padStart(2, '0') + '-' + String(endD.getDate()).padStart(2, '0');
+                    titleEl.textContent = '📅 按周查找：' + currentFrom + ' ~ ' + endStr;
+                } else {
+                    titleEl.textContent = '💬 全部公开留言';
+                }
+            }
+            if (countEl) countEl.innerText = gbTotal;
+            if (hintEl) {
+                hintEl.textContent = currentFrom
+                    ? (currentCapped ? '该周共 ' + gbTotal + ' 条留言，仅显示前 20 条' : '')
+                    : (currentCapped ? '共 ' + gbTotal + ' 条公开留言，仅展示最新 10 条 · 可用"按周查找"浏览更多' : '');
+            }
 
             let localPending = [];
             try {
@@ -2212,7 +2268,8 @@ function renderGuestbookHtml() {
 
             const sorted = getSortedList(allApprovedComments);
             if (sorted.length === 0 && localPending.length === 0) {
-                listEl.innerHTML = '<div style="background:var(--bg-card); border:1px dashed var(--border); border-radius:6px; padding:32px; text-align:center; color:var(--text-light); font-size:0.88rem;">暂无公开留言，欢迎成为第一个交流的读者。</div>';
+                const emptyMsg = currentFrom ? '该时间段内暂无公开留言，可尝试查找其他日期。' : '暂无公开留言，欢迎成为第一个交流的读者。';
+                listEl.innerHTML = '<div style="background:var(--bg-card); border:1px dashed var(--border); border-radius:6px; padding:32px; text-align:center; color:var(--text-light); font-size:0.88rem;">' + emptyMsg + '</div>';
                 return;
             }
 
@@ -2238,7 +2295,7 @@ function renderGuestbookHtml() {
                             '</div>' +
                             '<div style="font-size:0.86rem; color:var(--text-main); line-height:1.6; white-space:pre-wrap; margin-bottom:6px;">' + escapeHtml(r.content || '') + '</div>' +
                             '<div style="display:flex; justify-content:flex-end;">' +
-                                '<button type="button" class="action-btn' + (rLiked ? ' liked' : '') + '" onclick="toggleLike(\'' + c.id + '\', \'' + r.id + '\')">' +
+                                '<button type="button" class="action-btn' + (rLiked ? ' liked' : '') + '" onclick="toggleLike(\\'' + c.id + '\\', \\'' + r.id + '\\')">' +
                                     '👍 <span id="like-' + r.id + '">' + (r.likes || 0) + '</span>' +
                                 '</button>' +
                             '</div>' +
@@ -2249,9 +2306,9 @@ function renderGuestbookHtml() {
 
                 let replyBtn = '';
                 if (isCapped) {
-                    replyBtn = '<button type="button" class="action-btn disabled" title="该留言回复已达5条上限" onclick="alert(\'该条留言回复已达 5 条上限，无法继续添加新回复。\')">💬 回复已满 (5/5)</button>';
+                    replyBtn = '<button type="button" class="action-btn disabled" title="该留言回复已达5条上限" onclick="alert(\\'该条留言回复已达 5 条上限，无法继续添加新回复。\\')">💬 回复已满 (5/5)</button>';
                 } else {
-                    replyBtn = '<button type="button" class="action-btn" onclick="toggleReplyForm(\'' + c.id + '\')">💬 回复 (' + repCount + '/5)</button>';
+                    replyBtn = '<button type="button" class="action-btn" onclick="toggleReplyForm(\\'' + c.id + '\\')">💬 回复 (' + repCount + '/5)</button>';
                 }
 
                 const repForm = '<div id="rep-form-' + c.id + '" class="reply-input-panel" style="display:none;">' +
@@ -2264,8 +2321,8 @@ function renderGuestbookHtml() {
                     '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
                         '<span id="rep-status-' + c.id + '" style="font-size:0.78rem;"></span>' +
                         '<div style="display:flex; gap:8px;">' +
-                            '<button type="button" onclick="toggleReplyForm(\'' + c.id + '\')" class="action-btn">取消</button>' +
-                            '<button type="button" id="rep-btn-' + c.id + '" onclick="submitReply(\'' + c.id + '\')" style="background:var(--accent); color:white; border:none; border-radius:4px; padding:4px 14px; font-size:0.82rem; font-weight:500; cursor:pointer;">发表回复</button>' +
+                            '<button type="button" onclick="toggleReplyForm(\\'' + c.id + '\\')" class="action-btn">取消</button>' +
+                            '<button type="button" id="rep-btn-' + c.id + '" onclick="submitReply(\\'' + c.id + '\\')" style="background:var(--accent); color:white; border:none; border-radius:4px; padding:4px 14px; font-size:0.82rem; font-weight:500; cursor:pointer;">发表回复</button>' +
                         '</div>' +
                     '</div>' +
                 '</div>';
@@ -2282,7 +2339,7 @@ function renderGuestbookHtml() {
                     repliesHtml +
                     '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:8px; border-top:1px dashed var(--border);">' +
                         '<div style="display:flex; gap:10px; align-items:center;">' +
-                            '<button type="button" class="action-btn' + (cLiked ? ' liked' : '') + '" onclick="toggleLike(\'' + c.id + '\')">' +
+                            '<button type="button" class="action-btn' + (cLiked ? ' liked' : '') + '" onclick="toggleLike(\\'' + c.id + '\\')">' +
                                 '👍 赞同 (<span id="like-' + c.id + '">' + (c.likes || 0) + '</span>)' +
                             '</button>' +
                             replyBtn +
@@ -2293,6 +2350,43 @@ function renderGuestbookHtml() {
             }).join('');
 
             listEl.innerHTML = html;
+        }
+
+        async function searchByWeek() {
+            const input = document.getElementById('gb-week-from');
+            const status = document.getElementById('gb-search-status');
+            const val = input && input.value;
+            if (!val) {
+                if (status) {
+                    status.style.color = '#dc3545';
+                    status.innerText = '请先选择起始日期';
+                }
+                return;
+            }
+            if (status) {
+                status.style.color = 'var(--text-light)';
+                status.innerText = '查找中...';
+            }
+            currentFrom = val;
+            await loadGuestbookMessages();
+            if (status) status.innerText = '';
+        }
+
+        function clearWeekSearch() {
+            currentFrom = null;
+            const input = document.getElementById('gb-week-from');
+            if (input) input.value = '';
+            loadGuestbookMessages();
+        }
+
+        function shiftWeek(dir) {
+            const input = document.getElementById('gb-week-from');
+            if (!input) return;
+            const base = currentFrom || input.value || new Date().toISOString().slice(0, 10);
+            const ms = new Date(base + 'T00:00:00+08:00').getTime() + dir * 7 * 24 * 60 * 60 * 1000;
+            const d = new Date(ms);
+            input.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            searchByWeek();
         }
 
         async function handleGuestbookSubmit(e) {
@@ -2396,16 +2490,37 @@ function renderGuestbookHtml() {
         async function loadGuestbookMessages() {
             const listEl = document.getElementById('gb-messages-list');
             try {
-                const res = await fetch('/api/comments');
+                let url = '/api/comments';
+                if (currentFrom) url += '?from=' + encodeURIComponent(currentFrom);
+                const res = await fetch(url);
                 const data = await res.json();
-                allApprovedComments = Array.isArray(data) ? data : [];
+                if (Array.isArray(data)) {
+                    allApprovedComments = data;
+                    gbTotal = data.length;
+                    currentCapped = false;
+                } else {
+                    allApprovedComments = Array.isArray(data.items) ? data.items : [];
+                    gbTotal = (typeof data.total === 'number') ? data.total : allApprovedComments.length;
+                    currentFrom = data.from || null;
+                    currentCapped = !!data.capped;
+                }
                 renderGuestbookList();
             } catch (e) {
                 listEl.innerHTML = '<div style="font-size:0.85rem; color:var(--text-light);">加载留言失败，请刷新重试</div>';
             }
         }
 
-        loadGuestbookMessages();
+        (function initGuestbook() {
+            const initial = window.__INITIAL_GUESTBOOK__;
+            if (initial && Array.isArray(initial.items)) {
+                allApprovedComments = initial.items;
+                gbTotal = (typeof initial.total === 'number') ? initial.total : initial.items.length;
+                currentCapped = !!initial.capped;
+                renderGuestbookList();
+            } else {
+                loadGuestbookMessages();
+            }
+        })();
     </script>
 </body>
 </html>`;
@@ -4517,9 +4632,47 @@ export default {
       const articleId = url.searchParams.get("articleId");
       let filtered = allComments.filter(c => c.status === "approved");
       if (articleId) {
+        // 文章页评论：逻辑不变，返回该文章全部已审核留言
         filtered = filtered.filter(c => c.articleId === articleId);
+        return new Response(JSON.stringify(filtered), {
+          headers: {
+            "Content-Type": "application/json;charset=UTF-8",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=10"
+          }
+        });
       }
-      return new Response(JSON.stringify(filtered), {
+      // 留言板：默认只展示最新 10 条；?from=YYYY-MM-DD 按周查找（固定 7 天区间，最多 20 条）
+      filtered.sort((a, b) => commentTimestampMs(b) - commentTimestampMs(a));
+      const fromParam = url.searchParams.get("from");
+      if (fromParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam)) {
+        const fromMs = new Date(fromParam + "T00:00:00+08:00").getTime();
+        if (!isNaN(fromMs)) {
+          const toMs = fromMs + 7 * 24 * 60 * 60 * 1000;
+          const inWeek = filtered.filter(c => {
+            const t = commentTimestampMs(c);
+            return t >= fromMs && t < toMs;
+          });
+          return new Response(JSON.stringify({
+            items: inWeek.slice(0, 20),
+            total: inWeek.length,
+            from: fromParam,
+            capped: inWeek.length > 20
+          }), {
+            headers: {
+              "Content-Type": "application/json;charset=UTF-8",
+              "Access-Control-Allow-Origin": "*",
+              "Cache-Control": "public, max-age=10"
+            }
+          });
+        }
+      }
+      return new Response(JSON.stringify({
+        items: filtered.slice(0, 10),
+        total: filtered.length,
+        from: null,
+        capped: filtered.length > 10
+      }), {
         headers: {
           "Content-Type": "application/json;charset=UTF-8",
           "Access-Control-Allow-Origin": "*",
@@ -4861,7 +5014,20 @@ export default {
 
     // 12.5. 独立留言板页面 GET /guestbook 或 /messages
     if (path === "/guestbook" || path === "/messages") {
-      return new Response(renderGuestbookHtml(), {
+      const gbAll = await getCommentsWithAutoExpiry(env);
+      const gbApproved = gbAll.filter(c => c.status === "approved");
+      gbApproved.sort((a, b) => commentTimestampMs(b) - commentTimestampMs(a));
+      const gbInitial = {
+        items: gbApproved.slice(0, 10),
+        total: gbApproved.length,
+        from: null,
+        capped: gbApproved.length > 10
+      };
+      const gbInitialJson = JSON.stringify(gbInitial)
+        .replace(/</g, "\\u003c")
+        .replace(/\u2028/g, "\\u2028")
+        .replace(/\u2029/g, "\\u2029");
+      return new Response(renderGuestbookHtml(gbInitialJson), {
         headers: {
           "Content-Type": "text/html;charset=UTF-8",
           "Cache-Control": "public, max-age=60"
