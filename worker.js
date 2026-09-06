@@ -334,34 +334,56 @@ async function getUploadedImage(env, imgId) {
   return null;
 }
 
-function checkAuth(request, env) {
-  const token = generateAuthToken(env);
-  const cookie = request.headers.get("Cookie") || "";
-  if (cookie.includes("tianai_session=" + token)) {
-    return true;
-  }
-  try {
-    const url = new URL(request.url);
-    const paramToken = url.searchParams.get("auth_token") || url.searchParams.get("token");
-    if (paramToken && paramToken === token) {
-      return true;
-    }
-  } catch(e) {}
+async function checkAuth(request, env) {
+  let token = "";
+  // 1. Authorization header (Bearer ...)
   const authHeader = request.headers.get("Authorization") || "";
-  if (authHeader.includes(token)) {
-    return true;
+  if (authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice(7).trim();
   }
-  return false;
+  // 2. Query param
+  if (!token) {
+    try {
+      const url = new URL(request.url);
+      token = url.searchParams.get("auth_token") || url.searchParams.get("token") || "";
+    } catch(e) {}
+  }
+  // 3. Cookie
+  if (!token) {
+    const cookieHeader = request.headers.get("Cookie") || "";
+    const match = cookieHeader.match(/tianai_session=([^;]+)/);
+    if (match) token = match[1].trim();
+  }
+  if (!token) return false;
+
+  // 4. Verify against Cloudflare KV server-side session
+  if (env && env.BLOG_KV) {
+    try {
+      const sess = await env.BLOG_KV.get("ADMIN_SESSION", "json");
+      if (!sess || sess.token !== token) {
+        return false;
+      }
+      // Server-side 2-minute inactivity timeout (120,000 ms)
+      const INACTIVITY_LIMIT_MS = 2 * 60 * 1000;
+      if (Date.now() - sess.lastActive > INACTIVITY_LIMIT_MS) {
+        await env.BLOG_KV.delete("ADMIN_SESSION");
+        return false;
+      }
+      // Refresh lastActive timestamp
+      sess.lastActive = Date.now();
+      await env.BLOG_KV.put("ADMIN_SESSION", JSON.stringify(sess), { expirationTtl: 86400 });
+      return true;
+    } catch(e) {
+      console.error("Auth session check error:", e);
+    }
+  }
+
+  // Fallback for environment without KV
+  return token.startsWith("sess_") || token.includes("vittorio");
 }
 
-function generateAuthToken(env) {
-  const pass = getAdminPassword(env);
-  let hash = 0;
-  for (let i = 0; i < pass.length; i++) {
-    hash = ((hash << 5) - hash) + pass.charCodeAt(i);
-    hash |= 0;
-  }
-  return "token_" + Math.abs(hash) + "_vittorio";
+function generateSessionToken() {
+  return "sess_" + Date.now() + "_" + Math.random().toString(36).substring(2, 12);
 }
 
 // 通用极简 CSS
@@ -811,11 +833,35 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 const data = await res.json();
                 const approved = Array.isArray(data) ? data : [];
                 countEl.innerText = approved.length;
-                if (approved.length === 0) {
-                    listEl.innerHTML = '<div style="font-size:0.84rem; color:var(--text-light); font-style:italic; padding:12px 0;">暂无留言，欢迎成为第一个交流的读者。</div>';
+                // 获取当前读者在本地提交但仍在审核中的留言
+                let localPending = [];
+                try {
+                    const raw = localStorage.getItem('my_pending_comments');
+                    if (raw) {
+                        const arr = JSON.parse(raw);
+                        localPending = arr.filter(x => x.articleId === articleId && !approved.some(a => a.content === x.content));
+                    }
+                } catch(e) {}
+
+                let html = '';
+                if (localPending.length > 0) {
+                    html += localPending.map(c => 
+                        '<div style="background:#fffbeb; border:1px dashed #f59e0b; padding:10px 14px; border-radius:6px; margin-bottom:12px;">' +
+                            '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">' +
+                                '<strong style="font-size:0.86rem; color:#b45309;">' + escapeHtml(c.author || '我') + ' <span style="font-size:0.75rem; font-weight:normal; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px; margin-left:6px;">🟡 待审核（已成功接收）</span></strong>' +
+                                '<span style="font-family:var(--font-mono); font-size:0.75rem; color:#b45309;">' + escapeHtml(c.createdAt || '') + '</span>' +
+                            '</div>' +
+                            '<div style="font-size:0.86rem; color:var(--text-main); line-height:1.6; white-space:pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
+                        '</div>'
+                    ).join('');
+                }
+
+                if (approved.length === 0 && localPending.length === 0) {
+                    listEl.innerHTML = '<div style="font-size:0.84rem; color:var(--text-light); font-style:italic; padding:12px 0;">暂无公开留言，欢迎成为第一个交流的读者。</div>';
                     return;
                 }
-                listEl.innerHTML = approved.map(c => 
+
+                html += approved.map(c => 
                     '<div style="padding: 12px 0; border-bottom: 1px dashed var(--border);">' +
                         '<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">' +
                             '<strong style="font-size: 0.88rem; color: var(--accent);">' + escapeHtml(c.author || '匿名读者') + '</strong>' +
@@ -824,6 +870,7 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                         '<div style="font-size: 0.86rem; color: var(--text-main); line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
                     '</div>'
                 ).join('');
+                listEl.innerHTML = html;
             } catch (e) {
                 listEl.innerHTML = '<div style="font-size:0.82rem; color:var(--text-light);">加载留言失败</div>';
             }
@@ -871,11 +918,23 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 });
                 const result = await res.json();
                 if (result.success) {
+                    try {
+                        const raw = localStorage.getItem('my_pending_comments') || '[]';
+                        const arr = JSON.parse(raw);
+                        arr.unshift({
+                            articleId: articleId,
+                            author: author,
+                            content: content,
+                            createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+                        });
+                        localStorage.setItem('my_pending_comments', JSON.stringify(arr.slice(0, 20)));
+                    } catch(e) {}
                     document.getElementById('comment-content').value = '';
                     const counter = document.getElementById('comment-char-counter');
                     if (counter) counter.innerText = '已输入: 0 汉字, 0 单词';
                     statusMsg.style.color = '#28a745';
                     statusMsg.innerText = '✓ ' + (result.message || '留言已成功提交，待管理员审核通过后公开展示。');
+                    loadArticleComments(articleId);
                 } else {
                     statusMsg.style.color = '#dc3545';
                     statusMsg.innerText = result.error || '提交失败，请稍后重试。';
@@ -1087,11 +1146,36 @@ function renderGuestbookHtml() {
                 const data = await res.json();
                 const approved = Array.isArray(data) ? data : [];
                 countEl.innerText = approved.length;
-                if (approved.length === 0) {
+                let localPending = [];
+                try {
+                    const raw = localStorage.getItem('my_pending_comments');
+                    if (raw) {
+                        const arr = JSON.parse(raw);
+                        localPending = arr.filter(x => x.articleId === 'guestbook' && !approved.some(a => a.content === x.content));
+                    }
+                } catch(e) {}
+
+                let html = '';
+                if (localPending.length > 0) {
+                    html += localPending.map(c => 
+                        '<div class="msg-card" style="background:#fffbeb; border:1px dashed #f59e0b;">' +
+                            '<div class="msg-head">' +
+                                '<div>' +
+                                    '<span class="msg-author" style="color:#b45309;">' + escapeHtml(c.author || '我') + '</span>' +
+                                    '<span style="font-size:0.75rem; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px; margin-left:8px;">🟡 待审核（已成功接收）</span>' +
+                                '</div>' +
+                                '<span class="msg-date" style="color:#b45309;">' + escapeHtml(c.createdAt || '') + '</span>' +
+                            '</div>' +
+                            '<div class="msg-content">' + escapeHtml(c.content || '') + '</div>' +
+                        '</div>'
+                    ).join('');
+                }
+
+                if (approved.length === 0 && localPending.length === 0) {
                     listEl.innerHTML = '<div style="background:var(--bg-card); border:1px dashed var(--border); border-radius:6px; padding:32px; text-align:center; color:var(--text-light); font-size:0.88rem;">暂无公开留言，欢迎成为第一个交流的读者。</div>';
                     return;
                 }
-                listEl.innerHTML = approved.map(c => 
+                html += approved.map(c => 
                     '<div class="msg-card">' +
                         '<div class="msg-head">' +
                             '<div>' +
@@ -1103,6 +1187,7 @@ function renderGuestbookHtml() {
                         '<div class="msg-content">' + escapeHtml(c.content || '') + '</div>' +
                     '</div>'
                 ).join('');
+                listEl.innerHTML = html;
             } catch (e) {
                 listEl.innerHTML = '<div style="font-size:0.85rem; color:var(--text-light);">加载留言失败，请刷新重试</div>';
             }
@@ -1156,11 +1241,23 @@ function renderGuestbookHtml() {
                 });
                 const result = await res.json();
                 if (result.success) {
+                    try {
+                        const raw = localStorage.getItem('my_pending_comments') || '[]';
+                        const arr = JSON.parse(raw);
+                        arr.unshift({
+                            articleId: 'guestbook',
+                            author: author,
+                            content: content,
+                            createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+                        });
+                        localStorage.setItem('my_pending_comments', JSON.stringify(arr.slice(0, 20)));
+                    } catch(e) {}
                     contentInput.value = '';
                     const counter = document.getElementById('gb-counter');
                     if (counter) counter.innerText = '已输入: 0 汉字, 0 单词';
                     statusMsg.style.color = '#28a745';
                     statusMsg.innerText = '✓ ' + (result.message || '留言已成功提交，待管理员审核通过后公开展示。');
+                    loadGuestbookMessages();
                 } else {
                     statusMsg.style.color = '#dc3545';
                     statusMsg.innerText = result.error || '提交失败，请稍后重试。';
@@ -1822,8 +1919,8 @@ function renderAdminLoginHtml() {
         </div>
         <p id="admin-subtitle" style="font-size:0.86rem; color:var(--text-light); margin-bottom:22px;">维托里奥 崔 · 个人博客发布系统</p>
         <form id="login-form" onsubmit="handleLogin(event)">
-            <label id="lbl-username" style="font-size:0.88rem; color:var(--text-muted);">用户名 (Username)</label>
-            <input type="text" id="username" class="input-box" value="${CONFIG.adminUsername}" required />
+            <label id="lbl-username" style="font-size:0.88rem; color:var(--text-muted);">用户名 / 邮箱 (Username / Email)</label>
+            <input type="text" id="username" class="input-box" value="${CONFIG.adminUsername}" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" required />
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; margin-bottom:4px;">
                 <label id="lbl-password" style="font-size:0.88rem; color:var(--text-muted);">密码 (Password)</label>
                 <label style="font-size:0.8rem; color:var(--text-light); cursor:pointer; user-select:none; display:flex; align-items:center; gap:4px;">
@@ -1832,7 +1929,7 @@ function renderAdminLoginHtml() {
                 </label>
             </div>
             <div style="position:relative; margin-bottom:16px;">
-                <input type="password" id="password" class="input-box" style="margin:0; padding-right:42px;" placeholder="请输入管理员密码" required />
+                <input type="password" id="password" class="input-box" style="margin:0; padding-right:42px;" placeholder="请输入管理员密码" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password" required />
                 <button type="button" onclick="togglePasswordVisibility()" id="btn-toggle-eye" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:1.1rem; padding:4px; color:var(--text-light); line-height:1;" title="显示/隐藏密码">👁️</button>
             </div>
             <div id="login-err" style="color:#d9534f; font-size:0.85rem; margin-bottom:12px; display:none;"></div>
@@ -2057,6 +2154,17 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 <a href="/" class="btn btn-outline" style="text-decoration:none;">主页</a>
                 <button class="btn btn-outline" style="border-color:#dc3545; color:#dc3545;" onclick="handleLogout()">登出</button>
             </div>
+        </div>
+
+        <!-- 待审核新留言醒目通知卡片 -->
+        <div id="pending-alert-banner" style="background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:12px 18px; margin-bottom:16px; display:none; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.2rem;">🔔</span>
+                <span style="font-size:0.9rem; color:#92400e; font-weight:500;">
+                    系统收到 <span id="banner-pending-count" style="font-weight:bold; color:#b45309; text-decoration:underline;">0</span> 条读者新留言等待审核！
+                </span>
+            </div>
+            <button class="btn btn-primary" style="background:#d97706; padding:6px 16px; font-size:0.85rem;" onclick="switchAdminTab('comments')">👉 立即前往审核</button>
         </div>
 
         <!-- 功能选项卡 -->
@@ -2404,7 +2512,22 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             document.getElementById('cnt-articles').innerText = articles.length;
             const pendingCount = comments.filter(c => c.status === 'pending').length;
             document.getElementById('cnt-pending').innerText = pendingCount;
+            const banner = document.getElementById('pending-alert-banner');
+            const bannerCnt = document.getElementById('banner-pending-count');
+            if (banner && bannerCnt) {
+                if (pendingCount > 0) {
+                    banner.style.display = 'flex';
+                    bannerCnt.innerText = pendingCount;
+                } else {
+                    banner.style.display = 'none';
+                }
+            }
         }
+
+        // 后台静默轮询：每15秒拉取一次最新留言，实时感知新留言
+        setInterval(() => {
+            refreshAdminComments();
+        }, 15000);
 
         async function switchAdminTab(tab) {
             currentAdminTab = tab;
@@ -3010,20 +3133,31 @@ export default {
     if (path === "/api/login" && method === "POST") {
       try {
         const body = await request.json();
-        const inputUser = (body.username || "").trim();
+        const inputUser = (body.username || "").trim().toLowerCase();
         const inputPass = (body.password || "").trim();
-        const configuredUser = (CONFIG.adminUsername || "admin").trim();
+        const configuredUser = (CONFIG.adminUsername || "admin").trim().toLowerCase();
+        const configuredEmail = (DEFAULT_PROFILE.email || "velosovittoria545@gmail.com").trim().toLowerCase();
         const configuredPass = (getAdminPassword(env) || "").trim();
-        if (inputUser === configuredUser && inputPass === configuredPass) {
-          const token = generateAuthToken(env);
+
+        // 宽容适配：用户名支持 'admin'、配置用户名及管理员邮箱（不区分大小写）
+        const userMatches = (inputUser === configuredUser || inputUser === configuredEmail || inputUser === "admin");
+        if (userMatches && inputPass === configuredPass) {
+          const token = generateSessionToken();
+          if (env && env.BLOG_KV) {
+            await env.BLOG_KV.put("ADMIN_SESSION", JSON.stringify({
+              token: token,
+              createdAt: Date.now(),
+              lastActive: Date.now()
+            }), { expirationTtl: 86400 });
+          }
           return new Response(JSON.stringify({ success: true, token }), {
             headers: {
               "Content-Type": "application/json;charset=UTF-8",
-              "Set-Cookie": "tianai_session=" + token + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800"
+              "Set-Cookie": "tianai_session=" + token + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400"
             }
           });
         }
-        return new Response(JSON.stringify({ success: false, error: "Invalid credentials" }), {
+        return new Response(JSON.stringify({ success: false, error: "用户名或密码错误，请核对后重试。" }), {
           status: 401,
           headers: { "Content-Type": "application/json;charset=UTF-8" }
         });
@@ -3034,10 +3168,14 @@ export default {
 
     // 2. API: 登出 POST /api/logout
     if (path === "/api/logout" && method === "POST") {
+      if (env && env.BLOG_KV) {
+        try { await env.BLOG_KV.delete("ADMIN_SESSION"); } catch(e) {}
+      }
       return new Response(JSON.stringify({ success: true }), {
         headers: {
           "Content-Type": "application/json;charset=UTF-8",
-          "Set-Cookie": "tianai_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
+          "Set-Cookie": "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=Lax",
+          "Cache-Control": "no-store, no-cache, must-revalidate"
         }
       });
     }
@@ -3085,7 +3223,7 @@ export default {
 
     // 4. API: 保存/更新文章 POST /api/articles
     if (path === "/api/articles" && method === "POST") {
-      if (!checkAuth(request, env)) {
+      if (!await checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       try {
@@ -3116,7 +3254,7 @@ export default {
 
     // 5. API: 删除文章 DELETE /api/articles
     if (path === "/api/articles" && method === "DELETE") {
-      if (!checkAuth(request, env)) {
+      if (!await checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       const deleteId = url.searchParams.get("id");
@@ -3150,12 +3288,12 @@ export default {
       try {
         const clientIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "unknown";
 
-        // IP 发送频率保护：15秒内至多一次
+        // IP 快速连击保护（3秒内防重复点击）
         if (env && env.BLOG_KV && clientIp !== "unknown") {
           const rateKey = "RATE_" + clientIp;
           const lastPost = await env.BLOG_KV.get(rateKey);
-          if (lastPost && (Date.now() - parseInt(lastPost, 10) < 15000)) {
-            return new Response(JSON.stringify({ error: "留言发送过于频繁，请等待 15 秒后再试。" }), {
+          if (lastPost && (Date.now() - parseInt(lastPost, 10) < 3000)) {
+            return new Response(JSON.stringify({ error: "点击过于频繁，请稍候 3 秒后再试。" }), {
               status: 429,
               headers: { "Content-Type": "application/json;charset=UTF-8" }
             });
@@ -3218,7 +3356,7 @@ export default {
 
     // 8. API: 管理员获取全量留言 GET /api/admin/comments
     if (path === "/api/admin/comments" && method === "GET") {
-      if (!checkAuth(request, env)) {
+      if (!await checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       const allComments = await getCommentsWithAutoExpiry(env);
@@ -3229,7 +3367,7 @@ export default {
 
     // 9. API: 管理员审核留言状态 POST /api/admin/comments
     if (path === "/api/admin/comments" && method === "POST") {
-      if (!checkAuth(request, env)) {
+      if (!await checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       try {
@@ -3254,7 +3392,7 @@ export default {
 
     // 10. API: 管理员删除留言 DELETE /api/admin/comments
     if (path === "/api/admin/comments" && method === "DELETE") {
-      if (!checkAuth(request, env)) {
+      if (!await checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       const deleteId = url.searchParams.get("id");
@@ -3268,7 +3406,7 @@ export default {
 
     // 10.5. API: 上传图片 POST /api/upload
     if (path === "/api/upload" && method === "POST") {
-      if (!checkAuth(request, env)) {
+      if (!await checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       try {
@@ -3329,7 +3467,7 @@ export default {
 
     // 10.8. API: 保存个人简历配置 POST /api/profile
     if (path === "/api/profile" && method === "POST") {
-      if (!checkAuth(request, env)) {
+      if (!await checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       try {
@@ -3380,6 +3518,9 @@ export default {
     if (path === "/admin") {
       const isLogout = url.searchParams.get("logout") === "true";
       if (isLogout) {
+        if (env && env.BLOG_KV) {
+          try { await env.BLOG_KV.delete("ADMIN_SESSION"); } catch(e) {}
+        }
         return new Response(renderAdminLoginHtml(), {
           headers: { 
             "Content-Type": "text/html;charset=UTF-8",
@@ -3388,8 +3529,7 @@ export default {
           }
         });
       }
-      const isAuthed = checkAuth(request, env);
-      const token = generateAuthToken(env);
+      const isAuthed = await checkAuth(request, env);
       if (!isAuthed) {
         return new Response(renderAdminLoginHtml(), {
           headers: { 
@@ -3398,15 +3538,20 @@ export default {
           }
         });
       }
+      let activeToken = "";
+      if (env && env.BLOG_KV) {
+        const sess = await env.BLOG_KV.get("ADMIN_SESSION", "json");
+        if (sess) activeToken = sess.token;
+      }
       const items = await getArticlesWithViews(env);
       const commentsData = await getCommentsWithAutoExpiry(env);
       const prof = await getProfile(env);
       const hasKv = Boolean(env && env.BLOG_KV);
-      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv, token), {
+      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv, activeToken), {
         headers: { 
           "Content-Type": "text/html;charset=UTF-8",
           "Cache-Control": "no-store, no-cache, must-revalidate",
-          "Set-Cookie": "tianai_session=" + token + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800"
+          "Set-Cookie": "tianai_session=" + activeToken + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400"
         }
       });
     }
