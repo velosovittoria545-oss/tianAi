@@ -8,7 +8,8 @@
  *   - 经历：Hightouch 21个月主导落地 14 个 AI Agent 与研发赋能项目
  *   - 头部：仅保留“文章”与“Email”，右上角中英文切换
  *   - 文章：点击“文章”跳转独立文章列表页面 (/articles)
- *   - 管理后台：右下角入口，点击跳转独立登录页面 (/admin)
+ *   - 留言板：文章末尾增加读者留言区，记录称呼与时间，经管理员审核后公开展示
+ *   - 管理后台：右下角入口，点击跳转独立登录页面 (/admin)，支持文章管理与留言审核
  */
 
 const CONFIG = {
@@ -98,6 +99,35 @@ const DEFAULT_ARTICLES = [
     }
   }
 ];
+const DEFAULT_COMMENTS = [
+  {
+    "id": "comm-1",
+    "articleId": "post-llm-evolution",
+    "articleTitle": "大模型下半场：从模型中心到 Agent 协同工程的思考",
+    "author": "分布式老兵",
+    "content": "非常赞同崔老师文中的观点，特别是关于推理加速和 Agent 协议闭环的分析，受益匪浅！期待更多深度文章。",
+    "createdAt": "2026-03-02 10:24",
+    "status": "approved"
+  },
+  {
+    "id": "comm-2",
+    "articleId": "post-agent-mcp",
+    "articleTitle": "构建可落地的企业级 MCP 架构：从工具协议到生产系统",
+    "author": "AI 探索者",
+    "content": "请教一下崔老师，在企业专属云端环境下打通 CircleCI 和 MCP 遇到权限与密钥隔离问题，一般最佳实践是怎么解？",
+    "createdAt": "2026-03-05 16:40",
+    "status": "approved"
+  },
+  {
+    "id": "comm-3",
+    "articleId": "post-llm-evolution",
+    "articleTitle": "大模型下半场：从模型中心到 Agent 协同工程的思考",
+    "author": "李工",
+    "content": "老师讲得很接地气，想请教下在实际做 vLLM 推理优化时，PagedAttention 面对超长 Prompt 吞吐瓶颈的主要调优方向？",
+    "createdAt": "2026-03-06 09:15",
+    "status": "pending"
+  }
+];
 
 function getAdminPassword(env) {
   return (env && env.ADMIN_PASSWORD) ? env.ADMIN_PASSWORD : CONFIG.adminPassword;
@@ -118,6 +148,24 @@ async function getArticles(env) {
 async function saveArticles(env, articles) {
   if (env && env.BLOG_KV) {
     await env.BLOG_KV.put("ARTICLES_DATA", JSON.stringify(articles));
+  }
+}
+
+async function getComments(env) {
+  if (env && env.BLOG_KV) {
+    try {
+      const data = await env.BLOG_KV.get("BLOG_COMMENTS", "json");
+      if (data && Array.isArray(data)) return data;
+    } catch (e) {
+      console.error("KV Read Error for comments:", e);
+    }
+  }
+  return DEFAULT_COMMENTS;
+}
+
+async function saveComments(env, comments) {
+  if (env && env.BLOG_KV) {
+    await env.BLOG_KV.put("BLOG_COMMENTS", JSON.stringify(comments));
   }
 }
 
@@ -351,6 +399,37 @@ function renderArticlesPageHtml(articlesJson) {
             <h1 class="reader-article-title" id="reader-title"></h1>
             <div class="reader-meta-bar" id="reader-meta"></div>
             <div class="reader-content-body" id="reader-content"></div>
+
+            <!-- 读者留言板 -->
+            <div id="comments-section" style="margin-top: 36px; padding-top: 24px; border-top: 1px dashed var(--border);">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
+                    <h3 style="font-family: var(--font-serif); font-size: 1.25rem; font-weight: 500; color: var(--text-main);">💬 读者留言 (<span id="comments-count">0</span>)</h3>
+                    <span style="font-size: 0.78rem; color: var(--text-light);">审核通过后公开展示</span>
+                </div>
+
+                <!-- 审核通过留言列表 -->
+                <div id="comments-display-list" style="margin-bottom: 24px;"></div>
+
+                <!-- 读者留言表单 -->
+                <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 6px; padding: 18px 20px;">
+                    <div style="font-size: 0.9rem; font-weight: 500; margin-bottom: 12px; color: var(--text-main);">发表留言</div>
+                    <form id="comment-form" onsubmit="handleCommentSubmit(event)">
+                        <input type="hidden" id="comment-article-id" />
+                        <input type="hidden" id="comment-article-title" />
+                        <div style="margin-bottom: 10px; display: flex; gap: 8px; align-items: center;">
+                            <label style="font-size: 0.82rem; color: var(--text-muted); white-space: nowrap;">您的称呼:</label>
+                            <input type="text" id="comment-author" placeholder="例如: 某技术同行 (可自定义，默认匿名读者)" style="flex: 1; padding: 7px 10px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); color: var(--text-main);" />
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <textarea id="comment-content" required rows="3" placeholder="写下您的技术探讨、阅读感受或问题交流...（留言需经管理员审核后公开展示）" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 0.88rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); color: var(--text-main); font-family: var(--font-sans); resize: vertical;"></textarea>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <span id="comment-status-msg" style="font-size: 0.82rem;"></span>
+                            <button type="submit" id="comment-btn-submit" style="background: var(--accent); color: white; border: none; border-radius: 4px; padding: 7px 18px; font-size: 0.85rem; font-weight: 500; cursor: pointer;">提交留言</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- 文章列表 -->
@@ -364,6 +443,11 @@ function renderArticlesPageHtml(articlesJson) {
 
     <script>
         const ARTICLES = ${articlesJson};
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
 
         function renderList() {
             const box = document.getElementById('articles-list-box');
@@ -379,12 +463,86 @@ function renderArticlesPageHtml(articlesJson) {
         function openArticle(id) {
             const art = ARTICLES.find(a => a.id === id);
             if (!art) return;
-            document.getElementById('reader-title').innerText = (art.title && art.title.zh) || '';
+            const title = (art.title && art.title.zh) || '';
+            document.getElementById('reader-title').innerText = title;
             document.getElementById('reader-meta').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '');
             document.getElementById('reader-content').innerHTML = (art.content && art.content.zh) || '';
+            
+            document.getElementById('comment-article-id').value = art.id;
+            document.getElementById('comment-article-title').value = title;
+            document.getElementById('comment-status-msg').innerText = '';
+            
+            loadArticleComments(art.id);
+
             const reader = document.getElementById('reader-view');
             reader.style.display = 'block';
             reader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function loadArticleComments(articleId) {
+            const listEl = document.getElementById('comments-display-list');
+            const countEl = document.getElementById('comments-count');
+            listEl.innerHTML = '<div style="font-size:0.82rem; color:var(--text-light); font-style:italic;">加载留言中...</div>';
+            try {
+                const res = await fetch('/api/comments?articleId=' + encodeURIComponent(articleId));
+                const data = await res.json();
+                const approved = Array.isArray(data) ? data : [];
+                countEl.innerText = approved.length;
+                if (approved.length === 0) {
+                    listEl.innerHTML = '<div style="font-size:0.84rem; color:var(--text-light); font-style:italic; padding:12px 0;">暂无留言，欢迎成为第一个交流的读者。</div>';
+                    return;
+                }
+                listEl.innerHTML = approved.map(c => 
+                    '<div style="padding: 12px 0; border-bottom: 1px dashed var(--border);">' +
+                        '<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">' +
+                            '<strong style="font-size: 0.88rem; color: var(--accent);">' + escapeHtml(c.author || '匿名读者') + '</strong>' +
+                            '<span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-light);">' + escapeHtml(c.createdAt || '') + '</span>' +
+                        '</div>' +
+                        '<div style="font-size: 0.86rem; color: var(--text-main); line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
+                    '</div>'
+                ).join('');
+            } catch (e) {
+                listEl.innerHTML = '<div style="font-size:0.82rem; color:var(--text-light);">加载留言失败</div>';
+            }
+        }
+
+        async function handleCommentSubmit(e) {
+            e.preventDefault();
+            const articleId = document.getElementById('comment-article-id').value;
+            const articleTitle = document.getElementById('comment-article-title').value;
+            const author = document.getElementById('comment-author').value.trim() || '匿名读者';
+            const content = document.getElementById('comment-content').value.trim();
+            const statusMsg = document.getElementById('comment-status-msg');
+            const btn = document.getElementById('comment-btn-submit');
+            
+            if (!content) return;
+            btn.disabled = true;
+            btn.innerText = '提交中...';
+            statusMsg.style.color = 'var(--text-light)';
+            statusMsg.innerText = '正在提交...';
+            
+            try {
+                const res = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ articleId, articleTitle, author, content })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    document.getElementById('comment-content').value = '';
+                    statusMsg.style.color = '#28a745';
+                    statusMsg.innerText = '✓ 留言已成功提交，待管理员审核通过后公开展示。';
+                } else {
+                    statusMsg.style.color = '#dc3545';
+                    statusMsg.innerText = '提交失败，请稍后重试。';
+                }
+            } catch (err) {
+                statusMsg.style.color = '#dc3545';
+                statusMsg.innerText = '网络异常，提交失败。';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '提交留言';
+            }
         }
 
         function closeReader() {
@@ -1067,24 +1225,26 @@ function renderAdminLoginHtml() {
 /**
  * 5. 管理后台 CMS 主界面 HTML (/admin 登录后)
  */
-function renderAdminCmsHtml(articlesJson, hasKv) {
+function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文章管理后台 — 维托里奥 崔</title>
+    <title>文章与留言管理后台 — 维托里奥 崔</title>
     <style>
         ${COMMON_CSS}
         body { padding: 30px 20px; }
-        .cms-container { max-width: 820px; margin: 0 auto; }
+        .cms-container { max-width: 840px; margin: 0 auto; }
         .top-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             padding-bottom: 16px;
             border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 12px;
         }
         .btn {
             padding: 7px 14px;
@@ -1093,11 +1253,21 @@ function renderAdminCmsHtml(articlesJson, hasKv) {
             font-size: 0.88rem;
             font-weight: 500;
             border: 1px solid transparent;
+            transition: all 0.15s;
         }
         .btn-primary { background: var(--accent); color: white; }
         .btn-primary:hover { background: var(--accent-hover); }
         .btn-outline { background: transparent; border-color: var(--border); color: var(--text-muted); }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
         .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .tabs-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
         .item-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -1107,6 +1277,7 @@ function renderAdminCmsHtml(articlesJson, hasKv) {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
         .modal-mask {
             position: fixed;
@@ -1139,6 +1310,7 @@ function renderAdminCmsHtml(articlesJson, hasKv) {
             background: var(--bg-card);
             font-family: var(--font-sans);
             font-size: 0.9rem;
+            color: var(--text-main);
         }
     </style>
 </head>
@@ -1146,21 +1318,49 @@ function renderAdminCmsHtml(articlesJson, hasKv) {
     <div class="cms-container">
         <div class="top-bar">
             <div>
-                <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">文章发布与管理 CMS</span>
+                <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">博客管理控制台</span>
                 <span style="font-size:0.8rem; color:var(--text-light); margin-left:10px;">${hasKv ? '🟢 Cloudflare KV 实时持久化' : '🟡 体验模式'}</span>
             </div>
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:10px; align-items:center;">
                 <button class="btn btn-primary" onclick="openCreateModal()">➕ 发布新文章</button>
-                <a href="/articles" class="btn btn-outline" style="text-decoration:none;">文章页面</a>
+                <a href="/articles" class="btn btn-outline" style="text-decoration:none;">文章列表</a>
                 <a href="/" class="btn btn-outline" style="text-decoration:none;">主页</a>
                 <button class="btn btn-outline" onclick="handleLogout()">登出</button>
             </div>
         </div>
 
-        <div id="items-list"></div>
+        <!-- 功能选项卡 -->
+        <div class="tabs-bar">
+            <button id="tab-btn-posts" class="btn btn-primary" onclick="switchAdminTab('posts')">📝 文章管理 (<span id="cnt-articles">0</span>)</button>
+            <button id="tab-btn-comments" class="btn btn-outline" onclick="switchAdminTab('comments')">💬 留言审核 (<span id="cnt-pending" style="font-weight:bold; color:var(--accent);">0</span> 待审)</button>
+        </div>
+
+        <!-- 1. 文章管理视图 -->
+        <div id="view-posts">
+            <div id="items-list"></div>
+        </div>
+
+        <!-- 2. 留言审核视图 -->
+        <div id="view-comments" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+                <div style="font-size:0.88rem; color:var(--text-muted);">
+                    状态筛选: 
+                    <select id="comment-filter" onchange="renderAdminCommentsList()" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px; font-size:0.85rem; background:var(--bg-card); color:var(--text-main);">
+                        <option value="all">全部留言</option>
+                        <option value="pending" selected>🟡 待审核 (Pending)</option>
+                        <option value="approved">🟢 已通过展示 (Approved)</option>
+                        <option value="rejected">🔴 已驳回隐藏 (Rejected)</option>
+                    </select>
+                </div>
+                <div style="font-size:0.82rem; color:var(--text-light);">
+                    审核通过的留言将在对应文章末尾即时公开展示
+                </div>
+            </div>
+            <div id="comments-admin-list"></div>
+        </div>
     </div>
 
-    <!-- 新建/编辑 Modal -->
+    <!-- 新建/编辑文章 Modal -->
     <div id="modal" class="modal-mask">
         <div class="modal-card">
             <h3 id="modal-title" style="font-family:var(--font-serif); font-size:1.4rem; margin-bottom:16px;">编辑文章</h3>
@@ -1192,8 +1392,43 @@ function renderAdminCmsHtml(articlesJson, hasKv) {
 
     <script>
         let articles = ${articlesJson};
+        let comments = ${commentsJson};
+        let currentAdminTab = 'posts';
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function updateCounts() {
+            document.getElementById('cnt-articles').innerText = articles.length;
+            const pendingCount = comments.filter(c => c.status === 'pending').length;
+            document.getElementById('cnt-pending').innerText = pendingCount;
+        }
+
+        function switchAdminTab(tab) {
+            currentAdminTab = tab;
+            const btnPosts = document.getElementById('tab-btn-posts');
+            const btnComments = document.getElementById('tab-btn-comments');
+            const viewPosts = document.getElementById('view-posts');
+            const viewComments = document.getElementById('view-comments');
+            
+            if (tab === 'posts') {
+                btnPosts.className = 'btn btn-primary';
+                btnComments.className = 'btn btn-outline';
+                viewPosts.style.display = 'block';
+                viewComments.style.display = 'none';
+            } else {
+                btnPosts.className = 'btn btn-outline';
+                btnComments.className = 'btn btn-primary';
+                viewPosts.style.display = 'none';
+                viewComments.style.display = 'block';
+                renderAdminCommentsList();
+            }
+        }
 
         function renderAdminList() {
+            updateCounts();
             const list = document.getElementById('items-list');
             list.innerHTML = articles.map(a => {
                 const title = (a.title && (a.title.zh || a.title.en)) || a.id;
@@ -1210,6 +1445,72 @@ function renderAdminCmsHtml(articlesJson, hasKv) {
                     '</div>' +
                 '</div>';
             }).join('');
+        }
+
+        function renderAdminCommentsList() {
+            updateCounts();
+            const filter = document.getElementById('comment-filter') ? document.getElementById('comment-filter').value : 'all';
+            const container = document.getElementById('comments-admin-list');
+            
+            let filtered = comments;
+            if (filter !== 'all') {
+                filtered = comments.filter(c => c.status === filter);
+            }
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="background:var(--bg-card); border:1px dashed var(--border); border-radius:6px; padding:32px; text-align:center; color:var(--text-light); font-size:0.88rem;">当前分类下暂无留言</div>';
+                return;
+            }
+            
+            container.innerHTML = filtered.map(c => {
+                let badge = '<span style="background:#fff3cd; color:#856404; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;">🟡 待审核</span>';
+                if (c.status === 'approved') badge = '<span style="background:#d4edda; color:#155724; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;">🟢 已展示</span>';
+                else if (c.status === 'rejected') badge = '<span style="background:#f8d7da; color:#721c24; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;">🔴 已驳回</span>';
+                
+                const artTitle = c.articleTitle || ('文章 ID: ' + c.articleId);
+                
+                return '<div class="item-card" style="flex-direction:column; align-items:stretch; gap:12px;">' +
+                    '<div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;">' +
+                        '<div>' +
+                            '<span style="font-size:0.8rem; color:var(--accent); font-weight:500;">所属文章: ' + escapeHtml(artTitle) + '</span>' +
+                            '<div style="font-size:0.92rem; margin-top:2px;"><strong>' + escapeHtml(c.author || '匿名读者') + '</strong> <span style="font-size:0.75rem; color:var(--text-light); font-family:var(--font-mono); margin-left:8px;">' + (c.createdAt || '') + '</span></div>' +
+                        '</div>' +
+                        '<div>' + badge + '</div>' +
+                    '</div>' +
+                    '<div style="background:var(--bg-subtle); padding:10px 14px; border-radius:4px; font-size:0.88rem; color:var(--text-main); line-height:1.6; border-left:3px solid var(--accent); white-space:pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
+                    '<div style="display:flex; justify-content:flex-end; gap:8px; align-items:center;">' +
+                        (c.status !== 'approved' ? '<button class="btn btn-primary" style="background:#28a745; font-size:0.8rem; padding:4px 10px;" onclick="moderateComment(\'' + c.id + '\', \'approved\')">✓ 通过展示</button>' : '') +
+                        (c.status !== 'rejected' ? '<button class="btn btn-outline" style="font-size:0.8rem; padding:4px 10px;" onclick="moderateComment(\'' + c.id + '\', \'rejected\')">✗ 驳回隐藏</button>' : '') +
+                        '<button class="btn btn-danger" style="font-size:0.8rem; padding:4px 10px;" onclick="deleteComment(\'' + c.id + '\')">删除</button>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        async function moderateComment(id, status) {
+            const res = await fetch('/api/admin/comments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, status })
+            });
+            if (res.ok) {
+                const target = comments.find(c => c.id === id);
+                if (target) target.status = status;
+                renderAdminCommentsList();
+            } else {
+                alert('审核操作失败');
+            }
+        }
+
+        async function deleteComment(id) {
+            if (!confirm('确定要彻底删除该留言吗？')) return;
+            const res = await fetch('/api/admin/comments?id=' + encodeURIComponent(id), { method: 'DELETE' });
+            if (res.ok) {
+                comments = comments.filter(c => c.id !== id);
+                renderAdminCommentsList();
+            } else {
+                alert('删除失败');
+            }
         }
 
         function openCreateModal() {
@@ -1291,6 +1592,8 @@ function renderAdminCmsHtml(articlesJson, hasKv) {
         }
 
         renderAdminList();
+        renderAdminCommentsList();
+        updateCounts();
     </script>
 </body>
 </html>`;
@@ -1381,7 +1684,98 @@ export default {
       });
     }
 
-    // 6. 独立文章列表页面 GET /articles 或 /blog
+    // 6. API: 获取审核通过的留言列表 GET /api/comments?articleId=...
+    if (path === "/api/comments" && method === "GET") {
+      const allComments = await getComments(env);
+      const articleId = url.searchParams.get("articleId");
+      let filtered = allComments.filter(c => c.status === "approved");
+      if (articleId) {
+        filtered = filtered.filter(c => c.articleId === articleId);
+      }
+      return new Response(JSON.stringify(filtered), {
+        headers: {
+          "Content-Type": "application/json;charset=UTF-8",
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "public, max-age=10"
+        }
+      });
+    }
+
+    // 7. API: 读者提交留言 POST /api/comments
+    if (path === "/api/comments" && method === "POST") {
+      try {
+        const body = await request.json();
+        if (!body.content || !body.content.trim()) {
+          return new Response(JSON.stringify({ error: "Content is required" }), { status: 400 });
+        }
+        const newComm = {
+          id: "comm-" + Date.now(),
+          articleId: body.articleId || "general",
+          articleTitle: body.articleTitle || "",
+          author: (body.author && body.author.trim()) ? body.author.trim().slice(0, 30) : "匿名读者",
+          content: body.content.trim().slice(0, 1000),
+          createdAt: new Date(Date.now() + 8 * 3600000).toISOString().replace("T", " ").slice(0, 16),
+          status: "pending"
+        };
+        let allComments = await getComments(env);
+        allComments.unshift(newComm);
+        await saveComments(env, allComments);
+        return new Response(JSON.stringify({ success: true, message: "留言已提交，待管理员审核通过后展示" }), {
+          headers: { "Content-Type": "application/json;charset=UTF-8" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+
+    // 8. API: 管理员获取全量留言 GET /api/admin/comments
+    if (path === "/api/admin/comments" && method === "GET") {
+      if (!checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      const allComments = await getComments(env);
+      return new Response(JSON.stringify(allComments), {
+        headers: { "Content-Type": "application/json;charset=UTF-8" }
+      });
+    }
+
+    // 9. API: 管理员审核留言状态 POST /api/admin/comments
+    if (path === "/api/admin/comments" && method === "POST") {
+      if (!checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      try {
+        const body = await request.json();
+        let allComments = await getComments(env);
+        const target = allComments.find(c => c.id === body.id);
+        if (target) {
+          target.status = body.status;
+          await saveComments(env, allComments);
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { "Content-Type": "application/json;charset=UTF-8" }
+          });
+        }
+        return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+
+    // 10. API: 管理员删除留言 DELETE /api/admin/comments
+    if (path === "/api/admin/comments" && method === "DELETE") {
+      if (!checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      const deleteId = url.searchParams.get("id");
+      let allComments = await getComments(env);
+      allComments = allComments.filter(c => c.id !== deleteId);
+      await saveComments(env, allComments);
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json;charset=UTF-8" }
+      });
+    }
+
+    // 11. 独立文章列表页面 GET /articles 或 /blog
     if (path === "/articles" || path === "/blog") {
       const items = await getArticles(env);
       return new Response(renderArticlesPageHtml(JSON.stringify(items)), {
@@ -1392,7 +1786,7 @@ export default {
       });
     }
 
-    // 7. 独立工作经历页面 GET /experience
+    // 12. 独立工作经历页面 GET /experience
     if (path === "/experience" || path === "/work-experience") {
       return new Response(renderExperienceHtml(), {
         headers: {
@@ -1402,7 +1796,7 @@ export default {
       });
     }
 
-    // 8. 管理后台 GET /admin (未登录显示登录页面，已登录显示 CMS)
+    // 13. 管理后台 GET /admin (未登录显示登录页面，已登录显示 CMS)
     if (path === "/admin") {
       const isAuthed = checkAuth(request, env);
       if (!isAuthed) {
@@ -1411,13 +1805,14 @@ export default {
         });
       }
       const items = await getArticles(env);
+      const commentsData = await getComments(env);
       const hasKv = Boolean(env && env.BLOG_KV);
-      return new Response(renderAdminCmsHtml(JSON.stringify(items), hasKv), {
+      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), hasKv), {
         headers: { "Content-Type": "text/html;charset=UTF-8" }
       });
     }
 
-    // 9. 公开主页 GET / (不显示文章，仅关于我与经历)
+    // 14. 公开主页 GET / (不显示文章，仅关于我与经历)
     return new Response(renderPublicHtml(), {
       headers: {
         "Content-Type": "text/html;charset=UTF-8",
