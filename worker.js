@@ -864,6 +864,36 @@ function commentTimestampMs(c) {
   return 0;
 }
 
+const DEFAULT_EXPERIENCES = [
+  {
+    id: "exp-hightouch",
+    company: "Hightouch",
+    role: "AI 项目负责人 / AI Researcher",
+    roleEn: "AI Project Lead / AI Researcher",
+    period: "2024 — Present",
+    details: "过去21个月，作为AI项目负责人，我成功主导落地了14个AI Agent与研发赋能项目，全面驱动了公司的跨部门智能化升级：\n- 迅速让团队掌握主流AI研发工具（Claude Code, OpenCode, n8n, Codex等），具备将前沿AI研发效能工具转化为团队生产力的能力。\n- 在技术与效能方面，从零搭建AI Agent专属云端环境，基于MCP架构打通Github、Slack、CircleCI等核心系统，实现自动化测试与部署闭环，使整体研发效能提升了40%。同时，通过完善核心知识库（agents.md）与开发可视化管理工具，成功赋能非技术团队独立操作，大幅降低了跨团队的沟通与协作成本。\n- 在项目管理与业务交付方面，我严格把控需求落地与质量。14个核心项目均实现了100%按期高质量交付，有效解决了工程师的底层痛点，业务部门（客户）满意度极高。通过持续引入前沿技术，在实现降本增效的同时，确保了团队的AI生产力始终保持行业领先标准。",
+    detailsEn: "Over the past 21 months as AI Project Lead, spearheaded 14 enterprise AI Agent and engineering enablement initiatives:\n- Rapidly enabled cross-functional teams to master cutting-edge AI dev tools (Claude Code, OpenCode, n8n, Codex).\n- Built dedicated cloud agent environments from scratch, integrating GitHub, Slack, and CircleCI via MCP architecture, lifting R&D productivity by 40%.\n- Delivered 100% on-time high-quality releases across all 14 core projects with outstanding stakeholder satisfaction."
+  },
+  {
+    id: "exp-ebay",
+    company: "eBay (亿贝)",
+    role: "AI Tech Expert",
+    roleEn: "AI Tech Expert",
+    period: "2022 — 2024",
+    details: "- 主导 eBay 全局 AI 基础平台底座建设与向量检索引擎优化，支持海量跨境电商 SKU 的精准多模态检索与语义召回。\n- 设计与落地千万级用户规模的客服智能体系统，实现多轮意图辨析、订单追踪与退换货业务流全自动闭环。\n- 搭建高可用 RAG 混合召回通道，建立生产级 LLM 安全护栏 (Guardrails) 与延迟敏感型模型服务降级熔断策略。",
+    detailsEn: "- Led eBay global AI platform foundation and vector search engine optimization for multimodal semantic retrieval of millions of cross-border e-commerce SKUs.\n- Designed and deployed multi-turn customer service agent platform for 10M+ users with end-to-end order tracking and return workflow automation.\n- Architected highly available RAG hybrid recall pipeline with production-grade guardrails and latency-sensitive fallback circuits."
+  },
+  {
+    id: "exp-kuaishou",
+    company: "Kuaishou (快手)",
+    role: "资深服务端开发工程师 / 项目主 R (Senior Backend Engineer / Tech Lead)",
+    roleEn: "Senior Backend Engineer / Tech Lead",
+    period: "2020.12 — 2022.05",
+    details: "- **电商“理想家”创新房产业务（0 到 1 架构与高并发）：**负责楼盘、线索等核心模块设计与研发。采用 DDD（领域驱动设计）理念与微服务拆分架构，主导多个独立微服务从 0 到 1 的项目搭建、研发与稳定上线，通过深层链路优化将楼盘落地页峰值承载能力提升至 QPS 10,000+。\n- **本地生活平台建设（项目主 R 与跨团队协同）：**深度参与快手面向本地商家的 O2O 闭环平台建设，作为项目主 R（Tech Owner）统筹负责本地商品、交易结算、营销中心等核心服务模块；跨部门协调多团队高效协同开发，保障复杂需求的高质量交付。\n- **工程全生命周期质量把控与团队培养：**建立严密的研发全生命周期工程质量机制（需求前严格技术方案评审、开发中追求高内聚低耦合的代码扩展性与可维护性、上线前主导组内 Code Review、上线后完善高可用监控告警覆盖及全链路运行数据看板复盘）；负责团队新人带教指导，帮助新人快速融入业务开发与敏捷交付。",
+    detailsEn: "- **E-commerce Real Estate Platform (0-to-1 Architecture & High Concurrency):** Led core modules (properties, leads) using DDD and microservices. Handled 10,000+ peak QPS.\n- **Local Life Platform (Tech Lead):** Led O2O platform for local merchants covering products, checkout, and marketing.\n- **Engineering Quality & Mentorship:** Established end-to-end quality assurance mechanisms (spec reviews, high-cohesion/low-coupling standards, code reviews, SLA monitoring dashboards). Mentored junior engineers."
+  }
+];
+
 const DEFAULT_PROFILE = {
   nameZh: "维托里奥 崔",
   nameEn: "Vittorio Cui",
@@ -880,6 +910,7 @@ const DEFAULT_PROFILE = {
   eduEn: "Ph.D., Abide University | B.E. in Software Engineering, BUPT",
   langZh: "中文 (母语), 英文 (流利)",
   langEn: "Mandarin (Native), English (Fluent)",
+  experiences: DEFAULT_EXPERIENCES,
   expHightouchZh: "过去21个月，作为AI项目负责人，我成功主导落地了14个AI Agent与研发赋能项目，全面驱动了公司的跨部门智能化升级：\n- 迅速让团队掌握主流AI研发工具（Claude Code, OpenCode, n8n, Codex等），具备将前沿AI研发效能工具转化为团队生产力的能力。\n- 在技术与效能方面，从零搭建AI Agent专属云端环境，基于MCP架构打通Github、Slack、CircleCI等核心系统，实现自动化测试与部署闭环，使整体研发效能提升了40%。同时，通过完善核心知识库（agents.md）与开发可视化管理工具，成功赋能非技术团队独立操作，大幅降低了跨团队的沟通与协作成本。\n- 在项目管理与业务交付方面，我严格把控需求落地与质量。14个核心项目均实现了100%按期高质量交付，有效解决了工程师的底层痛点，业务部门（客户）满意度极高。通过持续引入前沿技术，在实现降本增效的同时，确保了团队的AI生产力始终保持行业领先标准。",
   expEbayZh: "- 主导 eBay 全局 AI 基础平台底座建设与向量检索引擎优化，支持海量跨境电商 SKU 的精准多模态检索与语义召回。\n- 设计与落地千万级用户规模的客服智能体系统，实现多轮意图辨析、订单追踪与退换货业务流全自动闭环。\n- 搭建高可用 RAG 混合召回通道，建立生产级 LLM 安全护栏 (Guardrails) 与延迟敏感型模型服务降级熔断策略。",
   expEbayEn: "- Led eBay global AI platform foundation and vector search engine optimization for multimodal semantic retrieval of millions of cross-border e-commerce SKUs.\n- Designed and deployed multi-turn customer service agent platform for 10M+ users with end-to-end order tracking and return workflow automation.\n- Architected highly available RAG hybrid recall pipeline with production-grade guardrails and latency-sensitive fallback circuits.",
@@ -918,17 +949,53 @@ function formatExpText(text) {
 }
 
 async function getProfile(env) {
+  let profile = Object.assign({}, DEFAULT_PROFILE);
   if (env && env.BLOG_KV) {
     try {
       const data = await env.BLOG_KV.get("PROFILE_DATA", "json");
       if (data && typeof data === "object") {
-        return Object.assign({}, DEFAULT_PROFILE, data);
+        profile = Object.assign({}, DEFAULT_PROFILE, data);
       }
     } catch (e) {
       console.error("KV Read Error for profile:", e);
     }
   }
-  return DEFAULT_PROFILE;
+  if (!Array.isArray(profile.experiences) || profile.experiences.length === 0) {
+    if (profile.expHightouchZh || profile.expEbayZh || profile.expKuaishouZh) {
+      profile.experiences = [
+        {
+          id: "exp-hightouch",
+          company: "Hightouch",
+          role: "AI 项目负责人 / AI Researcher",
+          roleEn: "AI Project Lead / AI Researcher",
+          period: "2024 — Present",
+          details: profile.expHightouchZh || "",
+          detailsEn: profile.expHightouchEn || ""
+        },
+        {
+          id: "exp-ebay",
+          company: "eBay (亿贝)",
+          role: "AI Tech Expert",
+          roleEn: "AI Tech Expert",
+          period: "2022 — 2024",
+          details: profile.expEbayZh || "",
+          detailsEn: profile.expEbayEn || ""
+        },
+        {
+          id: "exp-kuaishou",
+          company: "Kuaishou (快手)",
+          role: "资深服务端开发工程师 / 项目主 R (Senior Backend Engineer / Tech Lead)",
+          roleEn: "Senior Backend Engineer / Tech Lead",
+          period: "2020.12 — 2022.05",
+          details: profile.expKuaishouZh || "",
+          detailsEn: profile.expKuaishouEn || ""
+        }
+      ];
+    } else {
+      profile.experiences = JSON.parse(JSON.stringify(DEFAULT_EXPERIENCES));
+    }
+  }
+  return profile;
 }
 
 async function saveProfile(env, profile) {
@@ -2538,6 +2605,25 @@ function renderGuestbookHtml(initialJson) {
  */
 function renderExperienceHtml(profile) {
   profile = profile || DEFAULT_PROFILE;
+  const exps = (profile.experiences && Array.isArray(profile.experiences) && profile.experiences.length > 0)
+    ? profile.experiences
+    : DEFAULT_EXPERIENCES;
+
+  const expCardsHtml = exps.map(exp => `
+        <div class="exp-card">
+            <div class="exp-card-header">
+                <div>
+                    <span class="exp-company">${escapeHtml(exp.company || '')}</span>
+                    ${exp.role ? `<span class="exp-role-title">· ${escapeHtml(exp.role)}</span>` : ''}
+                </div>
+                <span class="exp-period">${escapeHtml(exp.period || '')}</span>
+            </div>
+            <div class="exp-detail-text">
+                ${formatExpText(exp.details || '')}
+            </div>
+        </div>
+  `).join('\n');
+
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -2648,47 +2734,7 @@ function renderExperienceHtml(profile) {
             </p>
         </header>
 
-        <!-- 1. Hightouch 详尽履历 -->
-        <div class="exp-card">
-            <div class="exp-card-header">
-                <div>
-                    <span class="exp-company">Hightouch</span>
-                    <span class="exp-role-title">· AI 项目负责人 / AI Researcher</span>
-                </div>
-                <span class="exp-period">2024 — Present</span>
-            </div>
-            <div class="exp-detail-text">
-                ${formatExpText(profile.expHightouchZh)}
-            </div>
-        </div>
-
-        <!-- 2. eBay -->
-        <div class="exp-card">
-            <div class="exp-card-header">
-                <div>
-                    <span class="exp-company">eBay (亿贝)</span>
-                    <span class="exp-role-title">· AI Tech Expert</span>
-                </div>
-                <span class="exp-period">2022 — 2024</span>
-            </div>
-            <div class="exp-detail-text">
-                ${formatExpText(profile.expEbayZh)}
-            </div>
-        </div>
-
-        <!-- 3. 快手 -->
-        <div class="exp-card">
-            <div class="exp-card-header">
-                <div>
-                    <span class="exp-company">Kuaishou (快手)</span>
-                    <span class="exp-role-title">· 资深服务端开发工程师 / 项目主 R (Senior Backend Engineer / Tech Lead)</span>
-                </div>
-                <span class="exp-period">2020.12 — 2022.05</span>
-            </div>
-            <div class="exp-detail-text">
-                ${formatExpText(profile.expKuaishouZh)}
-            </div>
-        </div>
+        ${expCardsHtml}
 
         <!-- 战略级客户服务履历 -->
         <div class="clients-box">
@@ -2723,6 +2769,25 @@ function renderExperienceHtml(profile) {
  */
 function renderPublicHtml(profile) {
   profile = profile || DEFAULT_PROFILE;
+  const exps = (profile.experiences && Array.isArray(profile.experiences) && profile.experiences.length > 0)
+    ? profile.experiences
+    : DEFAULT_EXPERIENCES;
+
+  const homeExpCardsHtml = exps.map((exp, idx) => `
+                <div class="exp-item" id="exp-item-${idx}">
+                    <div class="exp-head">
+                        <div>
+                            <span class="exp-company" id="exp-company-${idx}">${escapeHtml(exp.company || '')}</span>
+                            <span class="exp-role-badge" id="exp-role-${idx}">${exp.role ? ('· ' + escapeHtml(exp.role)) : ''}</span>
+                        </div>
+                        <span class="exp-date" id="exp-period-${idx}">${escapeHtml(exp.period || '')}</span>
+                    </div>
+                    <div class="exp-desc" id="exp-desc-${idx}">
+                        ${formatExpText(exp.details || '')}
+                    </div>
+                </div>
+  `).join('\n');
+
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -2950,47 +3015,7 @@ function renderPublicHtml(profile) {
                 <a href="/experience" class="more-link" id="link-full-exp">完整工作履历与客户详情 →</a>
             </h2>
             <div id="experience-list">
-                <!-- Hightouch 核心成就（14个AI Agent项目） -->
-                <div class="exp-item">
-                    <div class="exp-head">
-                        <div>
-                            <span class="exp-company">Hightouch</span>
-                            <span class="exp-role-badge">· AI 项目负责人 / AI Researcher</span>
-                        </div>
-                        <span class="exp-date">2024 — Present</span>
-                    </div>
-                    <div class="exp-desc" id="exp-desc-hightouch">
-                        ${formatExpText(profile.expHightouchZh)}
-                    </div>
-                </div>
-
-                <!-- eBay -->
-                <div class="exp-item">
-                    <div class="exp-head">
-                        <div>
-                            <span class="exp-company">eBay (亿贝)</span>
-                            <span class="exp-role-badge">· AI Tech Expert</span>
-                        </div>
-                        <span class="exp-date">2022 — 2024</span>
-                    </div>
-                    <div class="exp-desc" id="exp-desc-ebay">
-                        ${formatExpText(profile.expEbayZh)}
-                    </div>
-                </div>
-
-                <!-- 快手 -->
-                <div class="exp-item">
-                    <div class="exp-head">
-                        <div>
-                            <span class="exp-company">Kuaishou (快手)</span>
-                            <span class="exp-role-badge">· Senior Backend / Tech Lead</span>
-                        </div>
-                        <span class="exp-date">2020 — 2022</span>
-                    </div>
-                    <div class="exp-desc" id="exp-desc-kuaishou">
-                        ${formatExpText(profile.expKuaishouZh)}
-                    </div>
-                </div>
+${homeExpCardsHtml}
             </div>
         </section>
 
@@ -3026,9 +3051,10 @@ function renderPublicHtml(profile) {
                 valTech: ${JSON.stringify(profile.techZh)},
                 valEducation: ${JSON.stringify(profile.eduZh)},
                 valLanguages: ${JSON.stringify(profile.langZh)},
-                expHightouchHtml: ${JSON.stringify(formatExpText(profile.expHightouchZh))},
-                expEbayHtml: ${JSON.stringify(formatExpText(profile.expEbayZh))},
-                expKuaishouHtml: ${JSON.stringify(formatExpText(profile.expKuaishouZh))},
+                experiences: ${JSON.stringify(exps.map(e => ({
+                  role: e.role ? ('· ' + e.role) : '',
+                  detailsHtml: formatExpText(e.details || '')
+                })))},
                 footerCopyright: "© 2026 " + ${JSON.stringify(profile.nameZh)} + " · All Rights Reserved"
             },
             en: {
@@ -3051,9 +3077,10 @@ function renderPublicHtml(profile) {
                 valTech: ${JSON.stringify(profile.techEn)},
                 valEducation: ${JSON.stringify(profile.eduEn)},
                 valLanguages: ${JSON.stringify(profile.langEn)},
-                expHightouchHtml: ${JSON.stringify(formatExpText(profile.expHightouchEn))},
-                expEbayHtml: ${JSON.stringify(formatExpText(profile.expEbayEn))},
-                expKuaishouHtml: ${JSON.stringify(formatExpText(profile.expKuaishouEn))},
+                experiences: ${JSON.stringify(exps.map(e => ({
+                  role: (e.roleEn || e.role) ? ('· ' + (e.roleEn || e.role)) : '',
+                  detailsHtml: formatExpText(e.detailsEn || e.details || '')
+                })))},
                 footerCopyright: "© 2026 " + ${JSON.stringify(profile.nameEn)} + " · All Rights Reserved"
             }
         };
@@ -3080,9 +3107,14 @@ function renderPublicHtml(profile) {
             document.getElementById('val-tech').innerText = data.valTech;
             document.getElementById('val-education').innerText = data.valEducation;
             document.getElementById('val-languages').innerText = data.valLanguages;
-            document.getElementById('exp-desc-hightouch').innerHTML = data.expHightouchHtml;
-            document.getElementById('exp-desc-ebay').innerHTML = data.expEbayHtml;
-            document.getElementById('exp-desc-kuaishou').innerHTML = data.expKuaishouHtml;
+            if (data.experiences && Array.isArray(data.experiences)) {
+                data.experiences.forEach((expItem, idx) => {
+                    const roleEl = document.getElementById('exp-role-' + idx);
+                    const descEl = document.getElementById('exp-desc-' + idx);
+                    if (roleEl) roleEl.innerText = expItem.role || '';
+                    if (descEl && expItem.detailsHtml) descEl.innerHTML = expItem.detailsHtml;
+                });
+            }
             document.getElementById('footer-copyright').innerText = data.footerCopyright;
         }
     </script>
@@ -3340,6 +3372,42 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             align-items: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
+        .exp-editor-card {
+            background: var(--bg-page);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 12px;
+            position: relative;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+        }
+        .exp-editor-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed var(--border);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .exp-editor-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .exp-editor-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            border-radius: 3px;
+        }
         .modal-mask {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -3530,44 +3598,34 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 </div>
 
                 <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; margin-bottom:24px;">
-                    <h3 style="font-family:var(--font-serif); font-size:1.3rem; margin-bottom:16px; color:var(--text-main);">💼 详尽工作经历与工程履历</h3>
-                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">
-                        提示：支持多行输入。以 <code>- </code> 或 <code>* </code> 开头的行将自动渲染为列表项，支持 <code>**加粗文字**</code> 语法。修改后将同步更新至主页与独立工作经历页面。
-                    </p>
-
-                    <!-- Hightouch -->
-                    <div class="form-group">
-                        <label class="form-label" style="font-weight:600; color:var(--accent);">Hightouch 工作经历 (中文)</label>
-                        <textarea id="prof-expHightouchZh" class="form-textarea" rows="5" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Hightouch Work Experience (英文)</label>
-                        <textarea id="prof-expHightouchEn" class="form-textarea" rows="4"></textarea>
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <h3 style="font-family:var(--font-serif); font-size:1.3rem; margin-bottom:6px; color:var(--text-main);">💼 详尽工作经历与工程履历 (支持自由添加/删除/排序)</h3>
+                            <p style="font-size:0.85rem; color:var(--text-muted); margin:0; line-height:1.5;">
+                                提示：可自由添加任意多段工作经历，支持「⬆️ 上移」「⬇️ 下移」「🗑️ 删除」。以 <code>- </code> 或 <code>* </code> 开头的行自动渲染为列表项，支持 <code>**加粗**</code> 语法。
+                            </p>
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="addExperienceCard()" style="white-space:nowrap; padding:8px 16px; font-size:0.9rem;">
+                            ➕ 添加新工作经历
+                        </button>
                     </div>
 
-                    <!-- eBay -->
-                    <div class="form-group">
-                        <label class="form-label" style="font-weight:600; color:var(--accent);">eBay 工作经历 (中文)</label>
-                        <textarea id="prof-expEbayZh" class="form-textarea" rows="4" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">eBay Work Experience (英文)</label>
-                        <textarea id="prof-expEbayEn" class="form-textarea" rows="3"></textarea>
+                    <!-- 动态经历卡片容器 -->
+                    <div id="experiences-editor-container" style="display:flex; flex-direction:column; gap:16px;">
+                        <!-- JS 动态渲染各公司经历卡片 -->
                     </div>
 
-                    <!-- Kuaishou -->
-                    <div class="form-group">
-                        <label class="form-label" style="font-weight:600; color:var(--accent);">快手 (Kuaishou) 工作经历 (中文)</label>
-                        <textarea id="prof-expKuaishouZh" class="form-textarea" rows="5" required></textarea>
+                    <div style="margin-top:16px; text-align:center;">
+                        <button type="button" class="btn" onclick="addExperienceCard()" style="border:1px dashed var(--accent); color:var(--accent); background:transparent; font-size:0.88rem; padding:8px 24px; border-radius:6px; cursor:pointer;">
+                            ➕ 添加另一段工作经历
+                        </button>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">快手 (Kuaishou) Work Experience (英文)</label>
-                        <textarea id="prof-expKuaishouEn" class="form-textarea" rows="3"></textarea>
-                    </div>
+
+                    <div style="border-top:1px dashed var(--border); margin:24px 0 20px 0;"></div>
 
                     <!-- 战略级客户服务履历 -->
                     <div class="form-group">
-                        <label class="form-label" style="font-weight:600; color:var(--accent);">战略级重要客户与机构服务赋能 (中文)</label>
+                        <label class="form-label" style="font-weight:600; color:var(--accent);">🏛️ 战略级重要客户与机构服务赋能 (中文)</label>
                         <textarea id="prof-clientsZh" class="form-textarea" rows="3" required></textarea>
                     </div>
                     <div class="form-group">
@@ -4111,6 +4169,129 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             window.location.replace('/admin?logout=true&token=' + encodeURIComponent(tok));
         }
 
+        let localExperiences = [];
+
+        function renderExperienceEditorCards() {
+            const container = document.getElementById('experiences-editor-container');
+            if (!container) return;
+            if (localExperiences.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted); background:var(--bg-page); border:1px dashed var(--border); border-radius:6px; font-size:0.9rem;">暂无工作经历，请点击「➕ 添加新工作经历」按钮添加。</div>';
+                return;
+            }
+            container.innerHTML = localExperiences.map(function(exp, idx) {
+                const compName = exp.company || ('经历 #' + (idx + 1));
+                const canMoveUp = idx > 0;
+                const canMoveDown = idx < localExperiences.length - 1;
+                return '<div class="exp-editor-card" data-idx="' + idx + '">' +
+                    '<div class="exp-editor-card-header">' +
+                        '<div class="exp-editor-title">' +
+                            '<span>💼</span>' +
+                            '<span id="exp-title-preview-' + idx + '" style="font-weight:600;">' + escapeHtml(compName) + '</span>' +
+                            '<span style="font-size:0.8rem; color:var(--text-light); font-weight:normal;">(#' + (idx + 1) + ')</span>' +
+                        '</div>' +
+                        '<div class="exp-editor-actions">' +
+                            '<button type="button" class="btn btn-outline btn-sm" onclick="moveExperienceCard(' + idx + ', -1)" ' + (canMoveUp ? '' : 'disabled') + ' title="上移">⬆️ 上移</button>' +
+                            '<button type="button" class="btn btn-outline btn-sm" onclick="moveExperienceCard(' + idx + ', 1)" ' + (canMoveDown ? '' : 'disabled') + ' title="下移">⬇️ 下移</button>' +
+                            '<button type="button" class="btn btn-danger btn-sm" onclick="deleteExperienceCard(' + idx + ')" title="删除此经历" style="margin-left:4px;">🗑️ 删除</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:12px;">' +
+                        '<div>' +
+                            '<label class="form-label" style="font-weight:600;">公司名称 (Company) <span style="color:red;">*</span></label>' +
+                            '<input type="text" class="form-input exp-input-company" value="' + escapeHtml(exp.company || '') + '" placeholder="例如: Hightouch" oninput="updateExpTitlePreview(' + idx + ', this.value)" required>' +
+                        '</div>' +
+                        '<div>' +
+                            '<label class="form-label" style="font-weight:600;">职位头衔 (Role)</label>' +
+                            '<input type="text" class="form-input exp-input-role" value="' + escapeHtml(exp.role || '') + '" placeholder="例如: AI 项目负责人">' +
+                        '</div>' +
+                        '<div>' +
+                            '<label class="form-label" style="font-weight:600;">在职时间 (Period)</label>' +
+                            '<input type="text" class="form-input exp-input-period" value="' + escapeHtml(exp.period || '') + '" placeholder="例如: 2024 — Present">' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="margin-bottom:12px;">' +
+                        '<label class="form-label" style="font-weight:600;">详细职责与成果 (中文) <span style="color:red;">*</span></label>' +
+                        '<textarea class="form-textarea exp-input-details" rows="5" placeholder="支持 Markdown 列表 (- 项目) 和加粗 (**加粗文本**)">' + escapeHtml(exp.details || '') + '</textarea>' +
+                    '</div>' +
+                    '<div>' +
+                        '<label class="form-label">Work Experience Details (英文，选填)</label>' +
+                        '<textarea class="form-textarea exp-input-details-en" rows="3" placeholder="English details (Optional)">' + escapeHtml(exp.detailsEn || '') + '</textarea>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+
+        function updateExpTitlePreview(idx, val) {
+            const el = document.getElementById('exp-title-preview-' + idx);
+            if (el) el.innerText = val.trim() || ('经历 #' + (idx + 1));
+        }
+
+        function syncExperiencesFromDom() {
+            const container = document.getElementById('experiences-editor-container');
+            if (!container) return;
+            const cards = container.querySelectorAll('.exp-editor-card');
+            const updated = [];
+            cards.forEach((card, i) => {
+                const orig = localExperiences[i] || {};
+                const compInput = card.querySelector('.exp-input-company');
+                const roleInput = card.querySelector('.exp-input-role');
+                const periodInput = card.querySelector('.exp-input-period');
+                const detailsInput = card.querySelector('.exp-input-details');
+                const detailsEnInput = card.querySelector('.exp-input-details-en');
+                updated.push({
+                    id: orig.id || ('exp-' + Date.now() + '-' + i),
+                    company: compInput ? compInput.value.trim() : '',
+                    role: roleInput ? roleInput.value.trim() : '',
+                    roleEn: orig.roleEn || '',
+                    period: periodInput ? periodInput.value.trim() : '',
+                    details: detailsInput ? detailsInput.value.trim() : '',
+                    detailsEn: detailsEnInput ? detailsEnInput.value.trim() : ''
+                });
+            });
+            localExperiences = updated;
+        }
+
+        function addExperienceCard() {
+            syncExperiencesFromDom();
+            localExperiences.unshift({
+                id: 'exp-' + Date.now(),
+                company: '',
+                role: '',
+                roleEn: '',
+                period: '',
+                details: '',
+                detailsEn: ''
+            });
+            renderExperienceEditorCards();
+            setTimeout(() => {
+                const firstInput = document.querySelector('.exp-input-company');
+                if (firstInput) {
+                    firstInput.focus();
+                    firstInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 50);
+        }
+
+        function deleteExperienceCard(idx) {
+            syncExperiencesFromDom();
+            const compName = (localExperiences[idx] && localExperiences[idx].company) || ('经历 #' + (idx + 1));
+            if (!confirm('确定要删除【' + compName + '】这条工作经历吗？')) {
+                return;
+            }
+            localExperiences.splice(idx, 1);
+            renderExperienceEditorCards();
+        }
+
+        function moveExperienceCard(idx, delta) {
+            syncExperiencesFromDom();
+            const targetIdx = idx + delta;
+            if (targetIdx < 0 || targetIdx >= localExperiences.length) return;
+            const temp = localExperiences[idx];
+            localExperiences[idx] = localExperiences[targetIdx];
+            localExperiences[targetIdx] = temp;
+            renderExperienceEditorCards();
+        }
+
         function populateProfileForm() {
             const p = currentProfile || {};
             document.getElementById('prof-nameZh').value = p.nameZh || '';
@@ -4128,14 +4309,12 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             document.getElementById('prof-eduEn').value = p.eduEn || '';
             document.getElementById('prof-langZh').value = p.langZh || '';
             document.getElementById('prof-langEn').value = p.langEn || '';
-            document.getElementById('prof-expHightouchZh').value = p.expHightouchZh || '';
-            document.getElementById('prof-expHightouchEn').value = p.expHightouchEn || '';
-            document.getElementById('prof-expEbayZh').value = p.expEbayZh || '';
-            document.getElementById('prof-expEbayEn').value = p.expEbayEn || '';
-            document.getElementById('prof-expKuaishouZh').value = p.expKuaishouZh || '';
-            document.getElementById('prof-expKuaishouEn').value = p.expKuaishouEn || '';
             document.getElementById('prof-clientsZh').value = p.clientsZh || '';
             document.getElementById('prof-clientsEn').value = p.clientsEn || '';
+            localExperiences = (p.experiences && Array.isArray(p.experiences))
+                ? JSON.parse(JSON.stringify(p.experiences))
+                : [];
+            renderExperienceEditorCards();
             
             const qrImg = document.getElementById('preview-reward-qr');
             if (p.rewardQrCode) {
@@ -4368,16 +4547,28 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 eduEn: document.getElementById('prof-eduEn').value.trim(),
                 langZh: document.getElementById('prof-langZh').value.trim(),
                 langEn: document.getElementById('prof-langEn').value.trim(),
-                expHightouchZh: document.getElementById('prof-expHightouchZh').value.trim(),
-                expHightouchEn: document.getElementById('prof-expHightouchEn').value.trim(),
-                expEbayZh: document.getElementById('prof-expEbayZh').value.trim(),
-                expEbayEn: document.getElementById('prof-expEbayEn').value.trim(),
-                expKuaishouZh: document.getElementById('prof-expKuaishouZh').value.trim(),
-                expKuaishouEn: document.getElementById('prof-expKuaishouEn').value.trim(),
+                experiences: (function() {
+                    syncExperiencesFromDom();
+                    return localExperiences.filter(e => e.company || e.role || e.details);
+                })(),
                 clientsZh: document.getElementById('prof-clientsZh').value.trim(),
                 clientsEn: document.getElementById('prof-clientsEn').value.trim(),
                 rewardQrCode: currentProfile.rewardQrCode || ""
             });
+
+            // Backward compatibility for legacy readers
+            if (payload.experiences && payload.experiences.length > 0) {
+                payload.expHightouchZh = payload.experiences[0].details || '';
+                payload.expHightouchEn = payload.experiences[0].detailsEn || '';
+            }
+            if (payload.experiences && payload.experiences.length > 1) {
+                payload.expEbayZh = payload.experiences[1].details || '';
+                payload.expEbayEn = payload.experiences[1].detailsEn || '';
+            }
+            if (payload.experiences && payload.experiences.length > 2) {
+                payload.expKuaishouZh = payload.experiences[2].details || '';
+                payload.expKuaishouEn = payload.experiences[2].detailsEn || '';
+            }
 
             try {
                 const res = await adminFetch('/api/profile', {
