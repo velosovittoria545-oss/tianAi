@@ -24,6 +24,25 @@ const CONFIG = {
 
 const DEFAULT_ARTICLES = [
   {
+    "id": "ai-infrastructure-tollbooth",
+    "title": {
+      "zh": "AI 产业最后到底是“模型赢者通吃”，还是“算力基础设施收过路费”？",
+      "en": "The AI End Game: Model Winner-Takes-All, or Tollbooth on Compute Infrastructure?"
+    },
+    "tag": "AI Industry Analysis, Cloud Infrastructure",
+    "date": "2026.09",
+    "readTime": "6 min read",
+    "views": 2180,
+    "summary": {
+      "zh": "这几天 Google DeepMind 顶尖科学家相继出走创业。表面上看是人才流失，但从 Google Cloud 与 TPU 财报来看，Google 正在把竞争从‘谁的模型最强’重构为‘谁在收过路费’。",
+      "en": "Analyzing Google DeepMind executive movements and the real AI end game: compute infrastructure tollbooths vs. burning billions on pure models."
+    },
+    "content": {
+      "zh": "<p>这几天 Google DeepMind 的人事震动很大：</p>\n<p>Jeff Dean、Sanjay Ghemawat、Oriol Vinyals、Quoc Le 离开 Google 创业；Demis Hassabis 从 DeepMind CEO 转为 Chairman + Alphabet Chief Scientist。消息公布后，Alphabet 股价一度跌了约 5%。</p>\n<p>很多人把它解读成：<br /><em>“Google 在 AI 竞赛中落后了。”</em></p>\n<p>我反而觉得，真正值得警惕的可能是另一件事。</p>\n<hr />\n<h3 style=\"font-family:var(--font-serif); margin-top:2rem; margin-bottom:0.8rem;\">Google 正在改变竞争范式</h3>\n<p>Google 正在逐渐把 AI 竞争从：<br /><strong>“谁的模型最强？”</strong><br />变成：<br /><strong>“无论谁的模型最强，我都能从这场战争里赚钱。”</strong></p>\n<p>Google Cloud 2026 年 Q2 收入已经达到约 248 亿美元，同比增长 82%；Anthropic 也在持续扩大对 Google TPU 和 Cloud 的使用，2027 年新增 TPU 容量达到多个 GW。</p>\n<p>这意味着一个非常有意思的商业结构：</p>\n<ul style=\"margin:1rem 0 1rem 1.5rem; line-height:1.8;\">\n  <li>OpenAI 训练模型 → 需要算力。</li>\n  <li>Anthropic 训练模型 → 需要算力。</li>\n  <li>开源模型继续扩大 → 需要算力。</li>\n  <li>Agent 越来越复杂 → 需要更多推理。</li>\n  <li>模型越来越便宜 → 反而可能刺激更多 Token 需求。</li>\n</ul>\n<p>而 Google 卖的恰恰是：<strong>TPU、Cloud、网络、数据中心以及整个 AI 基础设施。</strong></p>\n<blockquote style=\"border-left:3px solid var(--accent); margin:1.2rem 0; padding:0.6rem 1.2rem; color:var(--text-muted); background:var(--bg-subtle); font-style:italic;\">\n  所以真正的终局可能不是：Google vs OpenAI vs Anthropic<br />\n  而是：模型公司之间互相烧钱，基础设施公司在旁边收过路费。\n</blockquote>\n<hr />\n<h3 style=\"font-family:var(--font-serif); margin-top:2rem; margin-bottom:0.8rem;\">真正的胜负手与护城河</h3>\n<p>当然，我不会因此宣布“Google 已经放弃 Gemini”。这同样危险。</p>\n<p>因为如果下一代模型出现真正巨大的能力跃迁，模型层依然可能重新成为最大的利润池。</p>\n<p>所以 Google 最聪明的地方，可能恰恰是：<strong>它没有把自己的未来押在“Gemini 必须永远第一”这一个结果上。</strong></p>\n<p>它拥有模型，也拥有云，也拥有 TPU，也拥有全球最大的互联网商业生态。</p>\n<ul style=\"margin:1rem 0 1rem 1.5rem; line-height:1.8;\">\n  <li>Claude 赢了，Google 可以卖算力。</li>\n  <li>GPT 赢了，Google 可以卖算力。</li>\n  <li>开源赢了，Google 还是可以卖算力。</li>\n  <li>Gemini 赢了，那就更不用说。</li>\n</ul>\n<p><strong>这才是 Google 真正可怕的地方。它不一定需要赢得 AI 战争，它只需要确保：这场战争不能没有 Google。</strong></p>\n<p>至于谁会先撑不住？我反而更担心那些只有“模型”这一层商业模式、却需要持续烧掉数百亿美元算力成本的公司。</p>\n<p>AI 真正残酷的地方可能不是谁能训练出最强的模型，而是：<strong>谁能在模型越来越便宜的时候，依然保住利润。</strong></p>",
+      "en": "<p>Google DeepMind has seen huge executive restructuring recently: Jeff Dean, Sanjay Ghemawat, Oriol Vinyals, and Quoc Le left to start new ventures, while Demis Hassabis transitioned to Chairman + Alphabet Chief Scientist.</p><p>Many interpret this as Google falling behind. I believe the real signal is different: Google is shifting the AI competition from 'Who has the best model?' to 'Whoever wins, I make money from compute and infrastructure.'</p>"
+    }
+  },
+  {
     "id": "enterprise-agent-architecture",
     "title": {
       "zh": "从零搭建企业级 Multi-Agent 系统：反思、工具调用与长程状态机治理",
