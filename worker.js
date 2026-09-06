@@ -121,40 +121,623 @@ const DEFAULT_ARTICLES = [
 ];
 const DEFAULT_COMMENTS = [
   {
-    "id": "comm-1",
-    "articleId": "post-llm-evolution",
-    "articleTitle": "大模型下半场：从模型中心到 Agent 协同工程的思考",
-    "author": "分布式老兵",
-    "content": "非常赞同崔老师文中的观点，特别是关于推理加速和 Agent 协议闭环的分析，受益匪浅！期待更多深度文章。",
-    "createdAt": "2026-03-02 10:24",
-    "status": "approved"
-  },
-  {
-    "id": "comm-2",
-    "articleId": "post-agent-mcp",
-    "articleTitle": "构建可落地的企业级 MCP 架构：从工具协议到生产系统",
-    "author": "AI 探索者",
-    "content": "请教一下崔老师，在企业专属云端环境下打通 CircleCI 和 MCP 遇到权限与密钥隔离问题，一般最佳实践是怎么解？",
-    "createdAt": "2026-03-05 16:40",
-    "status": "approved"
-  },
-  {
-    "id": "comm-3",
-    "articleId": "post-llm-evolution",
-    "articleTitle": "大模型下半场：从模型中心到 Agent 协同工程的思考",
-    "author": "李工",
-    "content": "老师讲得很接地气，想请教下在实际做 vLLM 推理优化时，PagedAttention 面对超长 Prompt 吞吐瓶颈的主要调优方向？",
-    "createdAt": "2026-03-06 09:15",
-    "status": "pending"
-  },
-  {
-    "id": "comm-gb-1",
+    "id": "comm-1764929700000",
+    "createdTimestamp": 1764929700000,
     "articleId": "guestbook",
     "articleTitle": "全站公开留言板",
-    "author": "云原生架构师",
-    "content": "崔老师的主页风格太纯粹了，李新野式的极简排版看着非常舒服！祝博客越办越好！",
-    "createdAt": "2026-03-01 15:30",
-    "status": "approved"
+    "author": "Marcus Brody",
+    "content": "Loving the crisp, minimalist layout of this site! It's so refreshing to read deep technical reflections on AI architecture without intrusive ads or paywalls. Greetings from Seattle!",
+    "createdAt": "2025-12-05 10:15",
+    "status": "approved",
+    "likes": 24,
+    "replies": [
+      {
+        "id": "rep-1764936000000",
+        "createdTimestamp": 1764936000000,
+        "author": "维托里奥 崔",
+        "content": "Thank you Marcus! Keeping the reading experience pure and focused on engineering substance is the core philosophy here. Welcome!",
+        "createdAt": "2025-12-05 12:00",
+        "likes": 15
+      }
+    ]
+  },
+  {
+    "id": "comm-1765552200000",
+    "createdTimestamp": 1765552200000,
+    "articleId": "enterprise-agent-architecture",
+    "articleTitle": "从零搭建企业级 Multi-Agent 系统：反思、工具调用与长程状态机治理",
+    "author": "林远 (AI 平台研发)",
+    "content": "崔老师在文里提到的‘状态机治理比单次 Prompt 上下文长度更关键’，我们在做金融对账 Agent 时深有感触。非确定性输出如果直接进事务队列简直就是灾难。请教下状态回滚的补偿机制一般怎么划分粒度？",
+    "createdAt": "2025-12-12 14:30",
+    "status": "approved",
+    "likes": 38,
+    "replies": [
+      {
+        "id": "rep-1765561000000",
+        "createdTimestamp": 1765561000000,
+        "author": "维托里奥 崔",
+        "content": "林工抓到了痛点！建议采用类似 Saga 模式的分段补偿：将 Agent 动作拆分为只读探测（Probe）、预占锁（Reserve）和最终提交（Commit）。只有到了 Commit 阶段才触碰主状态，失败时触发逆向补偿函数。",
+        "createdAt": "2025-12-12 16:56",
+        "likes": 29
+      },
+      {
+        "id": "rep-1765572000000",
+        "createdTimestamp": 1765572000000,
+        "author": "林远 (AI 平台研发)",
+        "content": "Saga 拆解思路豁然开朗！预占锁机制确实能极大降低补偿成本，感谢崔老师点拨！",
+        "createdAt": "2025-12-12 20:00",
+        "likes": 11
+      }
+    ]
+  },
+  {
+    "id": "comm-1766606400000",
+    "createdTimestamp": 1766606400000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "David Henderson",
+    "content": "Your analysis of Agent protocol convergence vs monolithic platforms resonated strongly with our team at AWS. We are seeing a rapid shift towards lightweight, specialized agents communicating via standardized schemas.",
+    "createdAt": "2025-12-24 20:00",
+    "status": "approved",
+    "likes": 19,
+    "replies": []
+  },
+  {
+    "id": "comm-1767865500000",
+    "createdTimestamp": 1767865500000,
+    "articleId": "ai-product-trends-2025",
+    "articleTitle": "洞察 2025：国内外 AI 技术与产品演进趋势深度解析",
+    "author": "陈默 (全栈工程师)",
+    "content": "跨入 2026 年回看这篇 2025 的趋势预判，几乎全被印证了！尤其是多模态物理交互和本地边缘小模型推理的爆发。佩服崔老师的前瞻判断力！",
+    "createdAt": "2026-01-08 09:45",
+    "status": "approved",
+    "likes": 42,
+    "replies": [
+      {
+        "id": "rep-1767873000000",
+        "createdTimestamp": 1767873000000,
+        "author": "维托里奥 崔",
+        "content": "哈哈感谢陈默！技术的底层规律其实是算力经济学在起决定性作用，只要盯紧硬件吞吐与单位 Token 成本的剪刀差，大方向一般不会跑偏。",
+        "createdAt": "2026-01-08 11:50",
+        "likes": 22
+      }
+    ]
+  },
+  {
+    "id": "comm-1768580400000",
+    "createdTimestamp": 1768580400000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "Sophia Martinez",
+    "content": "Stumbled upon your blog from a recommendation on Hacker News. Your bilingual perspective between East Asia and Western tech hubs gives rare and realistic insights into real-world AI adoption.",
+    "createdAt": "2026-01-16 16:20",
+    "status": "approved",
+    "likes": 17,
+    "replies": []
+  },
+  {
+    "id": "comm-1769508600000",
+    "createdTimestamp": 1769508600000,
+    "articleId": "high-concurrency-microservices",
+    "articleTitle": "万级 QPS 金融结算系统微服务改造纪实：SLA 99.99% 的高可用底盘",
+    "author": "高并发老王",
+    "content": "老快手人的干货就是硬！当年处理双十一和春晚红包，防资损分布式锁加幂等流水号确实是唯一的护身符。写得太真实了，句句都是踩坑换来的经验。",
+    "createdAt": "2026-01-27 11:10",
+    "status": "approved",
+    "likes": 55,
+    "replies": [
+      {
+        "id": "rep-1769515000000",
+        "createdTimestamp": 1769515000000,
+        "author": "维托里奥 崔",
+        "content": "哈哈老王懂的！当年监控报警器一响，几千万人在线并发，唯有最朴素严谨的幂等设计能让人踏实睡个好觉。",
+        "createdAt": "2026-01-27 12:57",
+        "likes": 31
+      }
+    ]
+  },
+  {
+    "id": "comm-1770222900000",
+    "createdTimestamp": 1770222900000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "Dr. Wei (NLP Lab)",
+    "content": "在长上下文推理（Long-Context Reasoning）和大容量外置 Memory 之间，学术界和工业界一直有分歧。崔老师怎么看 2026 年两者的路线之争？到底该让模型背几兆上下文，还是交给外部向量与关系图谱？",
+    "createdAt": "2026-02-04 18:35",
+    "status": "approved",
+    "likes": 64,
+    "replies": [
+      {
+        "id": "rep-1770228000000",
+        "createdTimestamp": 1770228000000,
+        "author": "维托里奥 崔",
+        "content": "Wei 博士这个问题切中要害。从成本与算力收益比来看，超长上下文更适合做探索式推理（Exploration），而高频确定的企业业务必须依靠外置结构化 Memory，否则 KV Cache 的开销会吃掉所有毛利。",
+        "createdAt": "2026-02-04 20:00",
+        "likes": 36
+      },
+      {
+        "id": "rep-1770231000000",
+        "createdTimestamp": 1770231000000,
+        "author": "Julian K.",
+        "content": "Totally agree with Vittorio. In our production cluster, keeping 1M tokens in KV cache for every turn kills latency. Hierarchical memory indexing is the only viable path.",
+        "createdAt": "2026-02-04 20:50",
+        "likes": 18
+      },
+      {
+        "id": "rep-1770235000000",
+        "createdTimestamp": 1770235000000,
+        "author": "陈默 (全栈工程师)",
+        "content": "学习了，长上下文与外置 Memory 方案在延迟和吞吐上确实需要权衡，不能盲目崇拜长上下文。",
+        "createdAt": "2026-02-04 21:56",
+        "likes": 14
+      },
+      {
+        "id": "rep-1770240000000",
+        "createdTimestamp": 1770240000000,
+        "author": "Alex Thorne",
+        "content": "Does anyone have latency benchmarks comparing both approaches on H100 clusters? Curious about the TTFT overhead.",
+        "createdAt": "2026-02-04 23:20",
+        "likes": 12
+      },
+      {
+        "id": "rep-1770250000000",
+        "createdTimestamp": 1770250000000,
+        "author": "维托里奥 崔",
+        "content": "Alex, I am publishing detailed latency and memory fragmentation benchmarks next week, stay tuned!",
+        "createdAt": "2026-02-05 02:06",
+        "likes": 25
+      }
+    ]
+  },
+  {
+    "id": "comm-1771063200000",
+    "createdTimestamp": 1771063200000,
+    "articleId": "enterprise-agent-architecture",
+    "articleTitle": "从零搭建企业级 Multi-Agent 系统：反思、工具调用与长程状态机治理",
+    "author": "智汇天成",
+    "content": "我们正在把原本复杂的 RPA 流程向多智能体协作迁移，崔老师的文章是目前看到最接地气、没有花架子的架构指南，果断收藏！",
+    "createdAt": "2026-02-14 13:00",
+    "status": "approved",
+    "likes": 27,
+    "replies": []
+  },
+  {
+    "id": "comm-1771870500000",
+    "createdTimestamp": 1771870500000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "Thomas Keller",
+    "content": "Warm greetings from Zurich! Enjoying the in-depth posts on distributed systems and agent orchestration. Looking forward to your next insights on LLM compiler optimizations.",
+    "createdAt": "2026-02-23 21:15",
+    "status": "approved",
+    "likes": 21,
+    "replies": [
+      {
+        "id": "rep-1771877000000",
+        "createdTimestamp": 1771877000000,
+        "author": "维托里奥 崔",
+        "content": "Thanks Thomas! The compiler level is indeed where the next 5x-10x efficiency gains will come from. Stay tuned!",
+        "createdAt": "2026-02-23 23:03",
+        "likes": 14
+      }
+    ]
+  },
+  {
+    "id": "comm-1772445840000",
+    "createdTimestamp": 1772445840000,
+    "articleId": "ai-infrastructure-tollbooth",
+    "articleTitle": "AI 产业最后到底是“模型赢者通吃”，还是“算力基础设施收过路费”？",
+    "author": "分布式老兵",
+    "content": "非常赞同崔老师文中的观点，特别是关于算力过路费和基础设施护城河的分析！当模型训练成本边际递减，真正能长青的必然是手握电能、网络和机房的底座玩家。",
+    "createdAt": "2026-03-02 10:24",
+    "status": "approved",
+    "likes": 76,
+    "replies": [
+      {
+        "id": "rep-1772452000000",
+        "createdTimestamp": 1772452000000,
+        "author": "维托里奥 崔",
+        "content": "精辟！‘卖水人’和‘过路费收取者’在每一次技术革命中都是最后落袋为安的赢家，淘金客换了一茬又一茬，铁路线却越筑越牢固。",
+        "createdAt": "2026-03-02 12:06",
+        "likes": 48
+      },
+      {
+        "id": "rep-1772460000000",
+        "createdTimestamp": 1772460000000,
+        "author": "刘云飞 (算力集群研发)",
+        "content": "深有同感。现在各大云厂商的利润率直接暴露了底牌，哪怕模型开源免费，云租金和电力账单也是实打实的现金流。",
+        "createdAt": "2026-03-02 14:20",
+        "likes": 23
+      },
+      {
+        "id": "rep-1772471000000",
+        "createdTimestamp": 1772471000000,
+        "author": "Sarah Jenkins",
+        "content": "Capital expenditure on data centers is the true moat today. Silicon and megawatts dictate the boundaries of intelligence.",
+        "createdAt": "2026-03-02 17:16",
+        "likes": 19
+      },
+      {
+        "id": "rep-1772485000000",
+        "createdTimestamp": 1772485000000,
+        "author": "分布式老兵",
+        "content": "老外这位同行总结到位：Silicon and megawatts. 硬件物理世界的约束才是最坚硬的壁垒。",
+        "createdAt": "2026-03-02 21:10",
+        "likes": 22
+      }
+    ]
+  },
+  {
+    "id": "comm-1773236400000",
+    "createdTimestamp": 1773236400000,
+    "articleId": "vllm-inference-optimization",
+    "articleTitle": "vLLM 底层推理加速实战：PagedAttention、量化与千万级并发压测经验",
+    "author": "梁工 (推荐系统)",
+    "content": "崔老师，在超长提示词（Prompt > 32k）的吞吐瓶颈下，Chunked Prefill 与 KV Cache Offloading 结合使用时，PCIe 带宽经常打满，有什么实操的缓解策略吗？",
+    "createdAt": "2026-03-11 15:40",
+    "status": "approved",
+    "likes": 32,
+    "replies": [
+      {
+        "id": "rep-1773245000000",
+        "createdTimestamp": 1773245000000,
+        "author": "维托里奥 崔",
+        "content": "梁工好！首先优先启用 FP8 激活量化减少传输体积；其次将 Chunk 大小限制在 512-1024 之间做动态分片；最关键的是把 Prefill 节点与 Decode 节点进行物理机物理隔离，避免双向总线争抢。",
+        "createdAt": "2026-03-11 18:03",
+        "likes": 26
+      }
+    ]
+  },
+  {
+    "id": "comm-1774029000000",
+    "createdTimestamp": 1774029000000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "Elena Vance (AI Systems)",
+    "content": "Really appreciate the balance of rigorous systems engineering with philosophical depth here. It's rare to find engineers who write this well about both kernels and macro trends.",
+    "createdAt": "2026-03-20 17:50",
+    "status": "approved",
+    "likes": 28,
+    "replies": []
+  },
+  {
+    "id": "comm-1775185800000",
+    "createdTimestamp": 1775185800000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "跨境科技小杨",
+    "content": "看到崔老师帮助全球大客户落地智能单证 Agent 的案例，非常振奋！我们跨境电商报关也在尝试自动化，请教下海关多语言单证格式对齐的最佳模型选型推荐。",
+    "createdAt": "2026-04-03 08:30",
+    "status": "approved",
+    "likes": 16,
+    "replies": [
+      {
+        "id": "rep-1775195000000",
+        "createdTimestamp": 1775195000000,
+        "author": "维托里奥 崔",
+        "content": "建议采用‘轻量端侧 OCR + 通用中英日多语言底座 + 规则强校验兜底’的三段式链路，单证字段严禁用大模型自由发挥，必须强制输出 JSON Schema。",
+        "createdAt": "2026-04-03 11:03",
+        "likes": 20
+      }
+    ]
+  },
+  {
+    "id": "comm-1776140100000",
+    "createdTimestamp": 1776140100000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "Kenji Sato",
+    "content": "Konichiwa from Tokyo! Read your posts via translation and found the discussion on high-concurrency payment reliability extremely helpful for our fintech modernization project.",
+    "createdAt": "2026-04-14 12:15",
+    "status": "approved",
+    "likes": 15,
+    "replies": []
+  },
+  {
+    "id": "comm-1777203600000",
+    "createdTimestamp": 1777203600000,
+    "articleId": "enterprise-agent-architecture",
+    "articleTitle": "从零搭建企业级 Multi-Agent 系统：反思、工具调用与长程状态机治理",
+    "author": "张晓峰 (资深架构师)",
+    "content": "请教崔老师，在多智能体系统长链路执行中，各 Agent 间的权限授权认证（RBAC）与会话上下文安全隔离，目前工业界最成熟的实践是借助哪些协议？",
+    "createdAt": "2026-04-26 19:40",
+    "status": "approved",
+    "likes": 34,
+    "replies": [
+      {
+        "id": "rep-1777212000000",
+        "createdTimestamp": 1777212000000,
+        "author": "维托里奥 崔",
+        "content": "目前最优雅的做法是结合 OAuth 2.0 / SPIFFE 做智能体身份绑定，并在 MCP 协议层对每个 Tool 暴露声明明确的权限范围（Scope），拒绝万能 Tool 混跑。",
+        "createdAt": "2026-04-26 22:00",
+        "likes": 27
+      }
+    ]
+  },
+  {
+    "id": "comm-1778057100000",
+    "createdTimestamp": 1778057100000,
+    "articleId": "vllm-inference-optimization",
+    "articleTitle": "vLLM 底层推理加速实战：PagedAttention、量化与千万级并发压测经验",
+    "author": "Lucas Dubois (Paris)",
+    "content": "Great practical tips on AWQ vs FP8! We replicated your benchmark on 8x H100 SXM nodes and observed almost identical throughput improvement (~2.35x). Merci beaucoup!",
+    "createdAt": "2026-05-06 14:05",
+    "status": "approved",
+    "likes": 41,
+    "replies": [
+      {
+        "id": "rep-1778065000000",
+        "createdTimestamp": 1778065000000,
+        "author": "维托里奥 崔",
+        "content": "Merci Lucas! Delighted to hear the numbers hold up cleanly on your 8x H100 cluster. Systems engineering never lies!",
+        "createdAt": "2026-05-06 16:16",
+        "likes": 24
+      }
+    ]
+  },
+  {
+    "id": "comm-1779081000000",
+    "createdTimestamp": 1779081000000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "码农墨客",
+    "content": "李新野式的极简排版让人重拾纯粹阅读的乐趣，文字既有技术极客的锋芒，又有举重若轻的从容幽默。每逢周末必来打卡品读！",
+    "createdAt": "2026-05-18 10:30",
+    "status": "approved",
+    "likes": 53,
+    "replies": [
+      {
+        "id": "rep-1779090000000",
+        "createdTimestamp": 1779090000000,
+        "author": "维托里奥 崔",
+        "content": "谢谢墨客兄厚爱！能让同行读得畅快、觉得有收获，就是写技术随笔最大的快乐。",
+        "createdAt": "2026-05-18 13:00",
+        "likes": 30
+      }
+    ]
+  },
+  {
+    "id": "comm-1780054500000",
+    "createdTimestamp": 1780054500000,
+    "articleId": "high-concurrency-microservices",
+    "articleTitle": "万级 QPS 金融结算系统微服务改造纪实：SLA 99.99% 的高可用底盘",
+    "author": "Rachel Green (Fintech Eng)",
+    "content": "Zero financial loss in high-throughput microservices is the holy grail. The part about optimistic locking with strict version increments saved our ledger team hours of debugging.",
+    "createdAt": "2026-05-29 16:55",
+    "status": "approved",
+    "likes": 36,
+    "replies": []
+  },
+  {
+    "id": "comm-1780891200000",
+    "createdTimestamp": 1780891200000,
+    "articleId": "ai-infrastructure-tollbooth",
+    "articleTitle": "AI 产业最后到底是“模型赢者通吃”，还是“算力基础设施收过路费”？",
+    "author": "刘云飞 (算力集群研发)",
+    "content": "国内很多初创团队还在卷基座千亿参数，但算力集群的高可用和网络拓扑才是真命题。RoCE v2 网络的丢包率一超标，千卡集群利用率直接腰斩，基础设施确实是硬通货！",
+    "createdAt": "2026-06-08 09:20",
+    "status": "approved",
+    "likes": 61,
+    "replies": [
+      {
+        "id": "rep-1780900000000",
+        "createdTimestamp": 1780900000000,
+        "author": "维托里奥 崔",
+        "content": "是啊云飞！很多算法出身的同学不理解为什么 0.1% 的丢包能把分布式训练拖慢 50%，把精力放到算力工程和网络调优上才是核心生产力。",
+        "createdAt": "2026-06-08 11:46",
+        "likes": 35
+      }
+    ]
+  },
+  {
+    "id": "comm-1781897400000",
+    "createdTimestamp": 1781897400000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "Alex Thorne",
+    "content": "Re-reading your earlier piece on Agent loops. The Think-Act-Observe pattern is ubiquitous now, but your defensive fallback ideas remain ahead of the curve.",
+    "createdAt": "2026-06-19 22:10",
+    "status": "approved",
+    "likes": 23,
+    "replies": []
+  },
+  {
+    "id": "comm-1782800700000",
+    "createdTimestamp": 1782800700000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "悟道者_AI",
+    "content": "从模型参数崇拜，到系统工程实战，崔老师的每一篇文章都是送给一线系统工程师的良药，不跟风、不浮躁，支持持续更新！",
+    "createdAt": "2026-06-30 11:45",
+    "status": "approved",
+    "likes": 47,
+    "replies": [
+      {
+        "id": "rep-1782810000000",
+        "createdTimestamp": 1782810000000,
+        "author": "维托里奥 崔",
+        "content": "保持冷静、尊重工程客观规律，浮华褪去后留下的才是真正创造价值的底座。感谢老友鼓励！",
+        "createdAt": "2026-06-30 14:20",
+        "likes": 28
+      }
+    ]
+  },
+  {
+    "id": "comm-1783582200000",
+    "createdTimestamp": 1783582200000,
+    "articleId": "vllm-inference-optimization",
+    "articleTitle": "vLLM 底层推理加速实战：PagedAttention、量化与千万级并发压测经验",
+    "author": "Priya Sharma (MLOps)",
+    "content": "How do you handle GPU memory defragmentation during sudden traffic spikes in vLLM when continuous preemption kicks in? Does speculative decoding help or hurt overall throughput?",
+    "createdAt": "2026-07-09 15:30",
+    "status": "approved",
+    "likes": 30,
+    "replies": [
+      {
+        "id": "rep-1783591000000",
+        "createdTimestamp": 1783591000000,
+        "author": "维托里奥 崔",
+        "content": "Hi Priya! During traffic spikes, speculative decoding can actually hurt throughput if the draft model acceptance rate drops below 60%. Under high load, we disable speculative decoding and enable aggressive chunked prefill.",
+        "createdAt": "2026-07-09 17:56",
+        "likes": 25
+      }
+    ]
+  },
+  {
+    "id": "comm-1784625300000",
+    "createdTimestamp": 1784625300000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "华东数字化顾问",
+    "content": "传统制造和物流企业现在上 AI 最怕的是落地成本不可控。崔老师给企业做的三层防御架构方案非常实用，把试错成本压在了最低区间。",
+    "createdAt": "2026-07-21 17:15",
+    "status": "approved",
+    "likes": 18,
+    "replies": []
+  },
+  {
+    "id": "comm-1785501600000",
+    "createdTimestamp": 1785501600000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "Felix Baumgartner",
+    "content": "Greetings from Munich! Excellent engineering blog with real architectural substance. Subscribed and looking forward to your upcoming write-up on agentic security sandbox designs.",
+    "createdAt": "2026-07-31 20:40",
+    "status": "approved",
+    "likes": 22,
+    "replies": []
+  },
+  {
+    "id": "comm-1786329900000",
+    "createdTimestamp": 1786329900000,
+    "articleId": "enterprise-agent-architecture",
+    "articleTitle": "从零搭建企业级 Multi-Agent 系统：反思、工具调用与长程状态机治理",
+    "author": "孙昊 (Agent 开源作者)",
+    "content": "我们在开源 Agent 项目中借鉴了崔老师的反思与状态隔离模式，代码复杂度降低了 40%，测试用例的覆盖率显著提高，向崔老师致敬！",
+    "createdAt": "2026-08-10 13:25",
+    "status": "approved",
+    "likes": 44,
+    "replies": [
+      {
+        "id": "rep-1786338000000",
+        "createdTimestamp": 1786338000000,
+        "author": "维托里奥 崔",
+        "content": "太棒了孙昊！开源项目能切实落地生根、帮助同行少走弯路，就是对架构思想最好的检验！",
+        "createdAt": "2026-08-10 15:40",
+        "likes": 29
+      }
+    ]
+  },
+  {
+    "id": "comm-1786745400000",
+    "createdTimestamp": 1786745400000,
+    "articleId": "ai-infrastructure-tollbooth",
+    "articleTitle": "AI 产业最后到底是“模型赢者通吃”，还是“算力基础设施收过路费”？",
+    "author": "沈毅 (云原生技术布道师)",
+    "content": "8 月 14 日这篇文章写得太透彻了！Google DeepMind 科学家的创业热潮恰恰说明基座算法层正在商品化（Commoditization），而 Google 借 TPU 与云基础设施构建的‘过路费商业闭环’才是高维竞争。",
+    "createdAt": "2026-08-15 08:50",
+    "status": "approved",
+    "likes": 85,
+    "replies": [
+      {
+        "id": "rep-1786754000000",
+        "createdTimestamp": 1786754000000,
+        "author": "维托里奥 崔",
+        "content": "沈老师总结得极准：算法正在商品化。当所有人都可以用极低成本微调出可用模型时，决定胜负的唯有算力能源底座和场景闭环。",
+        "createdAt": "2026-08-15 11:13",
+        "likes": 56
+      },
+      {
+        "id": "rep-1786762000000",
+        "createdTimestamp": 1786762000000,
+        "author": "Christian Mayer",
+        "content": "The commodity trap is real. History repeats itself: railroad builders and telecommunication backbone owners captured value when applications commoditized.",
+        "createdAt": "2026-08-15 13:26",
+        "likes": 32
+      },
+      {
+        "id": "rep-1786775000000",
+        "createdTimestamp": 1786775000000,
+        "author": "沈毅 (云原生技术布道师)",
+        "content": "Exactly, Christian. The infrastructure tollbooth model is the ultimate resilience play in this cycle.",
+        "createdAt": "2026-08-15 17:03",
+        "likes": 27
+      },
+      {
+        "id": "rep-1786790000000",
+        "createdTimestamp": 1786790000000,
+        "author": "智汇天成",
+        "content": "这场大讨论太精彩了，把 AI 下半场的商业本质剖析得淋漓尽致！",
+        "createdAt": "2026-08-15 21:14",
+        "likes": 21
+      }
+    ]
+  },
+  {
+    "id": "comm-1787376600000",
+    "createdTimestamp": 1787376600000,
+    "articleId": "ai-infrastructure-tollbooth",
+    "articleTitle": "AI 产业最后到底是“模型赢者通吃”，还是“算力基础设施收过路费”？",
+    "author": "Christian Mayer (Munich)",
+    "content": "Anthropic scaling up multi-gigawatt TPU clusters with Google is the definitive proof of your thesis. The pure model companies are burning cash while cloud giants take steady toll fees.",
+    "createdAt": "2026-08-22 16:10",
+    "status": "approved",
+    "likes": 39,
+    "replies": []
+  },
+  {
+    "id": "comm-1787993700000",
+    "createdTimestamp": 1787993700000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "前端老友记",
+    "content": "留言板更新了这个极简的交互风格，还支持双向排序和点赞，体验丝滑流畅！字数限制和审核机制设计得也很克制体面。",
+    "createdAt": "2026-08-29 19:35",
+    "status": "approved",
+    "likes": 43,
+    "replies": [
+      {
+        "id": "rep-1788002000000",
+        "createdTimestamp": 1788002000000,
+        "author": "维托里奥 崔",
+        "content": "谢谢支持！保持轻量与响应速度，不做过度设计的动效，专注于读者思考交流本身。",
+        "createdAt": "2026-08-29 21:53",
+        "likes": 27
+      }
+    ]
+  },
+  {
+    "id": "comm-1788305700000",
+    "createdTimestamp": 1788305700000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "向量空间漫游者",
+    "content": "最近在梳理关于 Agent 自主纠错的学术综述，崔老师的文章提供了不可多得的工业落地参考系，期待您关于多模态物理世界交互的下一篇力作！",
+    "createdAt": "2026-09-02 10:15",
+    "status": "approved",
+    "likes": 29,
+    "replies": []
+  },
+  {
+    "id": "comm-1788580800000",
+    "createdTimestamp": 1788580800000,
+    "articleId": "guestbook",
+    "articleTitle": "全站公开留言板",
+    "author": "Daniel Zhao (Autonomous Agent Lead)",
+    "content": "Just finished catching up with all 2026 posts on this blog. Hands down one of the most intellectually honest engineering publications in the AI space today. Kudos to Vittorio!",
+    "createdAt": "2026-09-05 14:40",
+    "status": "approved",
+    "likes": 51,
+    "replies": [
+      {
+        "id": "rep-1788590000000",
+        "createdTimestamp": 1788590000000,
+        "author": "维托里奥 崔",
+        "content": "Thank you Daniel! Honored by your kind words. Onwards to building truly autonomous and reliable AGI systems!",
+        "createdAt": "2026-09-05 17:13",
+        "likes": 34
+      }
+    ]
   }
 ];
 
@@ -497,6 +1080,87 @@ const COMMON_CSS = `
         color: var(--text-light);
         margin-top: 6px;
     }
+
+    /* 留言与互动组件样式 (Sorting, Likes & Threaded Replies) */
+    .sort-tab-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        padding: 3px 10px;
+        font-size: 0.78rem;
+        border-radius: 14px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .sort-tab-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+    .sort-tab-btn.active {
+        background: var(--accent);
+        color: #ffffff;
+        border-color: var(--accent);
+        font-weight: 500;
+    }
+    .action-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        padding: 3px 9px;
+        font-size: 0.78rem;
+        border-radius: 4px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.15s;
+    }
+    .action-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+    .action-btn.liked {
+        background: rgba(204, 120, 92, 0.1);
+        border-color: var(--accent);
+        color: var(--accent);
+        font-weight: 500;
+    }
+    .action-btn.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: var(--bg-subtle);
+        border-color: var(--border);
+        color: var(--text-light);
+    }
+    .reply-box {
+        margin-top: 10px;
+        padding-left: 12px;
+        border-left: 2px solid var(--border);
+    }
+    .reply-item {
+        background: var(--bg-subtle);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin-top: 8px;
+        font-size: 0.85rem;
+    }
+    .author-tag {
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.7rem;
+        padding: 1px 5px;
+        border-radius: 3px;
+        margin-left: 6px;
+        font-weight: 500;
+    }
+    .reply-input-panel {
+        background: var(--bg-subtle);
+        border: 1px dashed var(--border);
+        border-radius: 4px;
+        padding: 10px 12px;
+        margin-top: 10px;
+    }
 `;
 
 /**
@@ -672,9 +1336,13 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
 
             <!-- 读者留言板 -->
             <div id="comments-section" style="margin-top: 36px; padding-top: 24px; border-top: 1px dashed var(--border);">
-                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px;">
-                    <h3 style="font-family: var(--font-serif); font-size: 1.25rem; font-weight: 500; color: var(--text-main);">💬 读者留言 (<span id="comments-count">0</span>)</h3>
-                    <span style="font-size: 0.78rem; color: var(--text-light);">审核通过后公开展示</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                    <h3 style="font-family: var(--font-serif); font-size: 1.25rem; font-weight: 500; color: var(--text-main); margin: 0;">💬 读者留言 (<span id="comments-count">0</span>)</h3>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 0.78rem; color: var(--text-light);">排序：</span>
+                        <button type="button" id="art-sort-desc-btn" class="sort-tab-btn active" onclick="switchArtSortOrder('desc')">▼ 最新优先</button>
+                        <button type="button" id="art-sort-asc-btn" class="sort-tab-btn" onclick="switchArtSortOrder('asc')">▲ 最早优先</button>
+                    </div>
                 </div>
 
                 <!-- 审核通过留言列表 -->
@@ -844,53 +1512,251 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             }
         }
 
-        async function loadArticleComments(articleId) {
+        let currentArtComments = [];
+        let currentArtSort = 'desc';
+        let currentLoadedArticleId = '';
+
+        function switchArtSortOrder(order) {
+            currentArtSort = order;
+            const descBtn = document.getElementById('art-sort-desc-btn');
+            const ascBtn = document.getElementById('art-sort-asc-btn');
+            if (descBtn) descBtn.className = 'sort-tab-btn' + (order === 'desc' ? ' active' : '');
+            if (ascBtn) ascBtn.className = 'sort-tab-btn' + (order === 'asc' ? ' active' : '');
+            renderArticleComments();
+        }
+
+        function getSortedArtList(arr) {
+            const list = arr.slice();
+            list.sort((a, b) => {
+                const tA = a.createdTimestamp || (a.createdAt ? new Date(a.createdAt.replace(' ', 'T') + ':00+08:00').getTime() : 0);
+                const tB = b.createdTimestamp || (b.createdAt ? new Date(b.createdAt.replace(' ', 'T') + ':00+08:00').getTime() : 0);
+                return currentArtSort === 'desc' ? (tB - tA) : (tA - tB);
+            });
+            return list;
+        }
+
+        function isArtLiked(id) {
+            try {
+                const arr = JSON.parse(localStorage.getItem('my_liked_comments') || '[]');
+                return arr.includes(id);
+            } catch(e) { return false; }
+        }
+
+        async function toggleArtLike(cid, rid) {
+            const targetId = rid || cid;
+            if (isArtLiked(targetId)) {
+                alert('您已经点赞过该条内容啦！');
+                return;
+            }
+            try {
+                const arr = JSON.parse(localStorage.getItem('my_liked_comments') || '[]');
+                arr.push(targetId);
+                localStorage.setItem('my_liked_comments', JSON.stringify(arr));
+            } catch(e) {}
+
+            const countEl = document.getElementById('art-like-' + targetId);
+            if (countEl) {
+                const cur = parseInt(countEl.innerText, 10) || 0;
+                countEl.innerText = cur + 1;
+                const btn = countEl.closest('button');
+                if (btn) btn.classList.add('liked');
+            }
+
+            try {
+                await fetch('/api/comments/like', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ commentId: cid, replyId: rid })
+                });
+            } catch(e) {}
+        }
+
+        function toggleArtReplyForm(cid) {
+            const form = document.getElementById('art-rep-form-' + cid);
+            if (!form) return;
+            form.style.display = (form.style.display === 'none' || !form.style.display) ? 'block' : 'none';
+        }
+
+        async function submitArtReply(cid) {
+            const authorInput = document.getElementById('art-rep-author-' + cid);
+            const contentInput = document.getElementById('art-rep-content-' + cid);
+            const statusEl = document.getElementById('art-rep-status-' + cid);
+            const btn = document.getElementById('art-rep-btn-' + cid);
+
+            const author = (authorInput && authorInput.value.trim()) || '匿名读者';
+            const content = (contentInput && contentInput.value.trim()) || '';
+            if (!content) {
+                alert('请输入回复内容');
+                return;
+            }
+
+            const zhMatches = content.match(/[一-龥]/g) || [];
+            const zhCnt = zhMatches.length;
+            const wordsList = content.replace(/[一-龥]/g, ' ').match(/[a-zA-Z0-9_\-]+/g) || [];
+            const enCnt = wordsList.length;
+
+            if (zhCnt > 140) {
+                statusEl.style.color = '#dc3545';
+                statusEl.innerText = '中文字数超限：最多支持 140 个汉字';
+                return;
+            }
+            if (enCnt > 200) {
+                statusEl.style.color = '#dc3545';
+                statusEl.innerText = '英文字数超限：最多支持 200 个单词';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = '发送中...';
+            statusEl.style.color = 'var(--text-light)';
+            statusEl.innerText = '正在提交...';
+
+            try {
+                const res = await fetch('/api/comments/reply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ parentId: cid, author, content })
+                });
+                const result = await res.json();
+                if (result.success && result.reply) {
+                    const target = currentArtComments.find(c => c.id === cid);
+                    if (target) {
+                        if (!target.replies) target.replies = [];
+                        target.replies.push(result.reply);
+                    }
+                    renderArticleComments();
+                } else {
+                    statusEl.style.color = '#dc3545';
+                    statusEl.innerText = result.error || '提交失败';
+                    btn.disabled = false;
+                    btn.innerText = '发表回复';
+                }
+            } catch(e) {
+                statusEl.style.color = '#dc3545';
+                statusEl.innerText = '网络异常，提交失败';
+                btn.disabled = false;
+                btn.innerText = '发表回复';
+            }
+        }
+
+        function renderArticleComments() {
             const listEl = document.getElementById('comments-display-list');
             const countEl = document.getElementById('comments-count');
+            countEl.innerText = currentArtComments.length;
+
+            let localPending = [];
+            try {
+                const raw = localStorage.getItem('my_pending_comments');
+                if (raw) {
+                    const arr = JSON.parse(raw);
+                    localPending = arr.filter(x => x.articleId === currentLoadedArticleId && !currentArtComments.some(a => a.content === x.content));
+                }
+            } catch(e) {}
+
+            let html = '';
+            if (localPending.length > 0) {
+                html += localPending.map(c => 
+                    '<div style="background:#fffbeb; border:1px dashed #f59e0b; padding:10px 14px; border-radius:6px; margin-bottom:12px;">' +
+                        '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">' +
+                            '<strong style="font-size:0.86rem; color:#b45309;">' + escapeHtml(c.author || '我') + ' <span style="font-size:0.75rem; font-weight:normal; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px; margin-left:6px;">🟡 待审核（已成功接收）</span></strong>' +
+                            '<span style="font-family:var(--font-mono); font-size:0.75rem; color:#b45309;">' + escapeHtml(c.createdAt || '') + '</span>' +
+                        '</div>' +
+                        '<div style="font-size:0.86rem; color:var(--text-main); line-height:1.6; white-space:pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
+                    '</div>'
+                ).join('');
+            }
+
+            const sorted = getSortedArtList(currentArtComments);
+            if (sorted.length === 0 && localPending.length === 0) {
+                listEl.innerHTML = '<div style="font-size:0.84rem; color:var(--text-light); font-style:italic; padding:12px 0;">暂无公开留言，欢迎成为第一个交流的读者。</div>';
+                return;
+            }
+
+            html += sorted.map(c => {
+                const replies = Array.isArray(c.replies) ? c.replies : [];
+                const repCount = replies.length;
+                const isCapped = repCount >= 5;
+                const cLiked = isArtLiked(c.id);
+
+                let repliesHtml = '';
+                if (repCount > 0) {
+                    repliesHtml += '<div class="reply-box">';
+                    repliesHtml += replies.map(r => {
+                        const isAuthor = (r.author === '维托里奥 崔' || r.author === 'Vittorio Cui');
+                        const rLiked = isArtLiked(r.id);
+                        return '<div class="reply-item">' +
+                            '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">' +
+                                '<div>' +
+                                    '<strong style="color:var(--text-main); font-size:0.85rem;">' + escapeHtml(r.author || '匿名读者') + '</strong>' +
+                                    (isAuthor ? '<span class="author-tag">博主</span>' : '') +
+                                '</div>' +
+                                '<span class="msg-date">' + escapeHtml(r.createdAt || '') + '</span>' +
+                            '</div>' +
+                            '<div style="font-size:0.86rem; color:var(--text-main); line-height:1.6; white-space:pre-wrap; margin-bottom:6px;">' + escapeHtml(r.content || '') + '</div>' +
+                            '<div style="display:flex; justify-content:flex-end;">' +
+                                '<button type="button" class="action-btn' + (rLiked ? ' liked' : '') + '" onclick="toggleArtLike(\'' + c.id + '\', \'' + r.id + '\')">' +
+                                    '👍 <span id="art-like-' + r.id + '">' + (r.likes || 0) + '</span>' +
+                                '</button>' +
+                            '</div>' +
+                        '</div>';
+                    }).join('');
+                    repliesHtml += '</div>';
+                }
+
+                let replyBtn = '';
+                if (isCapped) {
+                    replyBtn = '<button type="button" class="action-btn disabled" title="该留言回复已达5条上限" onclick="alert(\'该条留言回复已达 5 条上限，无法继续添加新回复。\')">💬 回复已满 (5/5)</button>';
+                } else {
+                    replyBtn = '<button type="button" class="action-btn" onclick="toggleArtReplyForm(\'' + c.id + '\')">💬 回复 (' + repCount + '/5)</button>';
+                }
+
+                const repForm = '<div id="art-rep-form-' + c.id + '" class="reply-input-panel" style="display:none;">' +
+                    '<div style="margin-bottom:8px;">' +
+                        '<input type="text" id="art-rep-author-' + c.id + '" placeholder="您的称呼 (选填，默认: 匿名读者)" style="width:100%; box-sizing:border-box; padding:6px 10px; font-size:0.84rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main);" />' +
+                    '</div>' +
+                    '<div style="margin-bottom:6px;">' +
+                        '<textarea id="art-rep-content-' + c.id + '" rows="2" placeholder="写下您的回复...（中文 ≤ 140字 / 英文 ≤ 200词）" style="width:100%; box-sizing:border-box; padding:8px 10px; font-size:0.86rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main); font-family:var(--font-sans); resize:vertical;"></textarea>' +
+                    '</div>' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
+                        '<span id="art-rep-status-' + c.id + '" style="font-size:0.78rem;"></span>' +
+                        '<div style="display:flex; gap:8px;">' +
+                            '<button type="button" onclick="toggleArtReplyForm(\'' + c.id + '\')" class="action-btn">取消</button>' +
+                            '<button type="button" id="art-rep-btn-' + c.id + '" onclick="submitArtReply(\'' + c.id + '\')" style="background:var(--accent); color:white; border:none; border-radius:4px; padding:4px 14px; font-size:0.82rem; font-weight:500; cursor:pointer;">发表回复</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+
+                return '<div style="padding: 14px 0; border-bottom: 1px dashed var(--border);">' +
+                    '<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">' +
+                        '<strong style="font-size: 0.88rem; color: var(--accent);">' + escapeHtml(c.author || '匿名读者') + '</strong>' +
+                        '<span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-light);">' + escapeHtml(c.createdAt || '') + '</span>' +
+                    '</div>' +
+                    '<div style="font-size: 0.86rem; color: var(--text-main); line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
+                    repliesHtml +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">' +
+                        '<div style="display:flex; gap:8px; align-items:center;">' +
+                            '<button type="button" class="action-btn' + (cLiked ? ' liked' : '') + '" onclick="toggleArtLike(\'' + c.id + '\')">' +
+                                '👍 赞同 (<span id="art-like-' + c.id + '">' + (c.likes || 0) + '</span>)' +
+                            '</button>' +
+                            replyBtn +
+                        '</div>' +
+                    '</div>' +
+                    repForm +
+                '</div>';
+            }).join('');
+
+            listEl.innerHTML = html;
+        }
+
+        async function loadArticleComments(articleId) {
+            currentLoadedArticleId = articleId;
+            const listEl = document.getElementById('comments-display-list');
             listEl.innerHTML = '<div style="font-size:0.82rem; color:var(--text-light); font-style:italic;">加载留言中...</div>';
             try {
                 const res = await fetch('/api/comments?articleId=' + encodeURIComponent(articleId));
                 const data = await res.json();
-                const approved = Array.isArray(data) ? data : [];
-                countEl.innerText = approved.length;
-                // 获取当前读者在本地提交但仍在审核中的留言
-                let localPending = [];
-                try {
-                    const raw = localStorage.getItem('my_pending_comments');
-                    if (raw) {
-                        const arr = JSON.parse(raw);
-                        localPending = arr.filter(x => x.articleId === articleId && !approved.some(a => a.content === x.content));
-                    }
-                } catch(e) {}
-
-                let html = '';
-                if (localPending.length > 0) {
-                    html += localPending.map(c => 
-                        '<div style="background:#fffbeb; border:1px dashed #f59e0b; padding:10px 14px; border-radius:6px; margin-bottom:12px;">' +
-                            '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">' +
-                                '<strong style="font-size:0.86rem; color:#b45309;">' + escapeHtml(c.author || '我') + ' <span style="font-size:0.75rem; font-weight:normal; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px; margin-left:6px;">🟡 待审核（已成功接收）</span></strong>' +
-                                '<span style="font-family:var(--font-mono); font-size:0.75rem; color:#b45309;">' + escapeHtml(c.createdAt || '') + '</span>' +
-                            '</div>' +
-                            '<div style="font-size:0.86rem; color:var(--text-main); line-height:1.6; white-space:pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
-                        '</div>'
-                    ).join('');
-                }
-
-                if (approved.length === 0 && localPending.length === 0) {
-                    listEl.innerHTML = '<div style="font-size:0.84rem; color:var(--text-light); font-style:italic; padding:12px 0;">暂无公开留言，欢迎成为第一个交流的读者。</div>';
-                    return;
-                }
-
-                html += approved.map(c => 
-                    '<div style="padding: 12px 0; border-bottom: 1px dashed var(--border);">' +
-                        '<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">' +
-                            '<strong style="font-size: 0.88rem; color: var(--accent);">' + escapeHtml(c.author || '匿名读者') + '</strong>' +
-                            '<span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-light);">' + escapeHtml(c.createdAt || '') + '</span>' +
-                        '</div>' +
-                        '<div style="font-size: 0.86rem; color: var(--text-main); line-height: 1.6; white-space: pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
-                    '</div>'
-                ).join('');
-                listEl.innerHTML = html;
+                currentArtComments = Array.isArray(data) ? data : [];
+                renderArticleComments();
             } catch (e) {
                 listEl.innerHTML = '<div style="font-size:0.82rem; color:var(--text-light);">加载留言失败</div>';
             }
@@ -1159,9 +2025,16 @@ function renderGuestbookHtml() {
             </form>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
-            <h3 style="font-family:var(--font-serif); font-size:1.2rem; font-weight:500; color:var(--text-main);">💬 全部公开留言 (<span id="gb-count">0</span>)</h3>
-            <span style="font-size:0.78rem; color:var(--text-light);">已审核通过的公开留言</span>
+        <!-- 留言列表标题与排序切换栏 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <div>
+                <h3 style="font-family:var(--font-serif); font-size:1.2rem; font-weight:500; color:var(--text-main); margin:0;">💬 全部公开留言 (<span id="gb-count">0</span>)</h3>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:0.78rem; color:var(--text-light);">排序：</span>
+                <button type="button" id="sort-desc-btn" class="sort-tab-btn active" onclick="switchSortOrder('desc')">▼ 最新优先</button>
+                <button type="button" id="sort-asc-btn" class="sort-tab-btn" onclick="switchSortOrder('asc')">▲ 最早优先</button>
+            </div>
         </div>
 
         <!-- 留言列表展示 -->
@@ -1181,59 +2054,245 @@ function renderGuestbookHtml() {
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        async function loadGuestbookMessages() {
+        let allApprovedComments = [];
+        let currentSort = 'desc';
+
+        function switchSortOrder(order) {
+            currentSort = order;
+            const descBtn = document.getElementById('sort-desc-btn');
+            const ascBtn = document.getElementById('sort-asc-btn');
+            if (descBtn) descBtn.className = 'sort-tab-btn' + (order === 'desc' ? ' active' : '');
+            if (ascBtn) ascBtn.className = 'sort-tab-btn' + (order === 'asc' ? ' active' : '');
+            renderGuestbookList();
+        }
+
+        function getSortedList(arr) {
+            const list = arr.slice();
+            list.sort((a, b) => {
+                const tA = a.createdTimestamp || (a.createdAt ? new Date(a.createdAt.replace(' ', 'T') + ':00+08:00').getTime() : 0);
+                const tB = b.createdTimestamp || (b.createdAt ? new Date(b.createdAt.replace(' ', 'T') + ':00+08:00').getTime() : 0);
+                return currentSort === 'desc' ? (tB - tA) : (tA - tB);
+            });
+            return list;
+        }
+
+        function isLiked(id) {
+            try {
+                const arr = JSON.parse(localStorage.getItem('my_liked_comments') || '[]');
+                return arr.includes(id);
+            } catch(e) { return false; }
+        }
+
+        async function toggleLike(cid, rid) {
+            const targetId = rid || cid;
+            if (isLiked(targetId)) {
+                alert('您已经点赞过该条内容啦！');
+                return;
+            }
+            try {
+                const arr = JSON.parse(localStorage.getItem('my_liked_comments') || '[]');
+                arr.push(targetId);
+                localStorage.setItem('my_liked_comments', JSON.stringify(arr));
+            } catch(e) {}
+
+            const countEl = document.getElementById('like-' + targetId);
+            if (countEl) {
+                const cur = parseInt(countEl.innerText, 10) || 0;
+                countEl.innerText = cur + 1;
+                const btn = countEl.closest('button');
+                if (btn) btn.classList.add('liked');
+            }
+
+            try {
+                await fetch('/api/comments/like', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ commentId: cid, replyId: rid })
+                });
+            } catch(e) {}
+        }
+
+        function toggleReplyForm(cid) {
+            const form = document.getElementById('rep-form-' + cid);
+            if (!form) return;
+            form.style.display = (form.style.display === 'none' || !form.style.display) ? 'block' : 'none';
+        }
+
+        async function submitReply(cid) {
+            const authorInput = document.getElementById('rep-author-' + cid);
+            const contentInput = document.getElementById('rep-content-' + cid);
+            const statusEl = document.getElementById('rep-status-' + cid);
+            const btn = document.getElementById('rep-btn-' + cid);
+
+            const author = (authorInput && authorInput.value.trim()) || '匿名读者';
+            const content = (contentInput && contentInput.value.trim()) || '';
+            if (!content) {
+                alert('请输入回复内容');
+                return;
+            }
+
+            const zhMatches = content.match(/[一-龥]/g) || [];
+            const zhCnt = zhMatches.length;
+            const wordsList = content.replace(/[一-龥]/g, ' ').match(/[a-zA-Z0-9_\-]+/g) || [];
+            const enCnt = wordsList.length;
+
+            if (zhCnt > 140) {
+                statusEl.style.color = '#dc3545';
+                statusEl.innerText = '中文字数超限：最多支持 140 个汉字';
+                return;
+            }
+            if (enCnt > 200) {
+                statusEl.style.color = '#dc3545';
+                statusEl.innerText = '英文字数超限：最多支持 200 个单词';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = '发送中...';
+            statusEl.style.color = 'var(--text-light)';
+            statusEl.innerText = '正在提交...';
+
+            try {
+                const res = await fetch('/api/comments/reply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ parentId: cid, author, content })
+                });
+                const result = await res.json();
+                if (result.success && result.reply) {
+                    const target = allApprovedComments.find(c => c.id === cid);
+                    if (target) {
+                        if (!target.replies) target.replies = [];
+                        target.replies.push(result.reply);
+                    }
+                    renderGuestbookList();
+                } else {
+                    statusEl.style.color = '#dc3545';
+                    statusEl.innerText = result.error || '提交失败';
+                    btn.disabled = false;
+                    btn.innerText = '发表回复';
+                }
+            } catch(e) {
+                statusEl.style.color = '#dc3545';
+                statusEl.innerText = '网络异常，提交失败';
+                btn.disabled = false;
+                btn.innerText = '发表回复';
+            }
+        }
+
+        function renderGuestbookList() {
             const listEl = document.getElementById('gb-messages-list');
             const countEl = document.getElementById('gb-count');
+            countEl.innerText = allApprovedComments.length;
+
+            let localPending = [];
             try {
-                const res = await fetch('/api/comments');
-                const data = await res.json();
-                const approved = Array.isArray(data) ? data : [];
-                countEl.innerText = approved.length;
-                let localPending = [];
-                try {
-                    const raw = localStorage.getItem('my_pending_comments');
-                    if (raw) {
-                        const arr = JSON.parse(raw);
-                        localPending = arr.filter(x => x.articleId === 'guestbook' && !approved.some(a => a.content === x.content));
-                    }
-                } catch(e) {}
-
-                let html = '';
-                if (localPending.length > 0) {
-                    html += localPending.map(c => 
-                        '<div class="msg-card" style="background:#fffbeb; border:1px dashed #f59e0b;">' +
-                            '<div class="msg-head">' +
-                                '<div>' +
-                                    '<span class="msg-author" style="color:#b45309;">' + escapeHtml(c.author || '我') + '</span>' +
-                                    '<span style="font-size:0.75rem; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px; margin-left:8px;">🟡 待审核（已成功接收）</span>' +
-                                '</div>' +
-                                '<span class="msg-date" style="color:#b45309;">' + escapeHtml(c.createdAt || '') + '</span>' +
-                            '</div>' +
-                            '<div class="msg-content">' + escapeHtml(c.content || '') + '</div>' +
-                        '</div>'
-                    ).join('');
+                const raw = localStorage.getItem('my_pending_comments');
+                if (raw) {
+                    const arr = JSON.parse(raw);
+                    localPending = arr.filter(x => x.articleId === 'guestbook' && !allApprovedComments.some(a => a.content === x.content));
                 }
+            } catch(e) {}
 
-                if (approved.length === 0 && localPending.length === 0) {
-                    listEl.innerHTML = '<div style="background:var(--bg-card); border:1px dashed var(--border); border-radius:6px; padding:32px; text-align:center; color:var(--text-light); font-size:0.88rem;">暂无公开留言，欢迎成为第一个交流的读者。</div>';
-                    return;
-                }
-                html += approved.map(c => 
-                    '<div class="msg-card">' +
+            let html = '';
+            if (localPending.length > 0) {
+                html += localPending.map(c => 
+                    '<div class="msg-card" style="background:#fffbeb; border:1px dashed #f59e0b;">' +
                         '<div class="msg-head">' +
                             '<div>' +
-                                '<span class="msg-author">' + escapeHtml(c.author || '匿名读者') + '</span>' +
-                                (c.articleTitle ? '<span style="font-size:0.75rem; color:var(--text-light); margin-left:8px;">(' + escapeHtml(c.articleTitle) + ')</span>' : '') +
+                                '<span class="msg-author" style="color:#b45309;">' + escapeHtml(c.author || '我') + '</span>' +
+                                '<span style="font-size:0.75rem; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px; margin-left:8px;">🟡 待审核（已成功接收）</span>' +
                             '</div>' +
-                            '<span class="msg-date">' + escapeHtml(c.createdAt || '') + '</span>' +
+                            '<span class="msg-date" style="color:#b45309;">' + escapeHtml(c.createdAt || '') + '</span>' +
                         '</div>' +
                         '<div class="msg-content">' + escapeHtml(c.content || '') + '</div>' +
                     '</div>'
                 ).join('');
-                listEl.innerHTML = html;
-            } catch (e) {
-                listEl.innerHTML = '<div style="font-size:0.85rem; color:var(--text-light);">加载留言失败，请刷新重试</div>';
             }
+
+            const sorted = getSortedList(allApprovedComments);
+            if (sorted.length === 0 && localPending.length === 0) {
+                listEl.innerHTML = '<div style="background:var(--bg-card); border:1px dashed var(--border); border-radius:6px; padding:32px; text-align:center; color:var(--text-light); font-size:0.88rem;">暂无公开留言，欢迎成为第一个交流的读者。</div>';
+                return;
+            }
+
+            html += sorted.map(c => {
+                const replies = Array.isArray(c.replies) ? c.replies : [];
+                const repCount = replies.length;
+                const isCapped = repCount >= 5;
+                const cLiked = isLiked(c.id);
+
+                let repliesHtml = '';
+                if (repCount > 0) {
+                    repliesHtml += '<div class="reply-box">';
+                    repliesHtml += replies.map(r => {
+                        const isAuthor = (r.author === '维托里奥 崔' || r.author === 'Vittorio Cui');
+                        const rLiked = isLiked(r.id);
+                        return '<div class="reply-item">' +
+                            '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">' +
+                                '<div>' +
+                                    '<strong style="color:var(--text-main); font-size:0.85rem;">' + escapeHtml(r.author || '匿名读者') + '</strong>' +
+                                    (isAuthor ? '<span class="author-tag">博主</span>' : '') +
+                                '</div>' +
+                                '<span class="msg-date">' + escapeHtml(r.createdAt || '') + '</span>' +
+                            '</div>' +
+                            '<div style="font-size:0.86rem; color:var(--text-main); line-height:1.6; white-space:pre-wrap; margin-bottom:6px;">' + escapeHtml(r.content || '') + '</div>' +
+                            '<div style="display:flex; justify-content:flex-end;">' +
+                                '<button type="button" class="action-btn' + (rLiked ? ' liked' : '') + '" onclick="toggleLike(\'' + c.id + '\', \'' + r.id + '\')">' +
+                                    '👍 <span id="like-' + r.id + '">' + (r.likes || 0) + '</span>' +
+                                '</button>' +
+                            '</div>' +
+                        '</div>';
+                    }).join('');
+                    repliesHtml += '</div>';
+                }
+
+                let replyBtn = '';
+                if (isCapped) {
+                    replyBtn = '<button type="button" class="action-btn disabled" title="该留言回复已达5条上限" onclick="alert(\'该条留言回复已达 5 条上限，无法继续添加新回复。\')">💬 回复已满 (5/5)</button>';
+                } else {
+                    replyBtn = '<button type="button" class="action-btn" onclick="toggleReplyForm(\'' + c.id + '\')">💬 回复 (' + repCount + '/5)</button>';
+                }
+
+                const repForm = '<div id="rep-form-' + c.id + '" class="reply-input-panel" style="display:none;">' +
+                    '<div style="margin-bottom:8px;">' +
+                        '<input type="text" id="rep-author-' + c.id + '" placeholder="您的称呼 (选填，默认: 匿名读者)" style="width:100%; box-sizing:border-box; padding:6px 10px; font-size:0.84rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main);" />' +
+                    '</div>' +
+                    '<div style="margin-bottom:6px;">' +
+                        '<textarea id="rep-content-' + c.id + '" rows="2" placeholder="写下您的回复...（中文 ≤ 140字 / 英文 ≤ 200词）" style="width:100%; box-sizing:border-box; padding:8px 10px; font-size:0.86rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main); font-family:var(--font-sans); resize:vertical;"></textarea>' +
+                    '</div>' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
+                        '<span id="rep-status-' + c.id + '" style="font-size:0.78rem;"></span>' +
+                        '<div style="display:flex; gap:8px;">' +
+                            '<button type="button" onclick="toggleReplyForm(\'' + c.id + '\')" class="action-btn">取消</button>' +
+                            '<button type="button" id="rep-btn-' + c.id + '" onclick="submitReply(\'' + c.id + '\')" style="background:var(--accent); color:white; border:none; border-radius:4px; padding:4px 14px; font-size:0.82rem; font-weight:500; cursor:pointer;">发表回复</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+
+                return '<div class="msg-card">' +
+                    '<div class="msg-head">' +
+                        '<div>' +
+                            '<span class="msg-author">' + escapeHtml(c.author || '匿名读者') + '</span>' +
+                            (c.articleTitle ? '<span style="font-size:0.75rem; color:var(--text-light); margin-left:8px;">(' + escapeHtml(c.articleTitle) + ')</span>' : '') +
+                        '</div>' +
+                        '<span class="msg-date">' + escapeHtml(c.createdAt || '') + '</span>' +
+                    '</div>' +
+                    '<div class="msg-content">' + escapeHtml(c.content || '') + '</div>' +
+                    repliesHtml +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:8px; border-top:1px dashed var(--border);">' +
+                        '<div style="display:flex; gap:10px; align-items:center;">' +
+                            '<button type="button" class="action-btn' + (cLiked ? ' liked' : '') + '" onclick="toggleLike(\'' + c.id + '\')">' +
+                                '👍 赞同 (<span id="like-' + c.id + '">' + (c.likes || 0) + '</span>)' +
+                            '</button>' +
+                            replyBtn +
+                        '</div>' +
+                    '</div>' +
+                    repForm +
+                '</div>';
+            }).join('');
+
+            listEl.innerHTML = html;
         }
 
         async function handleGuestbookSubmit(e) {
@@ -1332,6 +2391,18 @@ function renderGuestbookHtml() {
                     }
                 }
             });
+        }
+
+        async function loadGuestbookMessages() {
+            const listEl = document.getElementById('gb-messages-list');
+            try {
+                const res = await fetch('/api/comments');
+                const data = await res.json();
+                allApprovedComments = Array.isArray(data) ? data : [];
+                renderGuestbookList();
+            } catch (e) {
+                listEl.innerHTML = '<div style="font-size:0.85rem; color:var(--text-light);">加载留言失败，请刷新重试</div>';
+            }
         }
 
         loadGuestbookMessages();
@@ -3455,6 +4526,116 @@ export default {
           "Cache-Control": "public, max-age=10"
         }
       });
+    }
+
+        // 6.5 API: 留言与回复点赞 POST /api/comments/like
+    if (path === "/api/comments/like" && method === "POST") {
+      try {
+        const body = await request.json();
+        const commentId = body.commentId;
+        const replyId = body.replyId;
+        if (!commentId) {
+          return new Response(JSON.stringify({ error: "缺少 commentId" }), { status: 400 });
+        }
+        let allComments = await getCommentsWithAutoExpiry(env);
+        const targetComm = allComments.find(c => c.id === commentId);
+        if (!targetComm) {
+          return new Response(JSON.stringify({ error: "未找到对应留言" }), { status: 404 });
+        }
+        let updatedLikes = 0;
+        if (replyId) {
+          if (!targetComm.replies) targetComm.replies = [];
+          const targetRep = targetComm.replies.find(r => r.id === replyId);
+          if (!targetRep) {
+            return new Response(JSON.stringify({ error: "未找到对应回复" }), { status: 404 });
+          }
+          targetRep.likes = (targetRep.likes || 0) + 1;
+          updatedLikes = targetRep.likes;
+        } else {
+          targetComm.likes = (targetComm.likes || 0) + 1;
+          updatedLikes = targetComm.likes;
+        }
+        await saveComments(env, allComments);
+        return new Response(JSON.stringify({ success: true, likes: updatedLikes }), {
+          headers: {
+            "Content-Type": "application/json;charset=UTF-8",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+
+    // 6.6 API: 读者回复留言 POST /api/comments/reply
+    if (path === "/api/comments/reply" && method === "POST") {
+      try {
+        const body = await request.json();
+        const parentId = body.parentId;
+        const content = (body.content || "").trim();
+        if (!parentId || !content) {
+          return new Response(JSON.stringify({ error: "回复内容和母留言 ID 不能为空" }), { status: 400 });
+        }
+        let allComments = await getCommentsWithAutoExpiry(env);
+        const parentComm = allComments.find(c => c.id === parentId);
+        if (!parentComm) {
+          return new Response(JSON.stringify({ error: "对应母留言不存在" }), { status: 404 });
+        }
+        if (!parentComm.replies) parentComm.replies = [];
+
+        // 严格硬性上限校验：每条留言回复不得超过 5 条
+        if (parentComm.replies.length >= 5) {
+          return new Response(JSON.stringify({ error: "该条留言回复已达 5 条上限，无法继续添加新回复。" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json;charset=UTF-8" }
+          });
+        }
+
+        // 字数校验：140 汉字以内，或 200 英文单词以内
+        const zhMatches = content.match(/[一-龥]/g) || [];
+        const zhCount = zhMatches.length;
+        const words = content.replace(/[一-龥]/g, ' ').match(/[a-zA-Z0-9_-]+/g) || [];
+        const wordCount = words.length;
+
+        if (zhCount > 140) {
+          return new Response(JSON.stringify({ error: "中文字数超限：最多支持 140 个汉字（当前为 " + zhCount + " 字）" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json;charset=UTF-8" }
+          });
+        }
+        if (wordCount > 200) {
+          return new Response(JSON.stringify({ error: "英文字数超限：最多支持 200 个单词（当前为 " + wordCount + " 词）" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json;charset=UTF-8" }
+          });
+        }
+        if (content.length > 500) {
+          return new Response(JSON.stringify({ error: "回复总长度超出限制（最多 500 个字符）" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json;charset=UTF-8" }
+          });
+        }
+
+        const now = Date.now();
+        const newReply = {
+          id: "rep-" + now,
+          createdTimestamp: now,
+          author: (body.author && body.author.trim()) ? body.author.trim().slice(0, 30) : "匿名读者",
+          content: content,
+          createdAt: new Date(now + 8 * 3600000).toISOString().replace("T", " ").slice(0, 16),
+          likes: 0
+        };
+        parentComm.replies.push(newReply);
+        await saveComments(env, allComments);
+        return new Response(JSON.stringify({ success: true, reply: newReply }), {
+          headers: {
+            "Content-Type": "application/json;charset=UTF-8",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
     }
 
     // 7. API: 读者提交留言 POST /api/comments
