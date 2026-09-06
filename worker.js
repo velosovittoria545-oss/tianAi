@@ -2061,36 +2061,52 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
 
     <!-- 新建/编辑文章 Modal -->
     <div id="modal" class="modal-mask">
-        <div class="modal-card">
-            <h3 id="modal-title" style="font-family:var(--font-serif); font-size:1.4rem; margin-bottom:16px;">编辑文章</h3>
+        <div class="modal-card" style="max-width:720px; width:95%;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 id="modal-title" style="font-family:var(--font-serif); font-size:1.4rem; margin:0;">编辑文章</h3>
+                <div style="display:flex; gap:8px;">
+                    <input type="file" id="article-md-file" accept=".md,.markdown,.txt" style="display:none;" onchange="handleArticleMdImport(event)" />
+                    <button type="button" class="btn btn-outline" style="font-size:0.8rem; padding:4px 10px;" onclick="document.getElementById('article-md-file').click()" title="支持从微信公众号、知乎、Notion、Obsidian 等导出的 Markdown 文件一键导入">📥 导入 .md 外部文章</button>
+                </div>
+            </div>
             <form id="post-form" onsubmit="handleSave(event)">
                 <input type="hidden" id="item-id" />
                 <div class="form-group">
                     <label class="form-label">文章中文标题 (Title)</label>
                     <input type="text" id="item-title" class="form-input" required />
                 </div>
-                <div class="form-group">
-                    <label class="form-label">自定义发布时间 (Publish Date，如 2025.02 或 2025-02-15)</label>
-                    <input type="text" id="item-date" class="form-input" placeholder="2025.02" required />
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">自定义发布时间 (Date)</label>
+                        <input type="text" id="item-date" class="form-input" placeholder="2025.02" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">分类标签 (Tag)</label>
+                        <input type="text" id="item-tag" class="form-input" placeholder="LLM, Agent Architecture" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">文章浏览量 (Views)</label>
+                        <input type="number" id="item-views" class="form-input" min="0" placeholder="1000" required />
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">分类标签 (Tag)</label>
-                    <input type="text" id="item-tag" class="form-input" placeholder="例如: LLM, Agent Architecture" required />
-                </div>
-                <div class="form-group">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <label class="form-label" style="margin-bottom:0;">正文内容 HTML (Content)</label>
-                        <div style="display:flex; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                        <label class="form-label" style="margin-bottom:0;">正文内容 HTML / Markdown</label>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-outline" style="font-size:0.75rem; padding:3px 8px;" onclick="convertContentMarkdownToHtml()" title="若在下方粘贴了 Markdown 语法，点击一键转为标准 HTML">🔄 MD 转 HTML</button>
                             <input type="file" id="article-img-file" accept="image/*" style="display:none;" onchange="handleArticleImageUpload(event)" />
-                            <button type="button" class="btn btn-outline" style="font-size:0.78rem; padding:3px 8px;" onclick="document.getElementById('article-img-file').click()">📁 上传本地插图</button>
-                            <button type="button" class="btn btn-outline" style="font-size:0.78rem; padding:3px 8px;" onclick="insertArticleExternalImg()">🔗 插入外链图片</button>
+                            <button type="button" class="btn btn-outline" style="font-size:0.75rem; padding:3px 8px;" onclick="document.getElementById('article-img-file').click()" title="支持智能轻度压缩并上传，不消耗 Worker 内存">📁 上传本地插图</button>
+                            <button type="button" class="btn btn-outline" style="font-size:0.75rem; padding:3px 8px;" onclick="insertArticleExternalImg()">🔗 插入外链图片</button>
                         </div>
                     </div>
-                    <textarea id="item-content" class="form-textarea" rows="8" placeholder="<p>正文段落内容...</p>" required></textarea>
+                    <textarea id="item-content" class="form-textarea" rows="10" placeholder="<p>正文段落内容...</p>" required></textarea>
                 </div>
-                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-                    <button type="button" class="btn btn-outline" onclick="closeModal()">取消</button>
-                    <button type="submit" class="btn btn-primary">保存发布</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+                    <span style="font-size:0.78rem; color:var(--text-light);">💡 浏览量可随意自定义，读者阅读时会在此数值基础上累加递增</span>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" class="btn btn-outline" onclick="closeModal()">取消</button>
+                        <button type="submit" class="btn btn-primary">保存发布</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -2226,6 +2242,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             document.getElementById('item-title').value = '';
             document.getElementById('item-date').value = new Date().toISOString().slice(0,7).replace('-', '.');
             document.getElementById('item-tag').value = 'AI Architecture';
+            document.getElementById('item-views').value = '1000';
             document.getElementById('item-content').value = '<p>在这里撰写正文内容...</p>';
             document.getElementById('modal').style.display = 'flex';
         }
@@ -2238,6 +2255,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             document.getElementById('item-title').value = (a.title && a.title.zh) || '';
             document.getElementById('item-date').value = a.date || '';
             document.getElementById('item-tag').value = a.tag || '';
+            document.getElementById('item-views').value = typeof a.views === 'number' ? a.views : (parseInt(a.views) || 0);
             document.getElementById('item-content').value = (a.content && a.content.zh) || '';
             document.getElementById('modal').style.display = 'flex';
         }
@@ -2252,6 +2270,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             const titleZh = document.getElementById('item-title').value;
             const customDate = document.getElementById('item-date').value;
             const tag = document.getElementById('item-tag').value;
+            const customViewsRaw = document.getElementById('item-views').value.trim();
+            const customViews = parseInt(customViewsRaw, 10);
             const contentZh = document.getElementById('item-content').value;
 
             const existing = articles.find(x => x.id === id) || {};
@@ -2261,7 +2281,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
                 tag: tag,
                 date: customDate,
                 readTime: existing.readTime || '5 min read',
-                views: typeof existing.views === 'number' ? existing.views : 1000,
+                views: isNaN(customViews) ? (typeof existing.views === 'number' ? existing.views : 1000) : customViews,
                 summary: { zh: titleZh, en: titleZh },
                 content: { zh: contentZh, en: (existing.content && existing.content.en) || contentZh }
             };
@@ -2332,38 +2352,202 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             }
         }
 
+        function compressImage(file, maxWidth, quality) {
+            maxWidth = maxWidth || 1920;
+            quality = quality || 0.85;
+            return new Promise(function(resolve) {
+                if (!file || !file.type || !file.type.match(/image.*/)) {
+                    resolve(null);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        let w = img.width;
+                        let h = img.height;
+                        if (w > maxWidth) {
+                            h = Math.round((h * maxWidth) / w);
+                            w = maxWidth;
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+                        const compressedData = canvas.toDataURL(outType, quality);
+                        resolve(compressedData);
+                    };
+                    img.onerror = function() {
+                        resolve(e.target.result);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.onerror = function() {
+                    resolve(null);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function parseMarkdownToHtml(md) {
+            if (!md) return { frontmatter: {}, html: '' };
+            let html = md.replace(/\r\n/g, '\n');
+            let frontmatter = {};
+            
+            const fmMatch = html.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
+            if (fmMatch) {
+                const lines = fmMatch[1].split('\n');
+                lines.forEach(function(l) {
+                    const idx = l.indexOf(':');
+                    if (idx > 0) {
+                        const k = l.substring(0, idx).trim().toLowerCase();
+                        const v = l.substring(idx + 1).trim().replace(/^["']|["']$/g, '');
+                        frontmatter[k] = v;
+                    }
+                });
+                html = html.substring(fmMatch[0].length);
+            }
+
+            // Code blocks ```lang
+code
+```
+            html = html.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function(m, lang, code) {
+                return '<pre style="background:var(--bg-subtle); padding:1rem; border-radius:6px; overflow-x:auto; font-family:var(--font-mono); font-size:0.88rem; border:1px solid var(--border); margin:1.5rem 0;"><code class="language-' + (lang || 'text') + '">' + escapeHtml(code.trim()) + '</code></pre>';
+            });
+
+            // Inline code `code`
+            html = html.replace(/`([^`]+)`/g, function(m, code) {
+                return '<code style="background:var(--bg-subtle); padding:2px 5px; border-radius:4px; font-family:var(--font-mono); font-size:0.88em; border:1px solid var(--border);">' + escapeHtml(code) + '</code>';
+            });
+
+            // Images ![alt](url)
+            html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url) {
+                return '\n<figure style="margin:1.5rem 0; text-align:center;">\n  <img src="' + url.trim() + '" alt="' + escapeHtml(alt) + '" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\n  ' + (alt ? '<figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">' + escapeHtml(alt) + '</figcaption>' : '') + '\n</figure>\n';
+            });
+
+            // Links [text](url)
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline;">$1</a>');
+
+            // Headings
+            html = html.replace(/^#### (.*$)/gim, '<h4 style="font-family:var(--font-serif); margin-top:1.5rem; margin-bottom:0.5rem;">$1</h4>');
+            html = html.replace(/^### (.*$)/gim, '<h3 style="font-family:var(--font-serif); margin-top:1.8rem; margin-bottom:0.6rem;">$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2 style="font-family:var(--font-serif); margin-top:2rem; margin-bottom:0.8rem;">$1</h2>');
+            html = html.replace(/^# (.*$)/gim, '<h2 style="font-family:var(--font-serif); margin-top:2rem; margin-bottom:0.8rem;">$1</h2>');
+
+            // Blockquotes
+            html = html.replace(/^\> (.*$)/gim, '<blockquote style="border-left:3px solid var(--accent); margin:1.2rem 0; padding:0.6rem 1.2rem; color:var(--fg-subtle); background:var(--bg-subtle); font-style:italic;">$1</blockquote>');
+
+            // Bold & Italic
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+            // Lists (- or *)
+            html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>(\n|))+/gim, function(match) {
+                return '<ul style="margin:1rem 0 1rem 1.5rem; line-height:1.8;">\n' + match.trim() + '\n</ul>';
+            });
+
+            // Paragraphs
+            const blocks = html.split(/\n(2,)/);
+            html = blocks.map(function(block) {
+                block = block.trim();
+                if (!block) return '';
+                if (block.startsWith('<h') || block.startsWith('<pre') || block.startsWith('<figure') || block.startsWith('<blockquote') || block.startsWith('<ul') || block.startsWith('<ol') || block.startsWith('<div')) {
+                    return block;
+                }
+                return '<p style="margin-bottom:1.2rem; line-height:1.8;">' + block.replace(/\n/g, '<br/>') + '</p>';
+            }).join('\n\n');
+
+            return { frontmatter: frontmatter, html: html };
+        }
+
+        function handleArticleMdImport(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const result = parseMarkdownToHtml(text);
+                const fm = result.frontmatter;
+                
+                // 1. Title
+                let title = fm.title;
+                if (!title) {
+                    const titleMatch = text.match(/^#\s+(.+)$/m);
+                    if (titleMatch) title = titleMatch[1].trim();
+                    else title = file.name.replace(/\.(md|markdown|txt)$/i, '');
+                }
+                if (title) document.getElementById('item-title').value = title;
+                
+                // 2. Date
+                if (fm.date) {
+                    document.getElementById('item-date').value = fm.date;
+                }
+                
+                // 3. Tag
+                if (fm.tag || fm.tags || fm.categories) {
+                    document.getElementById('item-tag').value = fm.tag || fm.tags || fm.categories;
+                }
+                
+                // 4. Views
+                if (fm.views) {
+                    document.getElementById('item-views').value = fm.views;
+                }
+                
+                // 5. Content
+                document.getElementById('item-content').value = result.html;
+                alert('🎉 外部文章【' + (title || file.name) + '】导入成功！已自动转换为标准排版格式。');
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function convertContentMarkdownToHtml() {
+            const val = document.getElementById('item-content').value;
+            if (!val || !val.trim()) {
+                alert('正文输入框中没有内容');
+                return;
+            }
+            const res = parseMarkdownToHtml(val);
+            document.getElementById('item-content').value = res.html;
+            alert('✅ 已将 Markdown 语法一键转换为标准 HTML 格式！');
+        }
+
         async function handleRewardQrUpload(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
             const statusEl = document.getElementById('qr-upload-status');
-            statusEl.innerText = '正在上传收款码...';
+            statusEl.innerText = '正在智能压缩并上传收款码...';
             
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const base64Data = e.target.result;
-                try {
-                    const res = await fetch('/api/upload', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ image: base64Data, filename: file.name })
-                    });
-                    const data = await res.json();
-                    if (data.success && data.url) {
-                        currentProfile.rewardQrCode = data.url;
-                        document.getElementById('preview-reward-qr').src = data.url;
-                        statusEl.innerText = '✅ 收款码已上传，请点击下方【保存简历与收款码】';
-                    } else {
-                        currentProfile.rewardQrCode = base64Data;
-                        document.getElementById('preview-reward-qr').src = base64Data;
-                        statusEl.innerText = '✅ 收款码已暂存，请点击下方【保存简历与收款码】';
-                    }
-                } catch (err) {
+            const base64Data = await compressImage(file, 800, 0.90);
+            if (!base64Data) {
+                statusEl.innerText = '⚠️ 图片格式不支持';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64Data, filename: file.name })
+                });
+                const data = await res.json();
+                if (data.success && data.url) {
+                    currentProfile.rewardQrCode = data.url;
+                    document.getElementById('preview-reward-qr').src = data.url;
+                    statusEl.innerText = '✅ 收款码已上传并优化，请点击下方【保存简历与收款码】';
+                } else {
                     currentProfile.rewardQrCode = base64Data;
                     document.getElementById('preview-reward-qr').src = base64Data;
                     statusEl.innerText = '✅ 收款码已暂存，请点击下方【保存简历与收款码】';
                 }
-            };
-            reader.readAsDataURL(file);
+            } catch (err) {
+                currentProfile.rewardQrCode = base64Data;
+                document.getElementById('preview-reward-qr').src = base64Data;
+                statusEl.innerText = '✅ 收款码已暂存，请点击下方【保存简历与收款码】';
+            }
         }
 
         function resetRewardQrToDefault() {
@@ -2438,34 +2622,32 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
         async function handleArticleImageUpload(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const base64Data = e.target.result;
-                try {
-                    const res = await fetch('/api/upload', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ image: base64Data, filename: file.name })
-                    });
-                    const data = await res.json();
-                    let url = data.url;
-                    if (!url) url = base64Data;
-                    const imgSnippet = '\n<figure>\n  <img src="' + url + '" alt="' + escapeHtml(file.name) + '" />\n  <figcaption>' + escapeHtml(file.name) + '</figcaption>\n</figure>\n';
-                    insertTextToContentArea(imgSnippet);
-                } catch (err) {
-                    const imgSnippet = '\n<figure>\n  <img src="' + base64Data + '" alt="插图" />\n  <figcaption>插图说明</figcaption>\n</figure>\n';
-                    insertTextToContentArea(imgSnippet);
-                }
-                event.target.value = '';
-            };
-            reader.readAsDataURL(file);
+            const base64Data = await compressImage(file, 1920, 0.85);
+            if (!base64Data) return;
+            
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64Data, filename: file.name })
+                });
+                const data = await res.json();
+                let url = data.url;
+                if (!url) url = base64Data;
+                const imgSnippet = '\n<figure style="margin:1.5rem 0; text-align:center;">\n  <img src="' + url + '" alt="' + escapeHtml(file.name) + '" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\n  <figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">' + escapeHtml(file.name) + '</figcaption>\n</figure>\n';
+                insertTextToContentArea(imgSnippet);
+            } catch (err) {
+                const imgSnippet = '\n<figure style="margin:1.5rem 0; text-align:center;">\n  <img src="' + base64Data + '" alt="插图" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\n  <figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">插图说明</figcaption>\n</figure>\n';
+                insertTextToContentArea(imgSnippet);
+            }
+            event.target.value = '';
         }
 
         function insertArticleExternalImg() {
             const url = prompt('请输入图片网络外链地址 (例如 https://...):');
             if (url && url.trim()) {
                 const caption = prompt('请输入图片说明文字 (可选):') || '图片插图';
-                const imgSnippet = '\n<figure>\n  <img src="' + url.trim() + '" alt="' + escapeHtml(caption) + '" />\n  <figcaption>' + escapeHtml(caption) + '</figcaption>\n</figure>\n';
+                const imgSnippet = '\n<figure style="margin:1.5rem 0; text-align:center;">\n  <img src="' + url.trim() + '" alt="' + escapeHtml(caption) + '" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\n  <figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">' + escapeHtml(caption) + '</figcaption>\n</figure>\n';
                 insertTextToContentArea(imgSnippet);
             }
         }
