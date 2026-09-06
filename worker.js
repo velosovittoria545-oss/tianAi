@@ -1,13 +1,18 @@
 /**
- * 项目名称: TianAi (天艾) — Vittorio Cui (维托里奥 崔) 个人主页与独立工作经历系统
- * 架构规范: 李新野 (Sinya Lee) 极简双栏排版 + Cloudflare Workers + KV 边缘持久化
- * 首页特性: 重点优先展示工作经历、全新自我介绍、全新核心领域划分、独立/experience页面
+ * 项目名称: TianAi (天艾) — 维托里奥 崔 (Vittorio Cui) 个人主页与文章系统
+ * 架构规范: 李新野 (Sinya Lee) 极简排版 + Cloudflare Workers + KV 边缘持久化
+ * 布局规范:
+ *   - 右上角：中英文切换按钮 (English / 中文)
+ *   - 头部名称：中文模式仅显示“维托里奥 崔”，英文模式仅显示“Vittorio Cui”
+ *   - 头部链接：仅保留“文章”与“Email”
+ *   - 板块顺序：先“关于我”，后“经历”
+ *   - 首页文章：仅显示标题 + 自定义日期的极简列表（不堆叠正文），点击展开阅读
+ *   - 右下角：管理后台入口 [管理后台]
  */
 
 const CONFIG = {
-  name: "Vittorio Cui",
-  chineseName: "维托里奥 崔",
-  title: "AI Researcher",
+  nameZh: "维托里奥 崔",
+  nameEn: "Vittorio Cui",
   email: "velosovittoria545@gmail.com",
   adminUsername: "admin",
   adminPassword: "vittoria2026!",
@@ -17,7 +22,6 @@ const CONFIG = {
 const DEFAULT_ARTICLES = [
   {
     "id": "enterprise-agent-architecture",
-    "category": "article",
     "title": {
       "zh": "从零搭建企业级 Multi-Agent 系统：反思、工具调用与长程状态机治理",
       "en": "Building Enterprise Multi-Agent Systems from Scratch: Reflection, Tool Calling & State Governance"
@@ -37,7 +41,6 @@ const DEFAULT_ARTICLES = [
   },
   {
     "id": "vllm-inference-optimization",
-    "category": "article",
     "title": {
       "zh": "vLLM 底层推理加速实战：PagedAttention、量化与千万级并发压测经验",
       "en": "Deep-Dive into vLLM Inference: PagedAttention, Quantization & High-Throughput Benchmarking"
@@ -57,7 +60,6 @@ const DEFAULT_ARTICLES = [
   },
   {
     "id": "high-concurrency-microservices",
-    "category": "article",
     "title": {
       "zh": "万级 QPS 金融结算系统微服务改造纪实：SLA 99.99% 的高可用底盘",
       "en": "Refactoring High-Concurrency Payment Infrastructure: Engineering a 99.99% SLA Architecture"
@@ -76,83 +78,22 @@ const DEFAULT_ARTICLES = [
     }
   },
   {
-    "id": "suibian-focus-minimalism",
-    "category": "suibian",
+    "id": "ai-product-trends-2025",
     "title": {
-      "zh": "关于专注、工程节制与极简主义",
-      "en": "On Focus, Engineering Restraint & Minimalism"
+      "zh": "洞察 2025：国内外 AI 技术与产品演进趋势深度解析",
+      "en": "Insights 2025: Global Trends in AI Technology & Product Architecture"
     },
-    "tag": "随便",
+    "tag": "AI Trends",
     "date": "2025.01",
-    "readTime": "4 min read",
-    "views": "64,200+ views",
+    "readTime": "6 min read",
+    "views": "98,000+ views",
     "summary": {
-      "zh": "写代码和写作本质一样，最考验功力的从来不是你能塞进多少库和概念，而是你能克制地删掉多少冗余。",
-      "en": "Coding is like writing prose: the true mastery is never how many dependencies or abstractions you introduce, but how much redundancy you have the discipline to eliminate."
+      "zh": "深度剖析中美大模型从模型层到应用层的分化与融合，结合 Agent 落地实践，探讨未来 3 年企业级 AI 产品的杀手级形态与架构演进。",
+      "en": "Deep analysis of the divergence and convergence of foundation models and application layers globally, exploring the next-generation enterprise AI product paradigms."
     },
     "content": {
-      "zh": "<p>很多工程师喜欢把系统设计得很宏大、很复杂，动辄引入一堆微服务、分布式协调器、深不见底的类继承树。但现实中，绝大多数事故和技术债，都恰恰源于过度设计。</p><p>真正的工程美感，是如无必要，勿增实体。大道至简，生活与软件架构皆然。</p><p>当你能用几百行清晰的纯代码解决问题时，就永远不要去拖入一个臃肿的框架；当你能用一张干净纸张表达意图时，就不需要眼花缭乱的动画。</p>",
-      "en": "<p>Many engineers love grand, complex architectures with dozens of microservices and endless layers of abstraction. In reality, most system breakdowns stem from over-engineering.</p><p>Real elegance lies in restraint: entities should not be multiplied beyond necessity.</p>"
-    }
-  },
-  {
-    "id": "suibian-llm-prose",
-    "category": "suibian",
-    "title": {
-      "zh": "大模型时代，写代码为什么变得更像写散文",
-      "en": "Why Coding in the LLM Era Feels More Like Writing Prose"
-    },
-    "tag": "随便",
-    "date": "2024.12",
-    "readTime": "3 min read",
-    "views": "89,100+ views",
-    "summary": {
-      "zh": "以前写程序是给确定性机器下发精确指令；现在和 Agent 协同，更像带着一群极度聪慧但偶有性格的助手在白板前推敲逻辑。",
-      "en": "Programming used to be about feeding deterministic instructions to machines. Collaborating with AI agents now feels more like brainstorming at a whiteboard with brilliant assistants."
-    },
-    "content": {
-      "zh": "<p>提示词工程和 Agentic Workflow 正在深刻重塑我们对“代码”的认知。你不再需要逐字敲打语法糖，而是需要具备极其清晰的顶层抽象能力、边界定义能力和对系统异常状态的直觉敏感度。</p><p>表达意图的精准度，变成了最核心的竞争力。从这个角度来看，程序员最终都将回归到古典作家的状态：用最准确的词汇，勾勒出最清晰的思想。</p>",
-      "en": "<p>Agentic workflows reshape what code means. The competitive edge shifts toward domain clarity, precise intent formulation, and boundary definition.</p>"
-    }
-  },
-  {
-    "id": "suibian-haidian-sf",
-    "category": "suibian",
-    "title": {
-      "zh": "在海淀黄庄与旧金山 Market St 的漫步杂感",
-      "en": "Reflections from Haidian Huangzhuang to Market St, SF"
-    },
-    "tag": "随便",
-    "date": "2024.08",
-    "readTime": "5 min read",
-    "views": "72,500+ views",
-    "summary": {
-      "zh": "在两座城市之间切换，世界变得很快，但人类对确定性与真实价值的追求永远不会改变。",
-      "en": "Shuttling between two tech hubs: technology waves surge and recede, but the human desire for certainty and authentic value remains constant."
-    },
-    "content": {
-      "zh": "<p>深夜从中关村的写字楼走出来，微凉的风拂过银杏树；或者清晨在旧金山的 Ferry Building 旁看海雾散去。技术浪潮一波接着一波，从移动互联到海量高并发，再到如今的大模型与生成式 AI 爆发。</p><p>工具在疯狂迭代，但能够历经时间沉淀下来的，始终是在真实世界中帮人省下时间、解决痛点后留下的宁静。</p>",
-      "en": "<p>Walking through Zhongguancun late at night, or watching the morning fog roll over San Francisco bay. What outlasts the hype is always the peace that comes from solving real problems.</p>"
-    }
-  },
-  {
-    "id": "suibian-why-name",
-    "category": "suibian",
-    "title": {
-      "zh": "保持随便：为什么这个栏目叫“随便”？",
-      "en": "Staying Casual: Why This Section Is Named \"Sui Bian\""
-    },
-    "tag": "随便",
-    "date": "2024.05",
-    "readTime": "3 min read",
-    "views": "112,000+ views",
-    "summary": {
-      "zh": "严肃的论文与技术报告写在“文章”里，随性的思考留在这里。不立人设，随便聊聊。",
-      "en": "Rigorous technical research belongs under \"Articles\"; casual musings belong here. No pretentious posture, just authentic thoughts."
-    },
-    "content": {
-      "zh": "<p>技术人往往容易被自己的专业标签所束缚。文章需要考证、基准测试、严密的论证体系与架构图；而人总需要一个角落，放下所有的技术甲胄，随性记下几行浮光掠影。</p><p>所以这里叫“随便”——随便写，随便看，随意走走停停。真实与自由，胜过一切精装的人设。</p>",
-      "en": "<p>Technical people often get confined by rigid professional labels. \"Articles\" demand citations and rigor; here under \"Sui Bian\", we drop the armor and keep it real.</p>"
+      "zh": "<p>大模型的竞争正在从单纯的参数规模竞赛转向<strong>工程化效率、推理加速比与复杂 Agent 工作流的闭环能力</strong>。</p><p>国内产品在场景渗透、垂类流程与高并发工程底座上有极强纵深；而北美生态在基础架构创新与端到端 Agent 协议上有敏锐的前瞻性。两者的交汇点，正是大模型从“对话框”走向“无人值守系统”的核心拐点。</p>",
+      "en": "<p>Competition in foundation models is transitioning from pure parameter scale to engineering efficiency, inference cost ratio, and closed-loop agentic workflows.</p>"
     }
   }
 ];
@@ -195,7 +136,7 @@ function generateAuthToken(env) {
   return "token_" + Math.abs(hash) + "_vittorio";
 }
 
-// 页面通用 CSS 变量与极简样式
+// 页面通用 CSS
 const COMMON_CSS = `
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&display=swap');
 
@@ -222,12 +163,12 @@ const COMMON_CSS = `
         font-size: 15px;
         line-height: 1.68;
         -webkit-font-smoothing: antialiased;
-        padding: 48px 20px 80px 20px;
+        padding: 36px 20px 80px 20px;
     }
     a { color: var(--accent); text-decoration: underline; transition: color 0.15s; }
     a:hover { color: var(--accent-hover); }
-    .container { max-width: 680px; margin: 0 auto; }
-    hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+    .container { max-width: 680px; margin: 0 auto; position: relative; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
     .sec-title {
         font-family: var(--font-serif);
         font-size: 1.35rem;
@@ -258,14 +199,16 @@ function renderExperienceHtml() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>工作经历 (Work Experience) — Vittorio Cui (维托里奥 崔)</title>
+    <title>工作经历 (Work Experience) — 维托里奥 崔</title>
     <style>
         ${COMMON_CSS}
-        .back-nav { margin-bottom: 24px; }
-        .back-btn {
-            display: inline-flex;
+        .top-nav-bar {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 6px;
+            margin-bottom: 24px;
+        }
+        .back-btn {
             font-size: 0.92rem;
             color: var(--accent);
             text-decoration: underline;
@@ -354,15 +297,16 @@ function renderExperienceHtml() {
 </head>
 <body>
     <div class="container">
-        <div class="back-nav">
-            <a href="/" class="back-btn">← 返回主页 (Back to Home)</a>
+        <div class="top-nav-bar">
+            <a href="/" class="back-btn">← 返回主页</a>
+            <a href="/admin" style="font-size:0.8rem; color:var(--text-light); text-decoration:none;">[管理后台]</a>
         </div>
 
         <header class="page-header">
             <h1 class="page-title">工作经历与工程履历</h1>
             <p class="page-subtitle">
-                <strong>Vittorio Cui (维托里奥 崔)</strong> · AI 研究员。<br>
-                目前致力于实现 AGI。深耕大模型部署 (vLLM / 推理加速)、Agent 系统设计与万级 QPS、99.99% SLA 的高可用微服务底盘工程。
+                <strong>维托里奥 崔 (Vittorio Cui)</strong> · AI 研究员。<br>
+                目前致力于实现 AGI，对国内外 AI 技术与产品发展趋势非常了解。深耕大模型部署 (vLLM / 推理加速)、Agent 系统设计与万级 QPS、99.99% SLA 的高可用微服务底盘工程。
             </p>
         </header>
 
@@ -442,10 +386,9 @@ function renderExperienceHtml() {
             </table>
         </section>
 
-        <hr />
-
-        <div class="back-nav" style="margin-top: 30px;">
-            <a href="/" class="back-btn">← 返回主页 (Back to Home)</a>
+        <div style="margin-top: 36px; display:flex; justify-content:space-between; align-items:center;">
+            <a href="/" class="back-btn">← 返回主页</a>
+            <a href="/admin" style="font-size:0.8rem; color:var(--text-light); text-decoration:none;">[管理后台]</a>
         </div>
     </div>
 </body>
@@ -454,7 +397,6 @@ function renderExperienceHtml() {
 
 /**
  * 2. 极简主页 HTML (GET /)
- * 首页设计遵循李新野极简风格，重点优先展示工作经历
  */
 function renderPublicHtml(articlesJson) {
   return `<!DOCTYPE html>
@@ -462,9 +404,30 @@ function renderPublicHtml(articlesJson) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${CONFIG.name} (维托里奥 崔) — AI Researcher</title>
+    <title>维托里奥 崔 — AI 研究员</title>
     <style>
         ${COMMON_CSS}
+
+        /* 顶部右上角语言切换栏 */
+        .top-actions-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        .lang-switch-btn {
+            font-size: 0.85rem;
+            color: var(--accent);
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: 500;
+            background: none;
+            border: none;
+            font-family: var(--font-sans);
+        }
+        .lang-switch-btn:hover {
+            color: var(--accent-hover);
+        }
 
         /* 李新野风格 Header 头部两栏布局 */
         .header-box {
@@ -486,24 +449,14 @@ function renderPublicHtml(articlesJson) {
             flex: 1;
         }
         .header-title-row {
-            display: flex;
-            align-items: baseline;
-            gap: 12px;
-            margin-bottom: 8px;
-            flex-wrap: wrap;
+            margin-bottom: 10px;
         }
-        .name-en {
+        .author-name {
             font-family: var(--font-serif);
             font-size: 2.2rem;
             font-weight: 500;
             letter-spacing: -0.02em;
             color: var(--text-main);
-        }
-        .name-zh {
-            font-family: var(--font-serif);
-            font-size: 1.5rem;
-            color: var(--text-muted);
-            font-weight: 400;
         }
         .header-intro {
             font-size: 0.95rem;
@@ -513,10 +466,9 @@ function renderPublicHtml(articlesJson) {
         }
         .header-links {
             display: flex;
-            flex-wrap: wrap;
             align-items: center;
-            gap: 16px;
-            font-size: 0.92rem;
+            gap: 18px;
+            font-size: 0.95rem;
         }
         .header-link {
             color: var(--accent);
@@ -528,47 +480,7 @@ function renderPublicHtml(articlesJson) {
             color: var(--accent-hover);
         }
 
-        /* 首页重点展示：工作经历卡片 */
-        .exp-highlight-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 20px 22px;
-            margin-bottom: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-        }
-        .exp-head-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 4px;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-        .exp-company-name {
-            font-size: 1.05rem;
-            font-weight: 600;
-            color: var(--text-main);
-        }
-        .exp-role-badge {
-            color: var(--accent);
-            font-weight: 500;
-            font-size: 0.92rem;
-            margin-left: 6px;
-        }
-        .exp-period-tag {
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            color: var(--text-light);
-        }
-        .exp-desc-line {
-            font-size: 0.88rem;
-            color: var(--text-muted);
-            line-height: 1.6;
-            margin-top: 4px;
-        }
-
-        /* 紧凑 Key-Value 表格 */
+        /* 紧凑 Key-Value 表格 (关于我) */
         .info-table {
             width: 100%;
             border-collapse: collapse;
@@ -588,77 +500,73 @@ function renderPublicHtml(articlesJson) {
             color: var(--text-main);
         }
 
-        /* 专项架构卡片 */
-        .arch-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 16px 18px;
-            font-size: 0.92rem;
-        }
-        .arch-title {
-            font-weight: 600;
-            font-size: 1rem;
-            margin-bottom: 6px;
-            color: var(--text-main);
-        }
-        .metrics-inline {
-            display: flex;
-            gap: 18px;
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            margin-top: 8px;
-            color: var(--text-muted);
-        }
-        .metric-bold {
-            color: var(--accent);
-            font-weight: 600;
-        }
-
-        /* 文章与随便列表项 */
-        .article-item {
+        /* 经历概览时间线 */
+        .exp-item {
             margin-bottom: 16px;
-            padding-bottom: 14px;
-            border-bottom: 1px dashed var(--border);
-            cursor: pointer;
         }
-        .article-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        .article-row-head {
+        .exp-head {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-            gap: 12px;
+            flex-wrap: wrap;
+            gap: 6px;
         }
-        .article-link-title {
+        .exp-company {
+            font-weight: 600;
+            font-size: 0.98rem;
+            color: var(--text-main);
+        }
+        .exp-role-badge {
+            color: var(--accent);
+            font-weight: 500;
+            font-size: 0.88rem;
+            margin-left: 6px;
+        }
+        .exp-date {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        .exp-desc {
+            font-size: 0.86rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-top: 3px;
+        }
+
+        /* 文章列表 (仅显示标题 + 发布时间，极简无冗余) */
+        .article-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 10px 0;
+            border-bottom: 1px dashed var(--border);
+            cursor: pointer;
+            gap: 14px;
+        }
+        .article-row:last-child {
+            border-bottom: none;
+        }
+        .article-title-text {
             font-family: var(--font-serif);
-            font-size: 1.15rem;
+            font-size: 1.12rem;
             font-weight: 500;
             color: var(--text-main);
             text-decoration: none;
             transition: color 0.15s;
         }
-        .article-item:hover .article-link-title {
+        .article-row:hover .article-title-text {
             color: var(--accent);
             text-decoration: underline;
         }
-        .article-date-tag {
+        .article-date-badge {
             font-family: var(--font-mono);
-            font-size: 0.78rem;
+            font-size: 0.82rem;
             color: var(--text-light);
             white-space: nowrap;
         }
-        .article-summary-text {
-            font-size: 0.86rem;
-            color: var(--text-muted);
-            margin-top: 4px;
-            line-height: 1.55;
-        }
 
-        /* 内嵌阅读器 */
+        /* 文章展开阅读器 */
         #article-reader-view {
             display: none;
             background: var(--bg-card);
@@ -678,7 +586,7 @@ function renderPublicHtml(articlesJson) {
         }
         .reader-article-title {
             font-family: var(--font-serif);
-            font-size: 1.8rem;
+            font-size: 1.75rem;
             font-weight: 500;
             line-height: 1.35;
             margin-bottom: 8px;
@@ -688,7 +596,7 @@ function renderPublicHtml(articlesJson) {
             font-family: var(--font-mono);
             font-size: 0.8rem;
             color: var(--text-light);
-            padding-bottom: 14px;
+            padding-bottom: 12px;
             margin-bottom: 18px;
             border-bottom: 1px solid var(--border);
         }
@@ -701,30 +609,20 @@ function renderPublicHtml(articlesJson) {
         .reader-content-body h3 {
             font-family: var(--font-serif);
             font-size: 1.25rem;
-            margin: 22px 0 10px 0;
+            margin: 20px 0 10px 0;
             color: var(--text-main);
         }
         .reader-content-body blockquote {
             border-left: 3px solid var(--accent);
-            padding-left: 14px;
+            padding: 8px 12px;
             font-style: italic;
             color: var(--text-muted);
             margin: 16px 0;
             background: var(--bg-subtle);
-            padding: 10px 14px;
             border-radius: 0 4px 4px 0;
         }
-        .reader-content-body pre {
-            background: #252423;
-            color: #FAF8F5;
-            padding: 14px 16px;
-            border-radius: 6px;
-            overflow-x: auto;
-            font-family: var(--font-mono);
-            font-size: 0.84rem;
-            margin: 16px 0;
-        }
 
+        /* 页脚布局：左侧版权，右下角管理后台 */
         footer {
             margin-top: 50px;
             padding-top: 18px;
@@ -737,111 +635,67 @@ function renderPublicHtml(articlesJson) {
             flex-wrap: wrap;
             gap: 10px;
         }
+        .admin-link {
+            color: var(--text-light);
+            text-decoration: none;
+            font-size: 0.8rem;
+        }
+        .admin-link:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
 
         @media (max-width: 600px) {
             .header-box { flex-direction: column; align-items: flex-start; gap: 16px; }
             .avatar-img { width: 110px; height: 145px; }
             .info-label { width: 115px; }
-            .metrics-inline { flex-direction: column; gap: 4px; }
+            .article-row { flex-direction: column; gap: 4px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
 
-        <!-- 1. 顶部两栏 Header (李新野极简风格) -->
+        <!-- 0. 右上角：中英文切换 -->
+        <div class="top-actions-bar">
+            <button class="lang-switch-btn" onclick="toggleLanguage()" id="btn-lang-toggle">English / 中文</button>
+        </div>
+
+        <!-- 1. 顶部 Header (李新野极简风格) -->
         <header class="header-box">
-            <img class="avatar-img" src="data:image/jpeg;base64,${CONFIG.avatarBase64}" alt="${CONFIG.name}" />
+            <img class="avatar-img" src="data:image/jpeg;base64,${CONFIG.avatarBase64}" alt="维托里奥 崔" />
             
             <div class="header-content">
                 <div class="header-title-row">
-                    <span class="name-en" id="author-name-en">Vittorio Cui</span>
-                    <span class="name-zh" id="author-name-zh">维托里奥 崔</span>
+                    <h1 class="author-name" id="author-display-name">维托里奥 崔</h1>
                 </div>
                 
                 <p class="header-intro" id="header-intro-text">
-                    你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。
+                    你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，对国内外AI技术发展趋势以及产品发展趋势非常了解。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。
                 </p>
 
+                <!-- 仅保留“文章”与“Email” -->
                 <div class="header-links">
-                    <a class="header-link" href="#experience-section" id="link-exp">工作经历</a>
-                    <a class="header-link" href="#about-section" id="link-about">关于我</a>
-                    <a class="header-link" href="#articles-section" id="link-essays">文章</a>
-                    <a class="header-link" href="#suibian-section" id="link-suibian">随便</a>
-                    <a class="header-link" href="mailto:${CONFIG.email}">Email</a>
-                    <a class="header-link" href="javascript:void(0)" onclick="toggleLanguage()" id="link-lang">English / 中文</a>
-                    <a class="header-link" href="/admin" style="color:var(--text-light); text-decoration:none;">[后台]</a>
+                    <a class="header-link" href="#articles-section" id="link-articles">文章</a>
+                    <a class="header-link" href="mailto:${CONFIG.email}" id="link-email">Email</a>
                 </div>
             </div>
         </header>
 
         <hr />
 
-        <!-- 2. 首页重点展示板块：工作经历 (Work Experience) -->
-        <section id="experience-section">
-            <h2 class="sec-title">
-                <span id="title-experience">工作经历</span>
-                <a href="/experience" class="more-link" id="link-full-exp">查看完整履历与项目详情 →</a>
-            </h2>
-            <div id="experience-highlight-list">
-                <!-- Hightouch -->
-                <div class="exp-highlight-box">
-                    <div class="exp-head-row">
-                        <div>
-                            <span class="exp-company-name">Hightouch</span>
-                            <span class="exp-role-badge">· AI Researcher</span>
-                        </div>
-                        <span class="exp-period-tag">2024 — Present</span>
-                    </div>
-                    <div class="exp-desc-line" id="exp-desc-hightouch">
-                        前沿部署工程 (FDE) 体系建设、多智能体协作网络 (Multi-Agent Systems)、大模型预训练 / SFT / RLHF 评测与工业落地。
-                    </div>
-                </div>
-
-                <!-- eBay -->
-                <div class="exp-highlight-box">
-                    <div class="exp-head-row">
-                        <div>
-                            <span class="exp-company-name">eBay (亿贝)</span>
-                            <span class="exp-role-badge">· AI Tech Expert</span>
-                        </div>
-                        <span class="exp-period-tag">2022 — 2024</span>
-                    </div>
-                    <div class="exp-desc-line" id="exp-desc-ebay">
-                        主导全局电商 AI Platform 基础底盘建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。
-                    </div>
-                </div>
-
-                <!-- 快手 -->
-                <div class="exp-highlight-box">
-                    <div class="exp-head-row">
-                        <div>
-                            <span class="exp-company-name">Kuaishou (快手)</span>
-                            <span class="exp-role-badge">· Senior Backend / Tech Manager</span>
-                        </div>
-                        <span class="exp-period-tag">2016 — 2022</span>
-                    </div>
-                    <div class="exp-desc-line" id="exp-desc-kuaishou">
-                        历经快手高速成长至香港上市，主导核心支付结算微服务重构。支撑单集群峰值 10,000+ QPS 极限冲击，零资损保障核心 SLA 99.99%。
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <hr />
-
-        <!-- 3. 关于我 (About Me) -->
+        <!-- 2. 先是：关于我 (About Me) -->
         <section id="about-section">
             <h2 class="sec-title" id="title-about">关于我</h2>
             <table class="info-table">
                 <tbody>
                     <tr>
-                        <td class="info-label" id="lbl-pos">职位 / 角色:</td>
+                        <td class="info-label" id="lbl-pos">职位:</td>
                         <td class="info-value" id="val-position">AI 研究员</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-focus">核心领域:</td>
-                        <td class="info-value" id="val-focus">LLM、大模型部署（vLLM / 推理加速）、系统设计、后端技术架构</td>
+                        <td class="info-value" id="val-focus" style="font-weight:500;">LLM、大模型部署（vLLM / 推理加速）、系统设计、后端技术架构</td>
                     </tr>
                     <tr>
                         <td class="info-label" id="lbl-edu">教育背景:</td>
@@ -859,74 +713,82 @@ function renderPublicHtml(articlesJson) {
                         <td class="info-label" id="lbl-email">联系邮箱:</td>
                         <td class="info-value"><a href="mailto:${CONFIG.email}">${CONFIG.email}</a></td>
                     </tr>
-                    <tr>
-                        <td class="info-label" id="lbl-suibian">随便:</td>
-                        <td class="info-value"><a href="#suibian-section" style="color:var(--accent); text-decoration:underline;">随想与散记 (4 篇) →</a></td>
-                    </tr>
                 </tbody>
             </table>
         </section>
 
         <hr />
 
-        <!-- 4. 核心系统架构 (Featured Architecture) -->
-        <section>
-            <h2 class="sec-title" id="title-project">核心系统架构</h2>
-            <div class="arch-box">
-                <div class="arch-title" id="project-name">基于 AI-Agent 的企业业务操作系统 (Enterprise Business OS)</div>
-                <p style="color:var(--text-muted); margin-bottom: 8px;" id="project-desc">
-                    独立全栈设计与落地：单一数据源（Single Source of Truth）驱动所有系统，协同前端网站门户、AI 智能体集群、大模型推理中枢、全渠道通信与无人值守运营。
-                </p>
-                <div class="metrics-inline">
-                    <span>数据字段架构: <span class="metric-bold">+4,300</span></span>
-                    <span>核心系统连接: <span class="metric-bold">9</span></span>
-                    <span>月自动化节省: <span class="metric-bold">+150h</span></span>
+        <!-- 3. 再是：经历 (Experience) -->
+        <section id="experience-section">
+            <h2 class="sec-title">
+                <span id="title-experience">经历</span>
+                <a href="/experience" class="more-link" id="link-full-exp">完整工作履历与客户详情 →</a>
+            </h2>
+            <div id="experience-list">
+                <div class="exp-item">
+                    <div class="exp-head">
+                        <div>
+                            <span class="exp-company">Hightouch</span>
+                            <span class="exp-role-badge">· AI Researcher</span>
+                        </div>
+                        <span class="exp-date">2024 — Present</span>
+                    </div>
+                    <div class="exp-desc" id="exp-desc-hightouch">
+                        前沿部署工程 (FDE) 体系建设、多智能体协作网络 (Multi-Agent Systems)、大模型预训练 / SFT / RLHF 评测与工业落地。
+                    </div>
                 </div>
-                <div style="font-size:0.85rem; color:var(--text-light); margin-top:8px;" id="project-modules">
-                    模块包含：全功能 ERP 架构 (496个核心字段与50+校验链路)、游戏化 CRM 与通信流转、无头 CMS 与最低库存自动采购、全渠道多智能体无人值守回复。
+
+                <div class="exp-item">
+                    <div class="exp-head">
+                        <div>
+                            <span class="exp-company">eBay (亿贝)</span>
+                            <span class="exp-role-badge">· AI Tech Expert</span>
+                        </div>
+                        <span class="exp-date">2022 — 2024</span>
+                    </div>
+                    <div class="exp-desc" id="exp-desc-ebay">
+                        主导全局电商 AI Platform 基础底座建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。
+                    </div>
+                </div>
+
+                <div class="exp-item">
+                    <div class="exp-head">
+                        <div>
+                            <span class="exp-company">Kuaishou (快手)</span>
+                            <span class="exp-role-badge">· Senior Backend / Tech Manager</span>
+                        </div>
+                        <span class="exp-date">2016 — 2022</span>
+                    </div>
+                    <div class="exp-desc" id="exp-desc-kuaishou">
+                        历经快手高速成长至香港上市，主导核心支付结算微服务重构。支撑单集群峰值 10,000+ QPS 极限冲击，零资损保障核心 SLA 99.99%。
+                    </div>
                 </div>
             </div>
         </section>
 
         <hr />
 
-        <!-- 5. 文章 (Articles / Essays) - 规范严谨长文 -->
+        <!-- 4. 文章 (Articles) - 极简列表展示，不堆叠正文，自定义发布时间 -->
         <section id="articles-section">
             <h2 class="sec-title" id="title-articles">文章</h2>
 
-            <!-- 内嵌阅读器 -->
+            <!-- 点击展开阅读器 -->
             <div id="article-reader-view">
-                <span class="reader-close-btn" onclick="closeArticleReader()">← 返回列表</span>
+                <span class="reader-close-btn" onclick="closeArticleReader()">← 返回文章列表</span>
                 <h1 class="reader-article-title" id="reader-title"></h1>
                 <div class="reader-meta-bar" id="reader-meta"></div>
                 <div class="reader-content-body" id="reader-content"></div>
             </div>
 
-            <!-- 文章列表 -->
+            <!-- 极简文章列表 -->
             <div id="articles-list-container"></div>
         </section>
 
-        <hr />
-
-        <!-- 6. 随便 (Sui Bian / Casual Musings) - 随性短文与思考 -->
-        <section id="suibian-section">
-            <h2 class="sec-title" id="title-suibian">随便</h2>
-            <p style="font-size:0.86rem; color:var(--text-light); margin-bottom:14px; font-style:italic;" id="suibian-desc">
-                放下架构考据与基准测试，一些关于工程、生活与思考的零碎随笔。
-            </p>
-            <div id="suibian-list-container"></div>
-        </section>
-
-        <!-- 页脚 -->
+        <!-- 5. 页脚：左侧版权，右下角管理后台入口 -->
         <footer>
-            <span>© 2026 ${CONFIG.name} · All Rights Reserved</span>
-            <div style="display:flex; gap:14px;">
-                <a href="/experience">工作经历</a>
-                <a href="#suibian-section">随便</a>
-                <a href="mailto:${CONFIG.email}">Email</a>
-                <a href="/admin">后台登录</a>
-                <a href="#author-name-en">Top ↑</a>
-            </div>
+            <span id="footer-copyright">© 2026 维托里奥 崔 · All Rights Reserved</span>
+            <a href="/admin" class="admin-link">[管理后台]</a>
         </footer>
 
     </div>
@@ -937,92 +799,64 @@ function renderPublicHtml(articlesJson) {
 
         const i18n = {
             zh: {
-                nameZh: "维托里奥 崔",
-                intro: "你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。",
-                linkEssays: "文章",
-                linkExp: "工作经历",
-                linkAbout: "关于我",
-                linkSuibian: "随便",
+                displayName: "维托里奥 崔",
+                intro: "你好，我目前是一名 AI 研究员。我文笔干练优美、风趣幽默，发布的多篇文章深受海内外读者喜爱。目前致力于实现 AGI，对国内外AI技术发展趋势以及产品发展趋势非常了解。曾深度服务 eBay、海洋网联船务 (ONE)、IBM 等全球大客户落地智能体系统。",
+                linkArticles: "文章",
+                linkEmail: "Email",
                 titleAbout: "关于我",
-                lblPos: "职位 / 角色:",
-                lblEdu: "教育背景:",
+                lblPos: "职位:",
                 lblFocus: "核心领域:",
+                lblEdu: "教育背景:",
                 lblTech: "技术栈:",
                 lblLang: "日常语言:",
                 lblEmail: "联系邮箱:",
-                lblSuibian: "随便:",
-                titleExperience: "工作经历",
-                linkFullExp: "查看完整履历与项目详情 →",
-                titleProject: "核心系统架构",
+                titleExperience: "经历",
+                linkFullExp: "完整工作履历与客户详情 →",
                 titleArticles: "文章",
-                titleSuibian: "随便",
-                suibianDesc: "放下架构考据与基准测试，一些关于工程、生活与思考的零碎随笔。",
                 valPosition: "AI 研究员",
                 valFocus: "LLM、大模型部署（vLLM / 推理加速）、系统设计、后端技术架构",
                 valEducation: "博士 (Ph.D.), Abide 大学 | 软件工程学士, 北京邮电大学 (BUPT)",
                 valLanguages: "中文 (母语), 英文 (流利)",
-                projectName: "基于 AI-Agent 的企业业务操作系统 (Enterprise Business OS)",
-                projectDesc: "独立全栈设计与落地：单一数据源（Single Source of Truth）驱动所有系统，协同前端网站门户、AI 智能体集群、大模型推理中枢、全渠道通信与无人值守运营。",
-                projectModules: "模块包含：全功能 ERP 架构 (496个核心字段与50+校验链路)、游戏化 CRM 与通信流转、无头 CMS 与最低库存自动采购、全渠道多智能体无人值守回复。",
                 expHightouch: "前沿部署工程 (FDE) 体系建设、多智能体协作网络 (Multi-Agent Systems)、大模型预训练 / SFT / RLHF 评测与工业落地。",
-                expEbay: "主导全局电商 AI Platform 基础底盘建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。",
-                expKuaishou: "历经快手高速成长至香港上市，主导核心支付结算微服务重构。支撑单集群峰值 10,000+ QPS 极限冲击，零资损保障核心 SLA 99.99%。"
+                expEbay: "主导全局电商 AI Platform 基础底座建设，搭建多模态向量检索与高可用 RAG，落地千万级用户规模的客服智能体中枢。",
+                expKuaishou: "历经快手高速成长至香港上市，主导核心支付结算微服务重构。支撑单集群峰值 10,000+ QPS 极限冲击，零资损保障核心 SLA 99.99%。",
+                footerCopyright: "© 2026 维托里奥 崔 · All Rights Reserved"
             },
             en: {
-                nameZh: "",
-                intro: "Hi, I am currently an AI Researcher. Known for my crisp, elegant, and witty writing style, my published essays are widely enjoyed by readers globally. I am currently dedicated to realizing AGI, having partnered with world-class clients including eBay, Ocean Network Express (ONE), and IBM to deploy enterprise agentic systems.",
-                linkEssays: "Articles",
-                linkExp: "Experience",
-                linkAbout: "About Me",
-                linkSuibian: "Thoughts",
+                displayName: "Vittorio Cui",
+                intro: "Hello, I am currently an AI Researcher. Known for my crisp, elegant, and witty writing style, my published essays are widely enjoyed by readers globally. Currently dedicated to realizing AGI, with a profound understanding of global AI technological and product trends. Previously partnered with world-class clients including eBay, Ocean Network Express (ONE), and IBM to deploy enterprise agentic systems.",
+                linkArticles: "Articles",
+                linkEmail: "Email",
                 titleAbout: "About Me",
                 lblPos: "Position:",
-                lblEdu: "Education:",
                 lblFocus: "Core Focus:",
+                lblEdu: "Education:",
                 lblTech: "Tech Stack:",
                 lblLang: "Languages:",
                 lblEmail: "Email:",
-                lblSuibian: "Thoughts:",
-                titleExperience: "Work Experience",
-                linkFullExp: "View full work experience & project details →",
-                titleProject: "Featured Architecture",
+                titleExperience: "Experience",
+                linkFullExp: "Full work experience & client record →",
                 titleArticles: "Articles",
-                titleSuibian: "Casual Musings",
-                suibianDesc: "Stepping away from benchmark tests and architectural diagrams—casual notes on engineering and life.",
                 valPosition: "AI Researcher",
                 valFocus: "LLMs, LLM Deployment (vLLM / Inference Acceleration), System Design, Backend Architecture",
                 valEducation: "Ph.D., Abide University | B.E. in Software Engineering, BUPT",
                 valLanguages: "Mandarin (Native), English (Fluent)",
-                projectName: "AI-Agent Driven Enterprise Business Operating System",
-                projectDesc: "Independently designed and deployed: A Single Source of Truth (SSOT) operating engine powering dynamic portals, multi-agent clusters, LLM pipelines, and unattended operations.",
-                projectModules: "Modules: Full ERP architecture (496 fields, 50+ validations), gamified CRM, headless CMS, and automated omnichannel multi-agent responders.",
                 expHightouch: "Forward Deployed Engineering (FDE) playbook, multi-agent networks, full-lifecycle LLM Pre/Post-training & evaluation.",
                 expEbay: "Built organization-wide AI Platform infrastructure; deployed LLM-based intelligent customer support agents for global e-commerce users.",
-                expKuaishou: "Scaled core financial payment pipelines (10k+ peak QPS, 99.99% SLA), automated failover & monitoring architectures."
+                expKuaishou: "Scaled core financial payment pipelines (10k+ peak QPS, 99.99% SLA), automated failover & monitoring architectures.",
+                footerCopyright: "© 2026 Vittorio Cui · All Rights Reserved"
             }
         };
 
-        function renderLists() {
-            const articlesContainer = document.getElementById('articles-list-container');
-            const suibianContainer = document.getElementById('suibian-list-container');
-
-            const regularArticles = ARTICLES.filter(a => a.category !== 'suibian');
-            const suibianArticles = ARTICLES.filter(a => a.category === 'suibian');
-
-            articlesContainer.innerHTML = regularArticles.map(art => renderItemHtml(art)).join('');
-            suibianContainer.innerHTML = suibianArticles.map(art => renderItemHtml(art)).join('');
-        }
-
-        function renderItemHtml(art) {
-            const title = (art.title && (art.title[currentLang] || art.title.zh)) || '未命名文章';
-            const summary = (art.summary && (art.summary[currentLang] || art.summary.zh)) || '';
-            return '<div class="article-item" onclick="openArticle(\'' + art.id + '\')">' +
-                '<div class="article-row-head">' +
-                    '<span class="article-link-title">' + title + '</span>' +
-                    '<span class="article-date-tag">' + art.date + '</span>' +
-                '</div>' +
-                '<div class="article-summary-text">' + summary + '</div>' +
-            '</div>';
+        function renderArticleList() {
+            const container = document.getElementById('articles-list-container');
+            container.innerHTML = ARTICLES.map(art => {
+                const title = (art.title && (art.title[currentLang] || art.title.zh)) || '未命名文章';
+                return '<div class="article-row" onclick="openArticle(\'' + art.id + '\')">' +
+                    '<span class="article-title-text">' + title + '</span>' +
+                    '<span class="article-date-badge">' + art.date + '</span>' +
+                '</div>';
+            }).join('');
         }
 
         function openArticle(id) {
@@ -1030,7 +864,7 @@ function renderPublicHtml(articlesJson) {
             if (!art) return;
             const reader = document.getElementById('article-reader-view');
             document.getElementById('reader-title').innerText = (art.title && (art.title[currentLang] || art.title.zh)) || '';
-            document.getElementById('reader-meta').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '') + ' · ' + (art.views || '');
+            document.getElementById('reader-meta').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '');
             document.getElementById('reader-content').innerHTML = (art.content && (art.content[currentLang] || art.content.zh)) || '';
             reader.style.display = 'block';
             reader.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1043,40 +877,31 @@ function renderPublicHtml(articlesJson) {
         function toggleLanguage() {
             currentLang = currentLang === 'zh' ? 'en' : 'zh';
             const data = i18n[currentLang];
-            document.getElementById('author-name-zh').innerText = data.nameZh;
-            document.getElementById('header-intro-text').innerHTML = data.intro;
-            document.getElementById('link-essays').innerText = data.linkEssays;
-            document.getElementById('link-exp').innerText = data.linkExp;
-            document.getElementById('link-about').innerText = data.linkAbout;
-            document.getElementById('link-suibian').innerText = data.linkSuibian;
+            document.getElementById('author-display-name').innerText = data.displayName;
+            document.getElementById('header-intro-text').innerText = data.intro;
+            document.getElementById('link-articles').innerText = data.linkArticles;
             document.getElementById('title-about').innerText = data.titleAbout;
             document.getElementById('lbl-pos').innerText = data.lblPos;
-            document.getElementById('lbl-edu').innerText = data.lblEdu;
             document.getElementById('lbl-focus').innerText = data.lblFocus;
+            document.getElementById('lbl-edu').innerText = data.lblEdu;
             document.getElementById('lbl-tech').innerText = data.lblTech;
             document.getElementById('lbl-lang').innerText = data.lblLang;
             document.getElementById('lbl-email').innerText = data.lblEmail;
-            document.getElementById('lbl-suibian').innerText = data.lblSuibian;
             document.getElementById('title-experience').innerText = data.titleExperience;
             document.getElementById('link-full-exp').innerText = data.linkFullExp;
-            document.getElementById('title-project').innerText = data.titleProject;
             document.getElementById('title-articles').innerText = data.titleArticles;
-            document.getElementById('title-suibian').innerText = data.titleSuibian;
-            document.getElementById('suibian-desc').innerText = data.suibianDesc;
             document.getElementById('val-position').innerText = data.valPosition;
             document.getElementById('val-focus').innerText = data.valFocus;
             document.getElementById('val-education').innerText = data.valEducation;
             document.getElementById('val-languages').innerText = data.valLanguages;
-            document.getElementById('project-name').innerText = data.projectName;
-            document.getElementById('project-desc').innerText = data.projectDesc;
-            document.getElementById('project-modules').innerText = data.projectModules;
             document.getElementById('exp-desc-hightouch').innerText = data.expHightouch;
             document.getElementById('exp-desc-ebay').innerText = data.expEbay;
             document.getElementById('exp-desc-kuaishou').innerText = data.expKuaishou;
-            renderLists();
+            document.getElementById('footer-copyright').innerText = data.footerCopyright;
+            renderArticleList();
         }
 
-        renderLists();
+        renderArticleList();
     </script>
 </body>
 </html>`;
@@ -1084,6 +909,7 @@ function renderPublicHtml(articlesJson) {
 
 /**
  * 3. 管理后台 HTML (/admin)
+ * 允许自定义发布时间、标题、分类、正文
  */
 function renderAdminHtml(isAuthed, articlesJson, hasKv) {
   if (!isAuthed) {
@@ -1092,7 +918,7 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理登录 — ${CONFIG.name}</title>
+    <title>管理登录 — 维托里奥 崔</title>
     <style>
         ${COMMON_CSS}
         .login-card {
@@ -1130,8 +956,8 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
 </head>
 <body>
     <div class="login-card">
-        <h2 style="font-family:var(--font-serif); font-size:1.6rem; margin-bottom:6px; color:var(--text-main);">管理后台登录</h2>
-        <p style="font-size:0.86rem; color:var(--text-light); margin-bottom:20px;">Vittorio Cui (维托里奥 崔) 个人文章与随笔系统</p>
+        <h2 style="font-family:var(--font-serif); font-size:1.6rem; margin-bottom:6px; color:var(--text-main);">文章管理后台</h2>
+        <p style="font-size:0.86rem; color:var(--text-light); margin-bottom:20px;">维托里奥 崔 · 个人博客发布系统</p>
         <form id="login-form" onsubmit="handleLogin(event)">
             <label style="font-size:0.88rem; color:var(--text-muted);">用户名 (Username)</label>
             <input type="text" id="username" class="input-box" value="${CONFIG.adminUsername}" required />
@@ -1180,13 +1006,13 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
 </html>`;
   }
 
-  // 管理后台主界面
+  // 管理后台主界面（支持自定义发布时间）
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文章与随便管理后台 — ${CONFIG.name} (维托里奥 崔)</title>
+    <title>文章发布与管理后台 — 维托里奥 崔</title>
     <style>
         ${COMMON_CSS}
         body { padding: 30px 20px; }
@@ -1221,15 +1047,6 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
             justify-content: space-between;
             align-items: center;
         }
-        .item-category-badge {
-            font-size: 0.75rem;
-            font-family: var(--font-mono);
-            padding: 2px 6px;
-            border-radius: 3px;
-            margin-right: 6px;
-        }
-        .badge-article { background: #eee5dc; color: #7a503e; }
-        .badge-suibian { background: #e2ecf5; color: #2d6391; }
         .modal-mask {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -1253,7 +1070,7 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
         }
         .form-group { margin-bottom: 14px; }
         .form-label { display: block; font-size: 0.88rem; font-weight: 500; margin-bottom: 5px; }
-        .form-input, .form-textarea, .form-select {
+        .form-input, .form-textarea {
             width: 100%;
             padding: 8px 10px;
             border: 1px solid var(--border);
@@ -1268,11 +1085,11 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
     <div class="cms-container">
         <div class="top-bar">
             <div>
-                <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">文章与随便管理 CMS</span>
-                <span style="font-size:0.8rem; color:var(--text-light); margin-left:10px;">${hasKv ? '🟢 KV 已连接 (实时云端持久化)' : '🟡 体验模式'}</span>
+                <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">文章管理后台</span>
+                <span style="font-size:0.8rem; color:var(--text-light); margin-left:10px;">${hasKv ? '🟢 Cloudflare KV 实时持久化' : '🟡 体验模式'}</span>
             </div>
             <div style="display:flex; gap:10px;">
-                <button class="btn btn-primary" onclick="openCreateModal()">➕ 发布新内容</button>
+                <button class="btn btn-primary" onclick="openCreateModal()">➕ 发布新文章</button>
                 <a href="/" class="btn btn-outline" style="text-decoration:none;">查看主页</a>
                 <button class="btn btn-outline" onclick="handleLogout()">登出</button>
             </div>
@@ -1284,35 +1101,28 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
     <!-- 新建/编辑 Modal -->
     <div id="modal" class="modal-mask">
         <div class="modal-card">
-            <h3 id="modal-title" style="font-family:var(--font-serif); font-size:1.4rem; margin-bottom:16px;">编辑内容</h3>
+            <h3 id="modal-title" style="font-family:var(--font-serif); font-size:1.4rem; margin-bottom:16px;">编辑文章</h3>
             <form id="post-form" onsubmit="handleSave(event)">
                 <input type="hidden" id="item-id" />
                 <div class="form-group">
-                    <label class="form-label">发布分类 (Category)</label>
-                    <select id="item-category" class="form-select">
-                        <option value="article">文章 (严肃技术研究/架构)</option>
-                        <option value="suibian">随便 (随性杂谈/思考/散文)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">中文标题 (Title)</label>
+                    <label class="form-label">文章中文标题 (Title)</label>
                     <input type="text" id="item-title" class="form-input" required />
                 </div>
                 <div class="form-group">
-                    <label class="form-label">分类标签 (Tag)</label>
-                    <input type="text" id="item-tag" class="form-input" placeholder="例如: Agent Architecture, 随便" required />
+                    <label class="form-label">自定义发布时间 (Publish Date，如 2025.02 或 2025-02-15)</label>
+                    <input type="text" id="item-date" class="form-input" placeholder="2025.02" required />
                 </div>
                 <div class="form-group">
-                    <label class="form-label">摘要 (Summary)</label>
-                    <textarea id="item-summary" class="form-textarea" rows="2" required></textarea>
+                    <label class="form-label">分类标签 (Tag)</label>
+                    <input type="text" id="item-tag" class="form-input" placeholder="例如: LLM, Agent Architecture" required />
                 </div>
                 <div class="form-group">
                     <label class="form-label">正文内容 HTML (Content)</label>
-                    <textarea id="item-content" class="form-textarea" rows="8" placeholder="<p>段落内容...</p><h3>标题</h3>" required></textarea>
+                    <textarea id="item-content" class="form-textarea" rows="8" placeholder="<p>正文段落内容...</p>" required></textarea>
                 </div>
                 <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
                     <button type="button" class="btn btn-outline" onclick="closeModal()">取消</button>
-                    <button type="submit" class="btn btn-primary">保存并发布</button>
+                    <button type="submit" class="btn btn-primary">保存发布</button>
                 </div>
             </form>
         </div>
@@ -1325,14 +1135,12 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
             const list = document.getElementById('items-list');
             list.innerHTML = articles.map(a => {
                 const title = (a.title && (a.title.zh || a.title.en)) || a.id;
-                const isSuibian = a.category === 'suibian';
-                const badgeClass = isSuibian ? 'badge-suibian' : 'badge-article';
-                const badgeText = isSuibian ? '随便' : '文章';
                 return '<div class="item-card">' +
                     '<div>' +
-                        '<span class="item-category-badge ' + badgeClass + '">' + badgeText + '</span>' +
                         '<strong>' + title + '</strong>' +
-                        '<div style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">' + a.date + ' · ' + (a.tag || '') + '</div>' +
+                        '<div style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">' +
+                            '发布时间: <span style="color:var(--accent); font-family:var(--font-mono);">' + a.date + '</span> · ' + (a.tag || '') +
+                        '</div>' +
                     '</div>' +
                     '<div style="display:flex; gap:8px;">' +
                         '<button class="btn btn-outline" onclick="openEditModal(\'' + a.id + '\')">编辑</button>' +
@@ -1343,12 +1151,11 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
         }
 
         function openCreateModal() {
-            document.getElementById('modal-title').innerText = '新建发布';
+            document.getElementById('modal-title').innerText = '新建文章';
             document.getElementById('item-id').value = 'post-' + Date.now();
-            document.getElementById('item-category').value = 'article';
             document.getElementById('item-title').value = '';
-            document.getElementById('item-tag').value = 'Tech';
-            document.getElementById('item-summary').value = '';
+            document.getElementById('item-date').value = new Date().toISOString().slice(0,7).replace('-', '.');
+            document.getElementById('item-tag').value = 'AI Architecture';
             document.getElementById('item-content').value = '<p>在这里撰写正文内容...</p>';
             document.getElementById('modal').style.display = 'flex';
         }
@@ -1356,12 +1163,11 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
         function openEditModal(id) {
             const a = articles.find(x => x.id === id);
             if (!a) return;
-            document.getElementById('modal-title').innerText = '编辑内容';
+            document.getElementById('modal-title').innerText = '编辑文章';
             document.getElementById('item-id').value = a.id;
-            document.getElementById('item-category').value = a.category || 'article';
             document.getElementById('item-title').value = (a.title && a.title.zh) || '';
+            document.getElementById('item-date').value = a.date || '';
             document.getElementById('item-tag').value = a.tag || '';
-            document.getElementById('item-summary').value = (a.summary && a.summary.zh) || '';
             document.getElementById('item-content').value = (a.content && a.content.zh) || '';
             document.getElementById('modal').style.display = 'flex';
         }
@@ -1373,22 +1179,20 @@ function renderAdminHtml(isAuthed, articlesJson, hasKv) {
         async function handleSave(e) {
             e.preventDefault();
             const id = document.getElementById('item-id').value;
-            const category = document.getElementById('item-category').value;
             const titleZh = document.getElementById('item-title').value;
+            const customDate = document.getElementById('item-date').value;
             const tag = document.getElementById('item-tag').value;
-            const summaryZh = document.getElementById('item-summary').value;
             const contentZh = document.getElementById('item-content').value;
 
             const existing = articles.find(x => x.id === id) || {};
             const payload = {
                 id: id,
-                category: category,
                 title: { zh: titleZh, en: (existing.title && existing.title.en) || titleZh },
                 tag: tag,
-                date: existing.date || new Date().toISOString().slice(0,7).replace('-', '.'),
+                date: customDate,
                 readTime: existing.readTime || '5 min read',
                 views: existing.views || '1,000+ views',
-                summary: { zh: summaryZh, en: (existing.summary && existing.summary.en) || summaryZh },
+                summary: { zh: titleZh, en: titleZh },
                 content: { zh: contentZh, en: (existing.content && existing.content.en) || contentZh }
             };
 
@@ -1469,7 +1273,7 @@ export default {
       });
     }
 
-    // 3. API: 获取文章与随笔列表 GET /api/articles
+    // 3. API: 获取文章列表 GET /api/articles
     if ((path === "/api/articles" || path === "/articles.json") && method === "GET") {
       const items = await getArticles(env);
       return new Response(JSON.stringify(items, null, 2), {
@@ -1481,7 +1285,7 @@ export default {
       });
     }
 
-    // 4. API: 保存/更新内容 POST /api/articles
+    // 4. API: 保存/更新文章 POST /api/articles
     if (path === "/api/articles" && method === "POST") {
       if (!checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
@@ -1501,7 +1305,7 @@ export default {
       }
     }
 
-    // 5. API: 删除内容 DELETE /api/articles
+    // 5. API: 删除文章 DELETE /api/articles
     if (path === "/api/articles" && method === "DELETE") {
       if (!checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
@@ -1515,7 +1319,7 @@ export default {
       });
     }
 
-    // 6. 独立工作经历页面 GET /experience 或 /work-experience
+    // 6. 独立工作经历页面 GET /experience
     if (path === "/experience" || path === "/work-experience") {
       return new Response(renderExperienceHtml(), {
         headers: {
