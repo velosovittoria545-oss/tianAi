@@ -31,7 +31,7 @@ const DEFAULT_ARTICLES = [
     "tag": "Agent Architecture",
     "date": "2025.02",
     "readTime": "8 min read",
-    "views": "182,400+ views",
+    "views": 182400,
     "summary": {
       "zh": "探讨如何从单次 Prompt 工程演进到工业级多智能体协同网络，解决句子级反幻觉校验、Memory 持久化及确定性业务流控制的核心技术难点。",
       "en": "Exploring the architectural shift from simple prompt pipelines to industrial multi-agent orchestration, addressing sentence-level hallucination evaluation, state persistence, and deterministic business routing."
@@ -50,7 +50,7 @@ const DEFAULT_ARTICLES = [
     "tag": "LLM Infrastructure",
     "date": "2024.11",
     "readTime": "10 min read",
-    "views": "245,100+ views",
+    "views": 245100,
     "summary": {
       "zh": "剖析大模型自建集群中的推理吞吐优化策略，包括 KV Cache 显存碎片消除、AWQ/GPTQ 权衡，以及如何将单位推理成本降低 60% 以上。",
       "en": "Dissecting throughput optimization in proprietary LLM serving clusters: eliminating KV Cache memory fragmentation, AWQ vs GPTQ trade-offs, and slashing inference costs by over 60%."
@@ -69,7 +69,7 @@ const DEFAULT_ARTICLES = [
     "tag": "Backend & Concurrency",
     "date": "2024.06",
     "readTime": "7 min read",
-    "views": "310,000+ views",
+    "views": 310000,
     "summary": {
       "zh": "分享在快手核心交易系统期间，如何主导数十个微服务治理、防资损幂等设计以及 Prometheus + ELK 全链路监控告警体系落地。",
       "en": "Lessons from managing extreme payment transaction volumes (10k+ QPS): idempotency safeguards, zero financial-loss distributed locking, and resilient observability."
@@ -88,7 +88,7 @@ const DEFAULT_ARTICLES = [
     "tag": "AI Trends",
     "date": "2025.01",
     "readTime": "6 min read",
-    "views": "98,000+ views",
+    "views": 98000,
     "summary": {
       "zh": "深度剖析中美大模型从模型层到应用层的分化与融合，结合 Agent 落地实践，探讨未来 3 年企业级 AI 产品的杀手级形态与架构演进。",
       "en": "Deep analysis of the divergence and convergence of foundation models and application layers globally, exploring the next-generation enterprise AI product paradigms."
@@ -158,6 +158,41 @@ async function saveArticles(env, articles) {
   if (env && env.BLOG_KV) {
     await env.BLOG_KV.put("ARTICLES_DATA", JSON.stringify(articles));
   }
+}
+
+async function getArticleViews(env) {
+  if (env && env.BLOG_KV) {
+    try {
+      const data = await env.BLOG_KV.get("ARTICLE_VIEWS", "json");
+      if (data && typeof data === "object") return data;
+    } catch (e) {
+      console.error("KV Read Error for views:", e);
+    }
+  }
+  return {};
+}
+
+async function saveArticleViews(env, viewsMap) {
+  if (env && env.BLOG_KV) {
+    await env.BLOG_KV.put("ARTICLE_VIEWS", JSON.stringify(viewsMap));
+  }
+}
+
+async function getArticlesWithViews(env) {
+  const articles = await getArticles(env);
+  const viewsMap = await getArticleViews(env);
+  return articles.map(a => {
+    let v = a.views;
+    if (typeof viewsMap[a.id] === 'number') {
+      v = viewsMap[a.id];
+    } else if (typeof v === 'string') {
+      const num = parseInt(v.replace(/[^0-9]/g, ''), 10);
+      v = isNaN(num) ? 1000 : num;
+    } else if (typeof v !== 'number') {
+      v = 1000;
+    }
+    return Object.assign({}, a, { views: v });
+  });
 }
 
 async function getComments(env) {
@@ -409,7 +444,20 @@ function renderArticlesPageHtml(articlesJson) {
         <div id="reader-view">
             <span class="reader-close-btn" onclick="closeReader()">← 返回文章列表</span>
             <h1 class="reader-article-title" id="reader-title"></h1>
-            <div class="reader-meta-bar" id="reader-meta"></div>
+            <div class="reader-meta-bar" id="reader-meta">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span id="reader-meta-info"></span>
+                        <span id="reader-meta-views" style="color:var(--accent); font-weight:500;"></span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" onclick="copyShareLink()" id="btn-share-link" style="font-family:var(--font-sans); font-size:0.78rem; background:var(--bg-subtle); border:1px solid var(--border); color:var(--accent); padding:4px 12px; border-radius:4px; cursor:pointer; font-weight:500; display:flex; align-items:center; gap:4px; transition:all 0.15s;">
+                            <span>🔗</span> 生成分享链接
+                        </button>
+                        <span id="share-copied-toast" style="font-size:0.78rem; color:#28a745; font-weight:500; display:none;">✓ 已复制分享链接!</span>
+                    </div>
+                </div>
+            </div>
             <div class="reader-content-body" id="reader-content"></div>
 
             <!-- 读者留言板 -->
@@ -455,40 +503,131 @@ function renderArticlesPageHtml(articlesJson) {
 
     <script>
         const ARTICLES = ${articlesJson};
+        let currentArticleId = '';
 
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
+        function formatViews(v) {
+            if (typeof v === 'number') return v.toLocaleString();
+            if (typeof v === 'string') {
+                const n = parseInt(v.replace(/[^0-9]/g, ''), 10);
+                if (!isNaN(n)) return n.toLocaleString();
+                return v;
+            }
+            return '0';
+        }
+
         function renderList() {
             const box = document.getElementById('articles-list-box');
             box.innerHTML = ARTICLES.map(art => {
                 const title = (art.title && (art.title.zh || art.title.en)) || art.id;
+                const viewsFormatted = formatViews(art.views);
                 return '<div class="article-row" onclick="openArticle(\'' + art.id + '\')">' +
-                    '<span class="article-title-text">' + title + '</span>' +
+                    '<div>' +
+                        '<div class="article-title-text">' + title + '</div>' +
+                        '<div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-light); margin-top:4px;">' +
+                            art.date + ' · ' + (art.readTime || '') + ' · <span style="color:var(--accent);">👁️ ' + viewsFormatted + ' 浏览</span>' +
+                        '</div>' +
+                    '</div>' +
                     '<span class="article-date-badge">' + art.date + '</span>' +
                 '</div>';
             }).join('');
         }
 
-        function openArticle(id) {
+        function openArticle(id, updateHistory = true) {
             const art = ARTICLES.find(a => a.id === id);
             if (!art) return;
-            const title = (art.title && art.title.zh) || '';
+            currentArticleId = id;
+            const title = (art.title && (art.title.zh || art.title.en)) || '';
             document.getElementById('reader-title').innerText = title;
-            document.getElementById('reader-meta').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '');
-            document.getElementById('reader-content').innerHTML = (art.content && art.content.zh) || '';
+            document.getElementById('reader-meta-info').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '');
+            document.getElementById('reader-meta-views').innerText = '👁️ ' + formatViews(art.views) + ' 次浏览';
+            document.getElementById('reader-content').innerHTML = (art.content && (art.content.zh || art.content.en)) || '';
             
             document.getElementById('comment-article-id').value = art.id;
             document.getElementById('comment-article-title').value = title;
             document.getElementById('comment-status-msg').innerText = '';
             
+            // 自动累加浏览量（会话去重防刷）
+            recordArticleView(art);
+
             loadArticleComments(art.id);
 
             const reader = document.getElementById('reader-view');
             reader.style.display = 'block';
+
+            if (updateHistory && window.history && window.history.pushState) {
+                const newUrl = window.location.pathname + '?id=' + encodeURIComponent(id);
+                window.history.pushState({ articleId: id }, '', newUrl);
+            }
+
             reader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function recordArticleView(art) {
+            const storageKey = 'viewed_art_' + art.id;
+            if (sessionStorage.getItem(storageKey)) {
+                return;
+            }
+            sessionStorage.setItem(storageKey, '1');
+
+            if (typeof art.views === 'number') {
+                art.views += 1;
+            } else {
+                art.views = (parseInt(String(art.views).replace(/[^0-9]/g, ''), 10) || 0) + 1;
+            }
+            const viewsEl = document.getElementById('reader-meta-views');
+            if (viewsEl) viewsEl.innerText = '👁️ ' + formatViews(art.views) + ' 次浏览';
+
+            try {
+                const res = await fetch('/api/articles/view?id=' + encodeURIComponent(art.id), { method: 'POST' });
+                const data = await res.json();
+                if (data && typeof data.views === 'number') {
+                    art.views = data.views;
+                    if (viewsEl) viewsEl.innerText = '👁️ ' + formatViews(art.views) + ' 次浏览';
+                }
+            } catch (e) {
+                console.warn('View count update error:', e);
+            }
+        }
+
+        function copyShareLink() {
+            if (!currentArticleId) return;
+            const shareUrl = window.location.origin + '/articles?id=' + encodeURIComponent(currentArticleId);
+            const toast = document.getElementById('share-copied-toast');
+
+            const showToast = () => {
+                if (toast) {
+                    toast.innerText = '✓ 分享链接已复制！可直接发送或转发给读者';
+                    toast.style.display = 'inline';
+                    setTimeout(() => { toast.style.display = 'none'; }, 3500);
+                }
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(showToast).catch(() => fallbackCopy(shareUrl));
+            } else {
+                fallbackCopy(shareUrl);
+            }
+
+            function fallbackCopy(text) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                try {
+                    document.execCommand('copy');
+                    showToast();
+                } catch (err) {
+                    prompt('请手动复制文章分享链接：', text);
+                }
+                document.body.removeChild(ta);
+            }
         }
 
         async function loadArticleComments(articleId) {
@@ -559,9 +698,31 @@ function renderArticlesPageHtml(articlesJson) {
 
         function closeReader() {
             document.getElementById('reader-view').style.display = 'none';
+            if (window.history && window.history.pushState) {
+                window.history.pushState({}, '', window.location.pathname);
+            }
+            renderList();
         }
 
-        renderList();
+        window.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const targetId = params.get('id');
+            renderList();
+            if (targetId) {
+                openArticle(targetId, false);
+            }
+        });
+
+        window.addEventListener('popstate', () => {
+            const params = new URLSearchParams(window.location.search);
+            const targetId = params.get('id');
+            if (targetId) {
+                openArticle(targetId, false);
+            } else {
+                document.getElementById('reader-view').style.display = 'none';
+                renderList();
+            }
+        });
     </script>
 </body>
 </html>`;
@@ -1665,7 +1826,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
                     '<div>' +
                         '<strong>' + title + '</strong>' +
                         '<div style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">' +
-                            '发布时间: <span style="color:var(--accent); font-family:var(--font-mono);">' + a.date + '</span> · ' + (a.tag || '') +
+                            '发布时间: <span style="color:var(--accent); font-family:var(--font-mono);">' + a.date + '</span> · ' + (a.tag || '') + ' · <span style="color:var(--accent);">👁️ ' + ((typeof a.views === 'number') ? a.views.toLocaleString() : (a.views || '0')) + ' 浏览</span>' +
                         '</div>' +
                     '</div>' +
                     '<div style="display:flex; gap:8px;">' +
@@ -1783,7 +1944,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, hasKv) {
                 tag: tag,
                 date: customDate,
                 readTime: existing.readTime || '5 min read',
-                views: existing.views || '1,000+ views',
+                views: typeof existing.views === 'number' ? existing.views : 1000,
                 summary: { zh: titleZh, en: titleZh },
                 content: { zh: contentZh, en: (existing.content && existing.content.en) || contentZh }
             };
@@ -1869,14 +2030,43 @@ export default {
 
     // 3. API: 获取文章列表 GET /api/articles
     if ((path === "/api/articles" || path === "/articles.json") && method === "GET") {
-      const items = await getArticles(env);
+      const items = await getArticlesWithViews(env);
       return new Response(JSON.stringify(items, null, 2), {
         headers: {
           "Content-Type": "application/json;charset=UTF-8",
           "Access-Control-Allow-Origin": "*",
-          "Cache-Control": "public, max-age=60"
+          "Cache-Control": "public, max-age=15"
         }
       });
+    }
+
+    // 3.5. API: 记录并增加文章浏览量 POST /api/articles/view?id=...
+    if (path === "/api/articles/view" && method === "POST") {
+      const artId = url.searchParams.get("id");
+      if (!artId) {
+        return new Response(JSON.stringify({ error: "Missing id" }), { status: 400 });
+      }
+      try {
+        const viewsMap = await getArticleViews(env);
+        let currentViews = viewsMap[artId];
+        if (typeof currentViews !== 'number') {
+          const allArts = await getArticles(env);
+          const found = allArts.find(a => a.id === artId);
+          if (found && found.views) {
+            currentViews = typeof found.views === 'number' ? found.views : (parseInt(String(found.views).replace(/[^0-9]/g, ''), 10) || 1000);
+          } else {
+            currentViews = 1000;
+          }
+        }
+        currentViews += 1;
+        viewsMap[artId] = currentViews;
+        await saveArticleViews(env, viewsMap);
+        return new Response(JSON.stringify({ success: true, id: artId, views: currentViews }), {
+          headers: { "Content-Type": "application/json;charset=UTF-8" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
     }
 
     // 4. API: 保存/更新文章 POST /api/articles
@@ -2006,11 +2196,11 @@ export default {
 
     // 11. 独立文章列表页面 GET /articles 或 /blog
     if (path === "/articles" || path === "/blog") {
-      const items = await getArticles(env);
+      const items = await getArticlesWithViews(env);
       return new Response(renderArticlesPageHtml(JSON.stringify(items)), {
         headers: {
           "Content-Type": "text/html;charset=UTF-8",
-          "Cache-Control": "public, max-age=120"
+          "Cache-Control": "public, max-age=15"
         }
       });
     }
@@ -2043,7 +2233,7 @@ export default {
           headers: { "Content-Type": "text/html;charset=UTF-8" }
         });
       }
-      const items = await getArticles(env);
+      const items = await getArticlesWithViews(env);
       const commentsData = await getComments(env);
       const hasKv = Boolean(env && env.BLOG_KV);
       return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), hasKv), {
