@@ -214,6 +214,40 @@ async function saveComments(env, comments) {
   }
 }
 
+async function getCommentsWithAutoExpiry(env) {
+  let comments = await getComments(env);
+  const now = Date.now();
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+  let modified = false;
+
+  for (const c of comments) {
+    if (c.status === "pending") {
+      let createdMs = c.createdTimestamp;
+      if (!createdMs && c.id && c.id.startsWith("comm-")) {
+        const idNum = parseInt(c.id.slice(5), 10);
+        if (!isNaN(idNum) && idNum > 1000000000000) {
+          createdMs = idNum;
+        }
+      }
+      if (!createdMs && c.createdAt) {
+        try {
+          createdMs = new Date(c.createdAt.replace(' ', 'T') + ':00+08:00').getTime();
+        } catch(e) {}
+      }
+      if (createdMs && (now - createdMs > TWENTY_FOUR_HOURS_MS)) {
+        c.status = "rejected";
+        c.autoBlocked = true;
+        c.autoBlockedReason = "超过24小时未审核自动屏蔽";
+        modified = true;
+      }
+    }
+  }
+  if (modified) {
+    await saveComments(env, comments);
+  }
+  return comments;
+}
+
 const DEFAULT_PROFILE = {
   nameZh: "维托里奥 崔",
   nameEn: "Vittorio Cui",
@@ -614,8 +648,12 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                             <label style="font-size: 0.82rem; color: var(--text-muted); white-space: nowrap;">您的称呼:</label>
                             <input type="text" id="comment-author" placeholder="例如: 某技术同行 (可自定义，默认匿名读者)" style="flex: 1; padding: 7px 10px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); color: var(--text-main);" />
                         </div>
-                        <div style="margin-bottom: 10px;">
-                            <textarea id="comment-content" required rows="3" placeholder="写下您的技术探讨、阅读感受或问题交流...（留言需经管理员审核后公开展示）" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 0.88rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); color: var(--text-main); font-family: var(--font-sans); resize: vertical;"></textarea>
+                        <div style="margin-bottom: 6px;">
+                            <textarea id="comment-content" required rows="3" placeholder="写下您的技术探讨、阅读感受或问题交流...（中文字数 ≤ 140字，英文 ≤ 200词；留言需经管理员审核后公开展示）" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 0.88rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); color: var(--text-main); font-family: var(--font-sans); resize: vertical;"></textarea>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-light); margin-bottom:10px;">
+                            <span>字数限制：中文 ≤ 140字 / 英文 ≤ 200词</span>
+                            <span id="comment-char-counter">已输入: 0 汉字, 0 单词</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                             <span id="comment-status-msg" style="font-size: 0.82rem;"></span>
@@ -806,6 +844,25 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             statusMsg.style.color = 'var(--text-light)';
             statusMsg.innerText = '正在提交...';
             
+            const zhMatches = content.match(/[一-龥]/g) || [];
+            const zhCnt = zhMatches.length;
+            const wordsList = content.replace(/[一-龥]/g, ' ').match(/[a-zA-Z0-9_\-]+/g) || [];
+            const enCnt = wordsList.length;
+            if (zhCnt > 140) {
+                statusMsg.style.color = '#dc3545';
+                statusMsg.innerText = '中文字数超限：最多支持 140 个汉字（当前为 ' + zhCnt + ' 字）';
+                btn.disabled = false;
+                btn.innerText = '提交留言';
+                return;
+            }
+            if (enCnt > 200) {
+                statusMsg.style.color = '#dc3545';
+                statusMsg.innerText = '英文字数超限：最多支持 200 个单词（当前为 ' + enCnt + ' 词）';
+                btn.disabled = false;
+                btn.innerText = '提交留言';
+                return;
+            }
+
             try {
                 const res = await fetch('/api/comments', {
                     method: 'POST',
@@ -815,11 +872,13 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 const result = await res.json();
                 if (result.success) {
                     document.getElementById('comment-content').value = '';
+                    const counter = document.getElementById('comment-char-counter');
+                    if (counter) counter.innerText = '已输入: 0 汉字, 0 单词';
                     statusMsg.style.color = '#28a745';
-                    statusMsg.innerText = '✓ 留言已成功提交，待管理员审核通过后公开展示。';
+                    statusMsg.innerText = '✓ ' + (result.message || '留言已成功提交，待管理员审核通过后公开展示。');
                 } else {
                     statusMsg.style.color = '#dc3545';
-                    statusMsg.innerText = '提交失败，请稍后重试。';
+                    statusMsg.innerText = result.error || '提交失败，请稍后重试。';
                 }
             } catch (err) {
                 statusMsg.style.color = '#dc3545';
@@ -828,6 +887,27 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 btn.disabled = false;
                 btn.innerText = '提交留言';
             }
+        }
+
+        // 实时字数监控
+        const commTextarea = document.getElementById('comment-content');
+        if (commTextarea) {
+            commTextarea.addEventListener('input', function() {
+                const val = this.value;
+                const zh = (val.match(/[一-龥]/g) || []).length;
+                const en = (val.replace(/[一-龥]/g, ' ').match(/[a-zA-Z0-9_\-]+/g) || []).length;
+                const counter = document.getElementById('comment-char-counter');
+                if (counter) {
+                    counter.innerText = '已输入: ' + zh + ' 汉字, ' + en + ' 单词';
+                    if (zh > 140 || en > 200 || val.length > 500) {
+                        counter.style.color = '#dc3545';
+                        counter.style.fontWeight = 'bold';
+                    } else {
+                        counter.style.color = 'var(--text-light)';
+                        counter.style.fontWeight = 'normal';
+                    }
+                }
+            });
         }
 
         function closeReader() {
@@ -963,8 +1043,12 @@ function renderGuestbookHtml() {
                     <label style="font-size:0.85rem; color:var(--text-muted); white-space:nowrap;">您的称呼:</label>
                     <input type="text" id="gb-author" placeholder="例如: 某技术同行 (可自定义，默认: 匿名读者)" style="flex:1; padding:8px 12px; font-size:0.88rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main);" />
                 </div>
-                <div style="margin-bottom:12px;">
-                    <textarea id="gb-content" required rows="4" placeholder="写下您的技术探讨、阅读感受或问题交流...（留言将在管理员审核通过后公开展示）" style="width:100%; box-sizing:border-box; padding:10px 12px; font-size:0.9rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main); font-family:var(--font-sans); resize:vertical;"></textarea>
+                <div style="margin-bottom:6px;">
+                    <textarea id="gb-content" required rows="4" placeholder="写下您的技术探讨、阅读感受或问题交流...（中文字数 ≤ 140字，英文 ≤ 200词；留言将在管理员审核通过后公开展示）" style="width:100%; box-sizing:border-box; padding:10px 12px; font-size:0.9rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main); font-family:var(--font-sans); resize:vertical;"></textarea>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-light); margin-bottom:12px;">
+                    <span>字数限制：中文 ≤ 140字 / 英文 ≤ 200词</span>
+                    <span id="gb-counter">已输入: 0 汉字, 0 单词</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <span id="gb-status-msg" style="font-size:0.84rem;"></span>
@@ -1040,6 +1124,25 @@ function renderGuestbookHtml() {
             statusMsg.style.color = 'var(--text-light)';
             statusMsg.innerText = '正在提交...';
 
+            const zhMatches = content.match(/[一-龥]/g) || [];
+            const zhCnt = zhMatches.length;
+            const wordsList = content.replace(/[一-龥]/g, ' ').match(/[a-zA-Z0-9_\-]+/g) || [];
+            const enCnt = wordsList.length;
+            if (zhCnt > 140) {
+                statusMsg.style.color = '#dc3545';
+                statusMsg.innerText = '中文字数超限：最多支持 140 个汉字（当前为 ' + zhCnt + ' 字）';
+                btn.disabled = false;
+                btn.innerText = '提交留言';
+                return;
+            }
+            if (enCnt > 200) {
+                statusMsg.style.color = '#dc3545';
+                statusMsg.innerText = '英文字数超限：最多支持 200 个单词（当前为 ' + enCnt + ' 词）';
+                btn.disabled = false;
+                btn.innerText = '提交留言';
+                return;
+            }
+
             try {
                 const res = await fetch('/api/comments', {
                     method: 'POST',
@@ -1054,11 +1157,13 @@ function renderGuestbookHtml() {
                 const result = await res.json();
                 if (result.success) {
                     contentInput.value = '';
+                    const counter = document.getElementById('gb-counter');
+                    if (counter) counter.innerText = '已输入: 0 汉字, 0 单词';
                     statusMsg.style.color = '#28a745';
-                    statusMsg.innerText = '✓ 留言已成功提交，待管理员审核通过后公开展示。';
+                    statusMsg.innerText = '✓ ' + (result.message || '留言已成功提交，待管理员审核通过后公开展示。');
                 } else {
                     statusMsg.style.color = '#dc3545';
-                    statusMsg.innerText = '提交失败，请稍后重试。';
+                    statusMsg.innerText = result.error || '提交失败，请稍后重试。';
                 }
             } catch (err) {
                 statusMsg.style.color = '#dc3545';
@@ -1067,6 +1172,26 @@ function renderGuestbookHtml() {
                 btn.disabled = false;
                 btn.innerText = '提交留言';
             }
+        }
+
+        const gbContentEl = document.getElementById('gb-content');
+        if (gbContentEl) {
+            gbContentEl.addEventListener('input', function() {
+                const val = this.value;
+                const zh = (val.match(/[一-龥]/g) || []).length;
+                const en = (val.replace(/[一-龥]/g, ' ').match(/[a-zA-Z0-9_\-]+/g) || []).length;
+                const counter = document.getElementById('gb-counter');
+                if (counter) {
+                    counter.innerText = '已输入: ' + zh + ' 汉字, ' + en + ' 单词';
+                    if (zh > 140 || en > 200 || val.length > 500) {
+                        counter.style.color = '#dc3545';
+                        counter.style.fontWeight = 'bold';
+                    } else {
+                        counter.style.color = 'var(--text-light)';
+                        counter.style.fontWeight = 'normal';
+                    }
+                }
+            });
         }
 
         loadGuestbookMessages();
@@ -1795,7 +1920,11 @@ function renderAdminLoginHtml() {
                 });
                 const data = await res.json();
                 if (data.success && data.token) {
-                    try { localStorage.setItem('tianai_token', data.token); } catch(e) {}
+                    try {
+                        localStorage.setItem('tianai_token', data.token);
+                        sessionStorage.setItem('tianai_token', data.token);
+                    } catch(e) {}
+                    document.cookie = "tianai_session=" + data.token + "; Path=/; Max-Age=604800; Secure; SameSite=Lax";
                     window.location.href = '/admin?auth_token=' + encodeURIComponent(data.token);
                 } else {
                     err.style.display = 'block';
@@ -1811,16 +1940,10 @@ function renderAdminLoginHtml() {
             }
         }
 
-        // 自动恢复凭证（如果未主动登出）
+        // 无论何种情况，登录页均主动清理过期凭证，不自动回跳
         try {
-            if (window.location.search.includes('logout=true')) {
-                localStorage.removeItem('tianai_token');
-            } else {
-                const saved = localStorage.getItem('tianai_token');
-                if (saved) {
-                    window.location.href = '/admin?auth_token=' + encodeURIComponent(saved);
-                }
-            }
+            localStorage.removeItem('tianai_token');
+            sessionStorage.clear();
         } catch(e) {}
     </script>
 </body>
@@ -1830,7 +1953,7 @@ function renderAdminLoginHtml() {
 /**
  * 5. 管理后台 CMS 主界面 HTML (/admin 登录后)
  */
-function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
+function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, token = '') {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -1926,12 +2049,13 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
                 <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">网站控制台</span>
                 <span style="font-size:0.8rem; color:var(--text-light); margin-left:10px;">${hasKv ? '🟢 Cloudflare KV 实时持久化' : '🟡 体验模式'}</span>
             </div>
-            <div style="display:flex; gap:10px; align-items:center;">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <span id="inactivity-indicator" style="font-size:0.75rem; color:var(--text-light); border:1px solid var(--border); padding:3px 8px; border-radius:12px; background:var(--bg-subtle);" title="为了保障安全，若无操作将在2分钟后自动登出">⏱️ 2分钟无操作自动登出保护中</span>
                 <button class="btn btn-primary" onclick="openCreateModal()">➕ 发布新文章</button>
                 <button class="btn btn-outline" onclick="openPasswordModal()">🔑 修改密码</button>
                 <a href="/articles" class="btn btn-outline" style="text-decoration:none;">文章列表</a>
                 <a href="/" class="btn btn-outline" style="text-decoration:none;">主页</a>
-                <button class="btn btn-outline" onclick="handleLogout()">登出</button>
+                <button class="btn btn-outline" style="border-color:#dc3545; color:#dc3545;" onclick="handleLogout()">登出</button>
             </div>
         </div>
 
@@ -1950,17 +2074,18 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
         <!-- 2. 留言审核视图 -->
         <div id="view-comments" style="display:none;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
-                <div style="font-size:0.88rem; color:var(--text-muted);">
-                    状态筛选: 
+                <div style="font-size:0.88rem; color:var(--text-muted); display:flex; align-items:center; gap:8px;">
+                    <span>状态筛选:</span>
                     <select id="comment-filter" onchange="renderAdminCommentsList()" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px; font-size:0.85rem; background:var(--bg-card); color:var(--text-main);">
                         <option value="all">全部留言</option>
                         <option value="pending" selected>🟡 待审核 (Pending)</option>
                         <option value="approved">🟢 已通过展示 (Approved)</option>
-                        <option value="rejected">🔴 已驳回隐藏 (Rejected)</option>
+                        <option value="rejected">🔴 已驳回/超24h屏蔽 (Rejected)</option>
                     </select>
                 </div>
-                <div style="font-size:0.82rem; color:var(--text-light);">
-                    审核通过的留言将在对应文章末尾即时公开展示
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button class="btn btn-outline" style="font-size:0.82rem; padding:4px 12px;" onclick="refreshAdminComments()">🔄 刷新最新留言</button>
+                    <span style="font-size:0.82rem; color:var(--text-light);">审核通过的留言将在对应文章末尾即时公开展示</span>
                 </div>
             </div>
             <div id="comments-admin-list"></div>
@@ -2215,9 +2340,54 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
     </div>
 
     <script>
+        // 1. 同步管理会话令牌
+        const currentToken = '${token}';
+        if (currentToken) {
+            try {
+                localStorage.setItem('tianai_token', currentToken);
+                sessionStorage.setItem('tianai_token', currentToken);
+            } catch(e) {}
+            document.cookie = "tianai_session=" + currentToken + "; Path=/; Max-Age=604800; Secure; SameSite=Lax";
+        }
+
         // 清理 URL 参数，保持地址栏干净整洁
         if (window.location.search.includes('auth_token=')) {
             window.history.replaceState({}, document.title, '/admin');
+        }
+
+        // 2. 2分钟无操作自动安全登出机制
+        let inactivityTimer = null;
+        const INACTIVITY_MS = 2 * 60 * 1000; // 2 分钟 (120,000ms)
+
+        function resetInactivityTimer() {
+            if (inactivityTimer) clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(async () => {
+                alert('您已超过 2 分钟未进行任何操作，系统已自动安全登出以保障账户安全。');
+                await handleLogout();
+            }, INACTIVITY_MS);
+        }
+
+        ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt => {
+            window.addEventListener(evt, resetInactivityTimer, { passive: true });
+        });
+        resetInactivityTimer();
+
+        // 3. 通用安全请求封装（自动附加 Bearer Token 与凭据）
+        async function adminFetch(url, options = {}) {
+            resetInactivityTimer();
+            const tok = localStorage.getItem('tianai_token') || currentToken || '';
+            options.credentials = 'include';
+            options.headers = {
+                ...(options.headers || {}),
+                'Authorization': 'Bearer ' + tok
+            };
+            const res = await fetch(url, options);
+            if (res.status === 401) {
+                alert('管理员登录凭证失效或已超时，请重新登录。');
+                await handleLogout();
+                throw new Error('Unauthorized');
+            }
+            return res;
         }
 
         let articles = ${articlesJson};
@@ -2236,7 +2406,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             document.getElementById('cnt-pending').innerText = pendingCount;
         }
 
-        function switchAdminTab(tab) {
+        async function switchAdminTab(tab) {
             currentAdminTab = tab;
             const btnPosts = document.getElementById('tab-btn-posts');
             const btnComments = document.getElementById('tab-btn-comments');
@@ -2253,7 +2423,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             viewComments.style.display = tab === 'comments' ? 'block' : 'none';
             viewProfile.style.display = tab === 'profile' ? 'block' : 'none';
 
-            if (tab === 'comments') renderAdminCommentsList();
+            if (tab === 'posts') renderAdminList();
+            if (tab === 'comments') await refreshAdminComments();
             if (tab === 'profile') populateProfileForm();
         }
 
@@ -2295,6 +2466,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             container.innerHTML = filtered.map(c => {
                 let badge = '<span style="background:#fff3cd; color:#856404; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;">🟡 待审核</span>';
                 if (c.status === 'approved') badge = '<span style="background:#d4edda; color:#155724; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;">🟢 已展示</span>';
+                else if (c.autoBlocked) badge = '<span style="background:#f8d7da; color:#721c24; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;" title="超24小时未审核自动屏蔽">🔴 已超24h自动屏蔽</span>';
                 else if (c.status === 'rejected') badge = '<span style="background:#f8d7da; color:#721c24; padding:2px 8px; border-radius:10px; font-size:0.75rem; font-weight:500;">🔴 已驳回</span>';
                 
                 const artTitle = c.articleTitle || ('文章 ID: ' + c.articleId);
@@ -2317,33 +2489,62 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             }).join('');
         }
 
+        async function refreshAdminComments() {
+            resetInactivityTimer();
+            try {
+                const res = await adminFetch('/api/admin/comments');
+                if (res.ok) {
+                    comments = await res.json();
+                    renderAdminCommentsList();
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
         async function moderateComment(id, status) {
-            const res = await fetch('/api/admin/comments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, status })
-            });
-            if (res.ok) {
-                const target = comments.find(c => c.id === id);
-                if (target) target.status = status;
-                renderAdminCommentsList();
-            } else {
-                alert('审核操作失败');
+            resetInactivityTimer();
+            try {
+                const res = await adminFetch('/api/admin/comments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, status })
+                });
+                if (res.ok) {
+                    const target = comments.find(c => c.id === id);
+                    if (target) {
+                        target.status = status;
+                        if (status === 'approved') target.autoBlocked = false;
+                    }
+                    renderAdminCommentsList();
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('审核操作失败：' + (err.error || '权限或网络错误'));
+                }
+            } catch(e) {
+                console.error(e);
             }
         }
 
         async function deleteComment(id) {
+            resetInactivityTimer();
             if (!confirm('确定要彻底删除该留言吗？')) return;
-            const res = await fetch('/api/admin/comments?id=' + encodeURIComponent(id), { method: 'DELETE' });
-            if (res.ok) {
-                comments = comments.filter(c => c.id !== id);
-                renderAdminCommentsList();
-            } else {
-                alert('删除失败');
+            try {
+                const res = await adminFetch('/api/admin/comments?id=' + encodeURIComponent(id), { method: 'DELETE' });
+                if (res.ok) {
+                    comments = comments.filter(c => c.id !== id);
+                    renderAdminCommentsList();
+                    alert('✓ 留言已彻底删除');
+                } else {
+                    alert('删除失败');
+                }
+            } catch(e) {
+                console.error(e);
             }
         }
 
         function openCreateModal() {
+            resetInactivityTimer();
             document.getElementById('modal-title').innerText = '新建文章';
             document.getElementById('item-id').value = 'post-' + Date.now();
             document.getElementById('item-title').value = '';
@@ -2355,6 +2556,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
         }
 
         function openEditModal(id) {
+            resetInactivityTimer();
             const a = articles.find(x => x.id === id);
             if (!a) return;
             document.getElementById('modal-title').innerText = '编辑文章';
@@ -2372,6 +2574,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
         }
 
         function openPasswordModal() {
+            resetInactivityTimer();
             document.getElementById('password-modal').style.display = 'flex';
         }
 
@@ -2381,56 +2584,79 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
 
         async function handleSave(e) {
             e.preventDefault();
+            resetInactivityTimer();
             const id = document.getElementById('item-id').value;
-            const titleZh = document.getElementById('item-title').value;
-            const customDate = document.getElementById('item-date').value;
-            const tag = document.getElementById('item-tag').value;
+            const titleZh = document.getElementById('item-title').value.trim();
+            const customDate = document.getElementById('item-date').value.trim();
+            const tag = document.getElementById('item-tag').value.trim();
             const customViewsRaw = document.getElementById('item-views').value.trim();
             const customViews = parseInt(customViewsRaw, 10);
             const contentZh = document.getElementById('item-content').value;
+
+            if (!titleZh) { alert('请输入文章标题'); return; }
 
             const existing = articles.find(x => x.id === id) || {};
             const payload = {
                 id: id,
                 title: { zh: titleZh, en: (existing.title && existing.title.en) || titleZh },
-                tag: tag,
-                date: customDate,
+                tag: tag || 'AI',
+                date: customDate || new Date().toISOString().slice(0,7).replace('-', '.'),
                 readTime: existing.readTime || '5 min read',
                 views: isNaN(customViews) ? (typeof existing.views === 'number' ? existing.views : 1000) : customViews,
                 summary: { zh: titleZh, en: titleZh },
                 content: { zh: contentZh, en: (existing.content && existing.content.en) || contentZh }
             };
 
-            const res = await fetch('/api/articles', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-                const idx = articles.findIndex(x => x.id === id);
-                if (idx >= 0) articles[idx] = payload;
-                else articles.unshift(payload);
-                renderAdminList();
-                closeModal();
-            } else {
-                alert('保存失败，请检查网络或权限');
+            try {
+                const res = await adminFetch('/api/articles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    const idx = articles.findIndex(x => x.id === id);
+                    if (idx >= 0) articles[idx] = payload;
+                    else articles.unshift(payload);
+                    renderAdminList();
+                    closeModal();
+                    alert('✓ 文章保存并发布成功！');
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('保存发布失败：' + (err.error || '权限或网络异常'));
+                }
+            } catch(ex) {
+                console.error(ex);
             }
         }
 
         async function deleteArticle(id) {
-            if (!confirm('确定要删除吗？')) return;
-            const res = await fetch('/api/articles?id=' + encodeURIComponent(id), { method: 'DELETE' });
-            if (res.ok) {
-                articles = articles.filter(x => x.id !== id);
-                renderAdminList();
-            } else {
-                alert('删除失败');
+            resetInactivityTimer();
+            if (!confirm('确定要彻底删除该文章吗？此操作不可撤销。')) return;
+            try {
+                const res = await adminFetch('/api/articles?id=' + encodeURIComponent(id), { method: 'DELETE' });
+                if (res.ok) {
+                    articles = articles.filter(x => x.id !== id);
+                    renderAdminList();
+                    alert('✓ 文章已彻底删除');
+                } else {
+                    alert('删除失败');
+                }
+            } catch(e) {
+                console.error(e);
             }
         }
 
         async function handleLogout() {
+            if (inactivityTimer) clearTimeout(inactivityTimer);
             try { localStorage.removeItem('tianai_token'); } catch(e) {}
-            await fetch('/api/logout', { method: 'POST' });
+            try { sessionStorage.clear(); } catch(e) {}
+            document.cookie = "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Secure; SameSite=Lax";
+            try {
+                await fetch('/api/logout', { 
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch(e) {}
             window.location.href = '/admin?logout=true';
         }
 
@@ -2641,7 +2867,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             }
 
             try {
-                const res = await fetch('/api/upload', {
+                const res = await adminFetch('/api/upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ image: base64Data, filename: file.name })
@@ -2703,7 +2929,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             });
 
             try {
-                const res = await fetch('/api/profile', {
+                const res = await adminFetch('/api/profile', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -2739,7 +2965,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
             if (!base64Data) return;
             
             try {
-                const res = await fetch('/api/upload', {
+                const res = await adminFetch('/api/upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ image: base64Data, filename: file.name })
@@ -2864,12 +3090,23 @@ export default {
       }
       try {
         const newItem = await request.json();
+        if (!newItem || !newItem.id || !newItem.title) {
+          return new Response(JSON.stringify({ error: "Invalid article payload" }), { status: 400 });
+        }
         let items = await getArticles(env);
         const idx = items.findIndex(a => a.id === newItem.id);
         if (idx >= 0) items[idx] = newItem;
         else items.unshift(newItem);
         await saveArticles(env, items);
-        return new Response(JSON.stringify({ success: true }), {
+
+        // Also persist views in viewsMap
+        if (typeof newItem.views === 'number') {
+          const viewsMap = await getArticleViews(env);
+          viewsMap[newItem.id] = newItem.views;
+          await saveArticleViews(env, viewsMap);
+        }
+
+        return new Response(JSON.stringify({ success: true, article: newItem }), {
           headers: { "Content-Type": "application/json;charset=UTF-8" }
         });
       } catch (e) {
@@ -2893,7 +3130,7 @@ export default {
 
     // 6. API: 获取审核通过的留言列表 GET /api/comments?articleId=...
     if (path === "/api/comments" && method === "GET") {
-      const allComments = await getComments(env);
+      const allComments = await getCommentsWithAutoExpiry(env);
       const articleId = url.searchParams.get("articleId");
       let filtered = allComments.filter(c => c.status === "approved");
       if (articleId) {
@@ -2911,23 +3148,67 @@ export default {
     // 7. API: 读者提交留言 POST /api/comments
     if (path === "/api/comments" && method === "POST") {
       try {
-        const body = await request.json();
-        if (!body.content || !body.content.trim()) {
-          return new Response(JSON.stringify({ error: "Content is required" }), { status: 400 });
+        const clientIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "unknown";
+
+        // IP 发送频率保护：15秒内至多一次
+        if (env && env.BLOG_KV && clientIp !== "unknown") {
+          const rateKey = "RATE_" + clientIp;
+          const lastPost = await env.BLOG_KV.get(rateKey);
+          if (lastPost && (Date.now() - parseInt(lastPost, 10) < 15000)) {
+            return new Response(JSON.stringify({ error: "留言发送过于频繁，请等待 15 秒后再试。" }), {
+              status: 429,
+              headers: { "Content-Type": "application/json;charset=UTF-8" }
+            });
+          }
+          await env.BLOG_KV.put(rateKey, Date.now().toString(), { expirationTtl: 60 });
         }
+
+        const body = await request.json();
+        const content = (body.content || "").trim();
+        if (!content) {
+          return new Response(JSON.stringify({ error: "留言内容不能为空" }), { status: 400 });
+        }
+
+        // 校验字数限制：140 汉字以内，或 200 英文单词以内
+        const zhMatches = content.match(/[一-龥]/g) || [];
+        const zhCount = zhMatches.length;
+        const words = content.replace(/[一-龥]/g, ' ').match(/[a-zA-Z0-9_\-]+/g) || [];
+        const wordCount = words.length;
+
+        if (zhCount > 140) {
+          return new Response(JSON.stringify({ error: "中文字数超限：最多支持 140 个汉字（当前为 " + zhCount + " 字）" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json;charset=UTF-8" }
+          });
+        }
+        if (wordCount > 200) {
+          return new Response(JSON.stringify({ error: "英文字数超限：最多支持 200 个单词（当前为 " + wordCount + " 词）" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json;charset=UTF-8" }
+          });
+        }
+        if (content.length > 500) {
+          return new Response(JSON.stringify({ error: "留言总长度超出限制（最多 500 个字符）" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json;charset=UTF-8" }
+          });
+        }
+
+        const now = Date.now();
         const newComm = {
-          id: "comm-" + Date.now(),
+          id: "comm-" + now,
+          createdTimestamp: now,
           articleId: body.articleId || "general",
-          articleTitle: body.articleTitle || "",
+          articleTitle: body.articleTitle || "全站公开留言板",
           author: (body.author && body.author.trim()) ? body.author.trim().slice(0, 30) : "匿名读者",
-          content: body.content.trim().slice(0, 1000),
-          createdAt: new Date(Date.now() + 8 * 3600000).toISOString().replace("T", " ").slice(0, 16),
-          status: "pending"
+          content: content,
+          createdAt: new Date(now + 8 * 3600000).toISOString().replace("T", " ").slice(0, 16),
+          status: "pending" // 哪怕管理员自己的留言也必须经过审核
         };
-        let allComments = await getComments(env);
+        let allComments = await getCommentsWithAutoExpiry(env);
         allComments.unshift(newComm);
         await saveComments(env, allComments);
-        return new Response(JSON.stringify({ success: true, message: "留言已提交，待管理员审核通过后展示" }), {
+        return new Response(JSON.stringify({ success: true, message: "留言已成功提交，待管理员审核通过后公开展示。" }), {
           headers: { "Content-Type": "application/json;charset=UTF-8" }
         });
       } catch (e) {
@@ -2940,7 +3221,7 @@ export default {
       if (!checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
-      const allComments = await getComments(env);
+      const allComments = await getCommentsWithAutoExpiry(env);
       return new Response(JSON.stringify(allComments), {
         headers: { "Content-Type": "application/json;charset=UTF-8" }
       });
@@ -2953,16 +3234,19 @@ export default {
       }
       try {
         const body = await request.json();
-        let allComments = await getComments(env);
+        let allComments = await getCommentsWithAutoExpiry(env);
         const target = allComments.find(c => c.id === body.id);
         if (target) {
           target.status = body.status;
+          if (body.status === "approved") {
+            target.autoBlocked = false;
+          }
           await saveComments(env, allComments);
           return new Response(JSON.stringify({ success: true }), {
             headers: { "Content-Type": "application/json;charset=UTF-8" }
           });
         }
-        return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
+        return new Response(JSON.stringify({ error: "Comment not found" }), { status: 404 });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
       }
@@ -2974,7 +3258,7 @@ export default {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       const deleteId = url.searchParams.get("id");
-      let allComments = await getComments(env);
+      let allComments = await getCommentsWithAutoExpiry(env);
       allComments = allComments.filter(c => c.id !== deleteId);
       await saveComments(env, allComments);
       return new Response(JSON.stringify({ success: true }), {
@@ -3115,10 +3399,10 @@ export default {
         });
       }
       const items = await getArticlesWithViews(env);
-      const commentsData = await getComments(env);
+      const commentsData = await getCommentsWithAutoExpiry(env);
       const prof = await getProfile(env);
       const hasKv = Boolean(env && env.BLOG_KV);
-      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv), {
+      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv, token), {
         headers: { 
           "Content-Type": "text/html;charset=UTF-8",
           "Cache-Control": "no-store, no-cache, must-revalidate",
