@@ -2509,74 +2509,71 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv) {
 
         function parseMarkdownToHtml(md) {
             if (!md) return { frontmatter: {}, html: '' };
-            let html = md.replace(/\r\n/g, '\n');
+            const rawLines = md.replace(/\r/g, '').split('\n');
             let frontmatter = {};
-            
-            const fmMatch = html.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
-            if (fmMatch) {
-                const lines = fmMatch[1].split('\n');
-                lines.forEach(function(l) {
-                    const idx = l.indexOf(':');
-                    if (idx > 0) {
-                        const k = l.substring(0, idx).trim().toLowerCase();
-                        const v = l.substring(idx + 1).trim().replace(/^["']|["']$/g, '');
+            let startIndex = 0;
+            if (rawLines[0] && rawLines[0].trim() === '---') {
+                for (let i = 1; i < rawLines.length; i++) {
+                    if (rawLines[i].trim() === '---') {
+                        startIndex = i + 1;
+                        break;
+                    }
+                    const colonIdx = rawLines[i].indexOf(':');
+                    if (colonIdx > 0) {
+                        const k = rawLines[i].substring(0, colonIdx).trim().toLowerCase();
+                        const v = rawLines[i].substring(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
                         frontmatter[k] = v;
                     }
-                });
-                html = html.substring(fmMatch[0].length);
-            }
-
-            // Code blocks
-            const codeBlockRegex = new RegExp('\x60\x60\x60([a-zA-Z0-9_-]*)\n([\s\S]*?)\x60\x60\x60', 'g');
-            html = html.replace(codeBlockRegex, function(m, lang, code) {
-                return '<pre style="background:var(--bg-subtle); padding:1rem; border-radius:6px; overflow-x:auto; font-family:var(--font-mono); font-size:0.88rem; border:1px solid var(--border); margin:1.5rem 0;"><code class="language-' + (lang || 'text') + '">' + escapeHtml(code.trim()) + '</code></pre>';
-            });
-
-            // Inline code
-            const inlineCodeRegex = new RegExp('\x60([^\x60]+)\x60', 'g');
-            html = html.replace(inlineCodeRegex, function(m, code) {
-                return '<code style="background:var(--bg-subtle); padding:2px 5px; border-radius:4px; font-family:var(--font-mono); font-size:0.88em; border:1px solid var(--border);">' + escapeHtml(code) + '</code>';
-            });
-
-            // Images ![alt](url)
-            html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url) {
-                return '\n<figure style="margin:1.5rem 0; text-align:center;">\n  <img src="' + url.trim() + '" alt="' + escapeHtml(alt) + '" style="max-width:100%; border-radius:4px; border:1px solid var(--border);" />\n  ' + (alt ? '<figcaption style="font-size:0.82rem; color:var(--fg-subtle); margin-top:0.5rem; font-style:italic;">' + escapeHtml(alt) + '</figcaption>' : '') + '\n</figure>\n';
-            });
-
-            // Links [text](url)
-            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline;">$1</a>');
-
-            // Headings
-            html = html.replace(/^#### (.*$)/gim, '<h4 style="font-family:var(--font-serif); margin-top:1.5rem; margin-bottom:0.5rem;">$1</h4>');
-            html = html.replace(/^### (.*$)/gim, '<h3 style="font-family:var(--font-serif); margin-top:1.8rem; margin-bottom:0.6rem;">$1</h3>');
-            html = html.replace(/^## (.*$)/gim, '<h2 style="font-family:var(--font-serif); margin-top:2rem; margin-bottom:0.8rem;">$1</h2>');
-            html = html.replace(/^# (.*$)/gim, '<h2 style="font-family:var(--font-serif); margin-top:2rem; margin-bottom:0.8rem;">$1</h2>');
-
-            // Blockquotes
-            html = html.replace(/^\> (.*$)/gim, '<blockquote style="border-left:3px solid var(--accent); margin:1.2rem 0; padding:0.6rem 1.2rem; color:var(--fg-subtle); background:var(--bg-subtle); font-style:italic;">$1</blockquote>');
-
-            // Bold & Italic
-            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-            // Lists (- or *)
-            html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li>$1</li>');
-            html = html.replace(/(<li>.*<\/li>(\n|))+/gim, function(match) {
-                return '<ul style="margin:1rem 0 1rem 1.5rem; line-height:1.8;">\n' + match.trim() + '\n</ul>';
-            });
-
-            // Paragraphs
-            const blocks = html.split(/\n(2,)/);
-            html = blocks.map(function(block) {
-                block = block.trim();
-                if (!block) return '';
-                if (block.startsWith('<h') || block.startsWith('<pre') || block.startsWith('<figure') || block.startsWith('<blockquote') || block.startsWith('<ul') || block.startsWith('<ol') || block.startsWith('<div')) {
-                    return block;
                 }
-                return '<p style="margin-bottom:1.2rem; line-height:1.8;">' + block.replace(/\n/g, '<br/>') + '</p>';
-            }).join('\n\n');
+            }
+            const contentLines = rawLines.slice(startIndex);
+            let inCode = false;
+            let codeLang = '';
+            let codeContent = [];
+            let inList = false;
+            let out = [];
 
-            return { frontmatter: frontmatter, html: html };
+            for (let line of contentLines) {
+                if (line.trim().startsWith(String.fromCharCode(96, 96, 96))) {
+                    if (!inCode) {
+                        inCode = true;
+                        codeLang = line.trim().slice(3).trim();
+                        codeContent = [];
+                    } else {
+                        inCode = false;
+                        out.push('<pre style="background:var(--bg-subtle); padding:1rem; border-radius:6px; overflow-x:auto; font-family:var(--font-mono); font-size:0.88rem; border:1px solid var(--border); margin:1.5rem 0;"><code class="language-' + (codeLang || 'text') + '">' + escapeHtml(codeContent.join('\n')) + '</code></pre>');
+                    }
+                    continue;
+                }
+                if (inCode) {
+                    codeContent.push(line);
+                    continue;
+                }
+                let l = line.trim();
+                if (!l) {
+                    if (inList) { out.push('</ul>'); inList = false; }
+                    continue;
+                }
+                if (l.startsWith('# ')) {
+                    out.push('<h2 style="font-family:var(--font-serif); margin-top:2rem; margin-bottom:0.8rem;">' + escapeHtml(l.slice(2)) + '</h2>');
+                } else if (l.startsWith('## ')) {
+                    out.push('<h2 style="font-family:var(--font-serif); margin-top:2rem; margin-bottom:0.8rem;">' + escapeHtml(l.slice(3)) + '</h2>');
+                } else if (l.startsWith('### ')) {
+                    out.push('<h3 style="font-family:var(--font-serif); margin-top:1.8rem; margin-bottom:0.6rem;">' + escapeHtml(l.slice(4)) + '</h3>');
+                } else if (l.startsWith('#### ')) {
+                    out.push('<h4 style="font-family:var(--font-serif); margin-top:1.5rem; margin-bottom:0.5rem;">' + escapeHtml(l.slice(5)) + '</h4>');
+                } else if (l.startsWith('> ')) {
+                    out.push('<blockquote style="border-left:3px solid var(--accent); margin:1.2rem 0; padding:0.6rem 1.2rem; color:var(--fg-subtle); background:var(--bg-subtle); font-style:italic;">' + escapeHtml(l.slice(2)) + '</blockquote>');
+                } else if (l.startsWith('- ') || l.startsWith('* ')) {
+                    if (!inList) { out.push('<ul style="margin:1rem 0 1rem 1.5rem; line-height:1.8;">'); inList = true; }
+                    out.push('<li>' + escapeHtml(l.slice(2)) + '</li>');
+                } else {
+                    if (inList) { out.push('</ul>'); inList = false; }
+                    out.push('<p style="margin-bottom:1.2rem; line-height:1.8;">' + escapeHtml(l) + '</p>');
+                }
+            }
+            if (inList) out.push('</ul>');
+            return { frontmatter: frontmatter, html: out.join('\n') };
         }
 
         function handleArticleMdImport(event) {
