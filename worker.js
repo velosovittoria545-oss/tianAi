@@ -334,52 +334,53 @@ async function getUploadedImage(env, imgId) {
   return null;
 }
 
-async function checkAuth(request, env) {
+function extractRequestToken(request) {
   let token = "";
-  // 1. Authorization header (Bearer ...)
   const authHeader = request.headers.get("Authorization") || "";
   if (authHeader.startsWith("Bearer ")) {
     token = authHeader.slice(7).trim();
   }
-  // 2. Query param
   if (!token) {
     try {
       const url = new URL(request.url);
       token = url.searchParams.get("auth_token") || url.searchParams.get("token") || "";
     } catch(e) {}
   }
-  // 3. Cookie
   if (!token) {
     const cookieHeader = request.headers.get("Cookie") || "";
     const match = cookieHeader.match(/tianai_session=([^;]+)/);
     if (match) token = match[1].trim();
   }
+  return token;
+}
+
+async function checkAuth(request, env) {
+  const token = extractRequestToken(request);
   if (!token) return false;
 
-  // 4. Verify against Cloudflare KV server-side session
+  // 独立会话隔离校验：每个 Token 在 KV 中拥有唯一的 ADMIN_SESS_<token> 键
   if (env && env.BLOG_KV) {
     try {
-      const sess = await env.BLOG_KV.get("ADMIN_SESSION", "json");
-      if (!sess || sess.token !== token) {
-        return false;
-      }
-      // Server-side 2-minute inactivity timeout (120,000 ms)
+      const sessKey = "ADMIN_SESS_" + token;
+      const sess = await env.BLOG_KV.get(sessKey, "json");
+      if (!sess) return false;
+
+      // 服务端 2 分钟无操作超时强校验（120 秒）
       const INACTIVITY_LIMIT_MS = 2 * 60 * 1000;
       if (Date.now() - sess.lastActive > INACTIVITY_LIMIT_MS) {
-        await env.BLOG_KV.delete("ADMIN_SESSION");
+        await env.BLOG_KV.delete(sessKey);
         return false;
       }
-      // Refresh lastActive timestamp
+      // 活跃时间戳续期
       sess.lastActive = Date.now();
-      await env.BLOG_KV.put("ADMIN_SESSION", JSON.stringify(sess), { expirationTtl: 86400 });
+      await env.BLOG_KV.put(sessKey, JSON.stringify(sess), { expirationTtl: 86400 });
       return true;
     } catch(e) {
       console.error("Auth session check error:", e);
     }
   }
 
-  // Fallback for environment without KV
-  return token.startsWith("sess_") || token.includes("vittorio");
+  return false;
 }
 
 function generateSessionToken() {
@@ -3144,7 +3145,7 @@ export default {
         if (userMatches && inputPass === configuredPass) {
           const token = generateSessionToken();
           if (env && env.BLOG_KV) {
-            await env.BLOG_KV.put("ADMIN_SESSION", JSON.stringify({
+            await env.BLOG_KV.put("ADMIN_SESS_" + token, JSON.stringify({
               token: token,
               createdAt: Date.now(),
               lastActive: Date.now()
@@ -3168,8 +3169,9 @@ export default {
 
     // 2. API: 登出 POST /api/logout
     if (path === "/api/logout" && method === "POST") {
-      if (env && env.BLOG_KV) {
-        try { await env.BLOG_KV.delete("ADMIN_SESSION"); } catch(e) {}
+      const token = extractRequestToken(request);
+      if (token && env && env.BLOG_KV) {
+        try { await env.BLOG_KV.delete("ADMIN_SESS_" + token); } catch(e) {}
       }
       return new Response(JSON.stringify({ success: true }), {
         headers: {
@@ -3518,8 +3520,9 @@ export default {
     if (path === "/admin") {
       const isLogout = url.searchParams.get("logout") === "true";
       if (isLogout) {
-        if (env && env.BLOG_KV) {
-          try { await env.BLOG_KV.delete("ADMIN_SESSION"); } catch(e) {}
+        const token = extractRequestToken(request);
+        if (token && env && env.BLOG_KV) {
+          try { await env.BLOG_KV.delete("ADMIN_SESS_" + token); } catch(e) {}
         }
         return new Response(renderAdminLoginHtml(), {
           headers: { 
@@ -3538,11 +3541,7 @@ export default {
           }
         });
       }
-      let activeToken = "";
-      if (env && env.BLOG_KV) {
-        const sess = await env.BLOG_KV.get("ADMIN_SESSION", "json");
-        if (sess) activeToken = sess.token;
-      }
+      const activeToken = extractRequestToken(request);
       const items = await getArticlesWithViews(env);
       const commentsData = await getCommentsWithAutoExpiry(env);
       const prof = await getProfile(env);
