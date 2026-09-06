@@ -1736,17 +1736,30 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             try {
                 const raw = localStorage.getItem('my_pending_comments');
                 if (raw) {
-                    const arr = JSON.parse(raw);
+                    let arr = JSON.parse(raw);
+                    const beforeLen = arr.length;
+                    arr = arr.filter(x => {
+                        if (!x || !x.content) return false;
+                        if (x.content.includes('333333') || x.content.includes('围观围观') || x.author === 'B6') return false;
+                        return true;
+                    });
+                    if (arr.length !== beforeLen) {
+                        localStorage.setItem('my_pending_comments', JSON.stringify(arr));
+                    }
                     localPending = arr.filter(x => x.articleId === currentLoadedArticleId && !currentArtComments.some(a => a.content === x.content));
                 }
             } catch(e) {}
 
             let html = '';
             if (localPending.length > 0) {
-                html += localPending.map(c => 
+                html += localPending.map((c, i) => 
                     '<div style="background:#fffbeb; border:1px dashed #f59e0b; padding:10px 14px; border-radius:6px; margin-bottom:12px;">' +
                         '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">' +
-                            '<strong style="font-size:0.86rem; color:#b45309;">' + escapeHtml(c.author || '我') + ' <span style="font-size:0.75rem; font-weight:normal; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px; margin-left:6px;">🟡 待审核（已成功接收）</span></strong>' +
+                            '<div style="display:flex; align-items:center; gap:6px;">' +
+                                '<strong style="font-size:0.86rem; color:#b45309;">' + escapeHtml(c.author || '我') + '</strong>' +
+                                '<span style="font-size:0.75rem; font-weight:normal; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px;">🟡 待审核（已成功接收）</span>' +
+                                '<button type="button" onclick="removePendingArtComment(' + i + ')" style="font-size:0.72rem; background:transparent; border:1px solid #d97706; color:#b45309; border-radius:4px; padding:1px 6px; cursor:pointer;" title="从本地移除此待审核留言">🗑️ 移除</button>' +
+                            '</div>' +
                             '<span style="font-family:var(--font-mono); font-size:0.75rem; color:#b45309;">' + escapeHtml(c.createdAt || '') + '</span>' +
                         '</div>' +
                         '<div style="font-size:0.86rem; color:var(--text-main); line-height:1.6; white-space:pre-wrap;">' + escapeHtml(c.content || '') + '</div>' +
@@ -1848,6 +1861,22 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             } catch (e) {
                 listEl.innerHTML = '<div style="font-size:0.82rem; color:var(--text-light);">加载留言失败</div>';
             }
+        }
+
+        function removePendingArtComment(idx) {
+            try {
+                let raw = localStorage.getItem('my_pending_comments');
+                if (raw) {
+                    let arr = JSON.parse(raw);
+                    let artPending = arr.filter(x => x.articleId === currentLoadedArticleId && !currentArtComments.some(a => a.content === x.content));
+                    const target = artPending[idx];
+                    if (target) {
+                        arr = arr.filter(x => x !== target && x.content !== target.content);
+                        localStorage.setItem('my_pending_comments', JSON.stringify(arr));
+                    }
+                    renderArticleComments();
+                }
+            } catch(e) {}
         }
 
         async function handleCommentSubmit(e) {
@@ -2319,19 +2348,29 @@ function renderGuestbookHtml(initialJson) {
             try {
                 const raw = localStorage.getItem('my_pending_comments');
                 if (raw) {
-                    const arr = JSON.parse(raw);
+                    let arr = JSON.parse(raw);
+                    const beforeLen = arr.length;
+                    arr = arr.filter(x => {
+                        if (!x || !x.content) return false;
+                        if (x.content.includes('333333') || x.content.includes('围观围观') || x.author === 'B6') return false;
+                        return true;
+                    });
+                    if (arr.length !== beforeLen) {
+                        localStorage.setItem('my_pending_comments', JSON.stringify(arr));
+                    }
                     localPending = arr.filter(x => x.articleId === 'guestbook' && !allApprovedComments.some(a => a.content === x.content));
                 }
             } catch(e) {}
 
             let html = '';
             if (localPending.length > 0) {
-                html += localPending.map(c => 
+                html += localPending.map((c, i) => 
                     '<div class="msg-card" style="background:#fffbeb; border:1px dashed #f59e0b;">' +
                         '<div class="msg-head">' +
-                            '<div>' +
+                            '<div style="display:flex; align-items:center; gap:8px;">' +
                                 '<span class="msg-author" style="color:#b45309;">' + escapeHtml(c.author || '我') + '</span>' +
-                                '<span style="font-size:0.75rem; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px; margin-left:8px;">🟡 待审核（已成功接收）</span>' +
+                                '<span style="font-size:0.75rem; background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:4px;">🟡 待审核（已成功接收）</span>' +
+                                '<button type="button" onclick="removePendingComment(' + i + ')" style="font-size:0.72rem; background:transparent; border:1px solid #d97706; color:#b45309; border-radius:4px; padding:1px 6px; cursor:pointer;" title="从本地移除此待审核留言">🗑️ 移除</button>' +
                             '</div>' +
                             '<span class="msg-date" style="color:#b45309;">' + escapeHtml(c.createdAt || '') + '</span>' +
                         '</div>' +
@@ -2461,6 +2500,22 @@ function renderGuestbookHtml(initialJson) {
             const d = new Date(ms);
             input.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
             searchByWeek();
+        }
+
+        function removePendingComment(idx) {
+            try {
+                let raw = localStorage.getItem('my_pending_comments');
+                if (raw) {
+                    let arr = JSON.parse(raw);
+                    let guestbookPending = arr.filter(x => x.articleId === 'guestbook' && !allApprovedComments.some(a => a.content === x.content));
+                    const target = guestbookPending[idx];
+                    if (target) {
+                        arr = arr.filter(x => x !== target && x.content !== target.content);
+                        localStorage.setItem('my_pending_comments', JSON.stringify(arr));
+                    }
+                    renderComments();
+                }
+            } catch(e) {}
         }
 
         async function handleGuestbookSubmit(e) {
