@@ -762,6 +762,10 @@ function normalizeArticle(a) {
     title_en = a.title_en;
   }
 
+  if (title_en === title_zh && /[\u4e00-\u9fa5]/.test(title_zh)) {
+    title_en = "";
+  }
+
   let content_zh = "";
   let content_en = "";
   if (typeof a.content_zh === "string" && a.content_zh) {
@@ -777,6 +781,10 @@ function normalizeArticle(a) {
     content_en = a.content_en;
   }
 
+  if (content_en === content_zh && /[\u4e00-\u9fa5]/.test(content_zh)) {
+    content_en = "";
+  }
+
   const isBilingual = a.isBilingual !== undefined ? !!a.isBilingual : !!(content_en && content_en.trim());
 
   return Object.assign({}, a, {
@@ -785,8 +793,8 @@ function normalizeArticle(a) {
     content_zh,
     content_en,
     isBilingual,
-    title: typeof a.title === "object" ? a.title : { zh: title_zh, en: title_en || title_zh },
-    content: typeof a.content === "object" ? a.content : { zh: content_zh, en: content_en || content_zh }
+    title: { zh: title_zh, en: title_en || title_zh },
+    content: { zh: content_zh, en: content_en || content_zh }
   });
 }
 
@@ -4335,12 +4343,18 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 <input type="hidden" id="item-id" />
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
                     <div class="form-group">
-                        <label class="form-label">标题（中文）</label>
-                        <input type="text" id="item-title" class="form-input" placeholder="文章标题" required />
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label class="form-label" style="margin-bottom:0;">标题（中文）</label>
+                            <button type="button" class="btn btn-outline" id="btn-translate-title-to-zh" style="font-size:0.75rem; padding:2px 8px; border-radius:4px;" onclick="handleTranslateTitle('en', 'zh')" title="将英文标题通过AI翻译为中文">🤖 从英文翻译标题</button>
+                        </div>
+                        <input type="text" id="item-title" class="form-input" placeholder="文章中文标题" required />
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Title (English)</label>
-                        <input type="text" id="item-title-en" class="form-input" placeholder="Article Title (optional)" />
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label class="form-label" style="margin-bottom:0;">Title (English)</label>
+                            <button type="button" class="btn btn-primary" id="btn-translate-title-to-en" style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:var(--accent);" onclick="handleTranslateTitle('zh', 'en')" title="将中文标题通过AI翻译为英文">🤖 AI生成英文标题</button>
+                        </div>
+                        <input type="text" id="item-title-en" class="form-input" placeholder="Article Title (English)" />
                     </div>
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
@@ -4828,10 +4842,13 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 try {
                     const draft = {
                         title: document.getElementById('item-title').value,
+                        title_en: document.getElementById('item-title-en').value,
                         date: document.getElementById('item-date').value,
                         tag: document.getElementById('item-tag').value,
                         views: document.getElementById('item-views').value,
-                        content: document.getElementById('item-content').value
+                        content: document.getElementById('item-content').value,
+                        content_en: document.getElementById('item-content-en').value,
+                        isBilingual: document.getElementById('item-is-bilingual').checked
                     };
                     localStorage.setItem('article_editor_draft', JSON.stringify(draft));
                 } catch(e) {}
@@ -4856,32 +4873,31 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             }
         }
 
-        async function handleTranslateAI(from, to) {
+        async function handleTranslateTitle(from, to) {
             resetInactivityTimer();
-            const sourceElId = from === 'zh' ? 'item-content' : 'item-content-en';
-            const targetElId = to === 'en' ? 'item-content-en' : 'item-content';
-            const btnId = from === 'zh' ? 'translateToEn' : 'translateToZh';
+            const srcInput = from === 'zh' ? document.getElementById('item-title') : document.getElementById('item-title-en');
+            const targetInput = to === 'en' ? document.getElementById('item-title-en') : document.getElementById('item-title');
+            const btn = to === 'en' ? document.getElementById('btn-translate-title-to-en') : document.getElementById('btn-translate-title-to-zh');
             
-            const sourceContent = document.getElementById(sourceElId).value;
-            if (!sourceContent || !sourceContent.trim()) {
-                alert(from === 'zh' ? '请先输入中文内容' : 'Please enter English content first');
+            const srcText = srcInput ? srcInput.value.trim() : '';
+            if (!srcText) {
+                alert(from === 'zh' ? '请先输入中文标题' : 'Please enter English title first');
+                if (srcInput) srcInput.focus();
                 return;
             }
 
-            const btn = document.getElementById(btnId);
             const origText = btn ? btn.textContent : '';
             if (btn) {
                 btn.disabled = true;
-                btn.textContent = from === 'zh' ? '正在翻译并自动保存...' : 'Translating & auto-saving...';
+                btn.textContent = '翻译中...';
             }
 
             try {
-                // 1. 翻译正文
                 const res = await adminFetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        text: sourceContent,
+                        text: srcText,
                         from: from,
                         to: to
                     })
@@ -4897,37 +4913,138 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     throw new Error('未收到有效翻译文本');
                 }
 
-                document.getElementById(targetElId).value = data.translatedText;
+                targetInput.value = data.translatedText;
+                const chk = document.getElementById('item-is-bilingual');
+                if (chk) chk.checked = true;
 
-                // 2. 自动翻译未填写的标题
-                if (from === 'zh') {
-                    const titleZh = document.getElementById('item-title').value.trim();
-                    const titleEnInput = document.getElementById('item-title-en');
-                    if (titleZh && titleEnInput && !titleEnInput.value.trim()) {
-                        try {
-                            const r = await adminFetch('/api/translate', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ text: titleZh, from: 'zh', to: 'en' })
-                            });
-                            const d = await r.json();
-                            if (d && d.translatedText) titleEnInput.value = d.translatedText;
-                        } catch(e) {}
+                // 若当前为已保存的文章，自动同步保存到 KV 并刷新列表
+                const id = document.getElementById('item-id').value;
+                if (id) {
+                    const curTitleZh = document.getElementById('item-title').value.trim() || '未命名文章';
+                    const curTitleEn = document.getElementById('item-title-en').value.trim() || curTitleZh;
+                    const curCustomDate = document.getElementById('item-date').value.trim() || new Date().toISOString().slice(0,7).replace('-', '.');
+                    const curTag = document.getElementById('item-tag').value.trim() || 'AI';
+                    const curViewsRaw = document.getElementById('item-views').value.trim();
+                    const curCustomViews = parseInt(curViewsRaw, 10);
+                    const curContentZh = document.getElementById('item-content').value;
+                    const curContentEn = document.getElementById('item-content-en').value;
+
+                    const existing = articles.find(x => x.id === id) || {};
+                    const autoPayload = {
+                        id: id,
+                        title_zh: curTitleZh,
+                        title_en: curTitleEn,
+                        content_zh: curContentZh,
+                        content_en: curContentEn,
+                        isBilingual: !!(curContentEn && curContentEn.trim()) || !!(curTitleEn && curTitleEn !== curTitleZh),
+                        title: { zh: curTitleZh, en: curTitleEn },
+                        content: { zh: curContentZh, en: curContentEn },
+                        tag: curTag,
+                        date: curCustomDate,
+                        readTime: existing.readTime || '5 min read',
+                        views: isNaN(curCustomViews) ? (typeof existing.views === 'number' ? existing.views : 1000) : curCustomViews,
+                        summary: { zh: curTitleZh, en: curTitleEn }
+                    };
+
+                    const saveRes = await adminFetch('/api/articles', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(autoPayload)
+                    });
+
+                    if (saveRes.ok) {
+                        const idx = articles.findIndex(x => x.id === id);
+                        if (idx >= 0) articles[idx] = autoPayload;
+                        else articles.unshift(autoPayload);
+                        renderAdminList();
+                        try { localStorage.removeItem('article_editor_draft'); } catch(e) {}
+                        alert('✓ 标题翻译成功并已自动保存！');
+                    } else {
+                        alert('标题翻译成功已填入！自动保存失败，请稍后点击【保存发布】。');
                     }
                 } else {
-                    const titleEn = document.getElementById('item-title-en').value.trim();
-                    const titleZhInput = document.getElementById('item-title');
-                    if (titleEn && titleZhInput && !titleZhInput.value.trim()) {
+                    if (typeof autoSaveArticleDraft === 'function') autoSaveArticleDraft();
+                    alert('✓ 标题翻译成功！已填入输入框。');
+                }
+            } catch (error) {
+                alert('标题翻译失败：' + error.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = origText;
+                }
+            }
+        }
+
+        async function handleTranslateAI(from, to) {
+            resetInactivityTimer();
+            const sourceElId = from === 'zh' ? 'item-content' : 'item-content-en';
+            const targetElId = to === 'en' ? 'item-content-en' : 'item-content';
+            const btnId = from === 'zh' ? 'translateToEn' : 'translateToZh';
+            
+            const sourceContent = document.getElementById(sourceElId).value;
+            const sourceTitle = from === 'zh' ? document.getElementById('item-title').value.trim() : document.getElementById('item-title-en').value.trim();
+            const targetTitleInput = to === 'en' ? document.getElementById('item-title-en') : document.getElementById('item-title');
+
+            if ((!sourceContent || !sourceContent.trim()) && !sourceTitle) {
+                alert(from === 'zh' ? '请先输入中文标题或正文内容' : 'Please enter English title or content first');
+                return;
+            }
+
+            const btn = document.getElementById(btnId);
+            const origText = btn ? btn.textContent : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = from === 'zh' ? '正在翻译并自动保存...' : 'Translating & auto-saving...';
+            }
+
+            try {
+                // 1. 翻译标题
+                if (sourceTitle && targetTitleInput) {
+                    const targetVal = targetTitleInput.value.trim();
+                    const shouldTranslateTitle = !targetVal || targetVal === sourceTitle || (to === 'en' && /[\u4e00-\u9fa5]/.test(targetVal));
+                    if (shouldTranslateTitle) {
                         try {
-                            const r = await adminFetch('/api/translate', {
+                            const resTitle = await adminFetch('/api/translate', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ text: titleEn, from: 'en', to: 'zh' })
+                                body: JSON.stringify({ text: sourceTitle, from: from, to: to })
                             });
-                            const d = await r.json();
-                            if (d && d.translatedText) titleZhInput.value = d.translatedText;
-                        } catch(e) {}
+                            if (resTitle.ok) {
+                                const titleData = await resTitle.json();
+                                if (titleData && titleData.translatedText) {
+                                    targetTitleInput.value = titleData.translatedText;
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Title translation error in handleTranslateAI:', e);
+                        }
                     }
+                }
+
+                // 2. 翻译正文
+                if (sourceContent && sourceContent.trim()) {
+                    const res = await adminFetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text: sourceContent,
+                            from: from,
+                            to: to
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.error || ('HTTP ' + res.status));
+                    }
+
+                    const data = await res.json();
+                    if (!data.translatedText) {
+                        throw new Error('未收到有效正文翻译');
+                    }
+
+                    document.getElementById(targetElId).value = data.translatedText;
                 }
 
                 // 3. 自动勾选双语标记
@@ -4977,9 +5094,9 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     else articles.unshift(autoPayload);
                     renderAdminList();
                     try { localStorage.removeItem('article_editor_draft'); } catch(e) {}
-                    alert('✓ AI 翻译成功！文章已自动保存并重新加载到列表中。');
+                    alert('✓ AI 翻译成功！文章（含标题与正文）已自动保存并重新加载到列表中。');
                 } else {
-                    alert('AI 翻译完成，但自动保存失败，请检查后手动点击【保存发布文章】。');
+                    alert('AI 翻译完成，但自动保存失败，请检查后手动点击【保存发布】。');
                 }
 
             } catch (error) {
@@ -5018,9 +5135,15 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             document.getElementById('item-id').value = a.id;
             
             const titleZh = a.title_zh || (a.title && a.title.zh) || (typeof a.title === 'string' ? a.title : '');
-            const titleEn = a.title_en || (a.title && a.title.en) || '';
+            let titleEn = a.title_en || (a.title && a.title.en) || '';
+            if (titleEn === titleZh || /[\u4e00-\u9fa5]/.test(titleEn)) {
+                titleEn = '';
+            }
             const contentZh = a.content_zh || (a.content && a.content.zh) || (typeof a.content === 'string' ? a.content : '');
-            const contentEn = a.content_en || (a.content && a.content.en) || '';
+            let contentEn = a.content_en || (a.content && a.content.en) || '';
+            if (contentEn === contentZh) {
+                contentEn = '';
+            }
             const isBilingual = a.isBilingual !== undefined ? !!a.isBilingual : !!(contentEn && contentEn.trim());
 
             document.getElementById('item-title').value = titleZh;
