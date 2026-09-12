@@ -745,6 +745,12 @@ function getAdminPassword(env) {
   return (env && env.ADMIN_PASSWORD) ? env.ADMIN_PASSWORD : "";
 }
 
+// 文章排序策略：field 支持 date / views / likes，order 支持 desc / asc
+const ARTICLE_SORT_FIELDS = ["date", "views", "likes"];
+const DEFAULT_SETTINGS = {
+  articleSort: { field: "date", order: "desc" }
+};
+
 function normalizeArticle(a) {
   if (!a) return a;
   let title_zh = "";
@@ -835,10 +841,107 @@ async function saveArticleViews(env, viewsMap) {
   }
 }
 
-async function getArticlesWithViews(env) {
+async function getArticleLikes(env) {
+  if (env && env.BLOG_KV) {
+    try {
+      const data = await env.BLOG_KV.get("ARTICLE_LIKES", "json");
+      if (data && typeof data === "object") return data;
+    } catch (e) {
+      console.error("KV Read Error for likes:", e);
+    }
+  }
+  return {};
+}
+
+async function saveArticleLikes(env, likesMap) {
+  if (env && env.BLOG_KV) {
+    await env.BLOG_KV.put("ARTICLE_LIKES", JSON.stringify(likesMap));
+  }
+}
+
+async function getBlogSettings(env) {
+  let settings = { articleSort: Object.assign({}, DEFAULT_SETTINGS.articleSort) };
+  if (env && env.BLOG_KV) {
+    try {
+      const data = await env.BLOG_KV.get("BLOG_SETTINGS", "json");
+      if (data && typeof data === "object") {
+        settings = Object.assign({}, settings, data);
+        settings.articleSort = Object.assign({}, DEFAULT_SETTINGS.articleSort, data.articleSort || {});
+      }
+    } catch (e) {
+      console.error("KV Read Error for settings:", e);
+    }
+  }
+  return settings;
+}
+
+async function saveBlogSettings(env, settings) {
+  if (env && env.BLOG_KV) {
+    await env.BLOG_KV.put("BLOG_SETTINGS", JSON.stringify(settings));
+  }
+}
+
+// 访客标识哈希：避免在 KV 中明文存储读者 IP
+function hashVisitorKey(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(36);
+}
+
+// 兼容 "2026.08.14" / "2026-08" / "2025.02" 等多种日期写法
+function parseArticleDateMs(dateStr) {
+  if (!dateStr) return 0;
+  const raw = String(dateStr).trim();
+  const m = raw.match(/(\d{4})\D+(\d{1,2})(?:\D+(\d{1,2}))?/);
+  if (!m) {
+    const y = raw.match(/(\d{4})/);
+    return y ? Date.UTC(parseInt(y[1], 10), 0, 1) : 0;
+  }
+  const year = parseInt(m[1], 10);
+  const month = Math.min(Math.max(parseInt(m[2], 10), 1), 12);
+  const day = m[3] ? Math.min(Math.max(parseInt(m[3], 10), 1), 31) : 1;
+  return Date.UTC(year, month - 1, day);
+}
+
+function normalizeSortConfig(settings) {
+  const cfg = (settings && settings.articleSort) || {};
+  return {
+    field: ARTICLE_SORT_FIELDS.includes(cfg.field) ? cfg.field : DEFAULT_SETTINGS.articleSort.field,
+    order: cfg.order === "asc" ? "asc" : "desc"
+  };
+}
+
+// 排序只影响展示顺序，绝不回写 ARTICLES_DATA，避免打乱文章正文数据
+function sortArticlesByConfig(articles, settings) {
+  const cfg = normalizeSortConfig(settings);
+  const dir = cfg.order === "asc" ? 1 : -1;
+  return articles.slice().sort((a, b) => {
+    let va = 0;
+    let vb = 0;
+    if (cfg.field === "views") {
+      va = Number(a.views) || 0;
+      vb = Number(b.views) || 0;
+    } else if (cfg.field === "likes") {
+      va = Number(a.likes) || 0;
+      vb = Number(b.likes) || 0;
+    } else {
+      va = parseArticleDateMs(a.date);
+      vb = parseArticleDateMs(b.date);
+    }
+    if (va === vb) return 0;
+    return dir * (va - vb);
+  });
+}
+
+async function getArticlesWithMetrics(env) {
   const articles = await getArticles(env);
   const viewsMap = await getArticleViews(env);
-  return articles.map(a => {
+  const likesMap = await getArticleLikes(env);
+  const settings = await getBlogSettings(env);
+
+  const merged = articles.map(a => {
     let v = a.views;
     if (typeof viewsMap[a.id] === 'number') {
       v = viewsMap[a.id];
@@ -848,8 +951,21 @@ async function getArticlesWithViews(env) {
     } else if (typeof v !== 'number') {
       v = 1000;
     }
-    return Object.assign({}, a, { views: v });
+
+    let l = a.likes;
+    if (typeof likesMap[a.id] === 'number') {
+      l = likesMap[a.id];
+    } else if (typeof l === 'string') {
+      const num = parseInt(l.replace(/[^0-9]/g, ''), 10);
+      l = isNaN(num) ? 0 : num;
+    } else if (typeof l !== 'number') {
+      l = 0;
+    }
+
+    return Object.assign({}, a, { views: v, likes: l });
   });
+
+  return sortArticlesByConfig(merged, settings);
 }
 
 async function getComments(env) {
@@ -1508,6 +1624,9 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                         <span id="reader-meta-views" style="color:var(--accent); font-weight:500;"></span>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" onclick="toggleArticleLike()" id="btn-article-like" style="font-family:var(--font-sans); font-size:0.78rem; background:var(--bg-subtle); border:1px solid var(--border); color:var(--accent); padding:4px 12px; border-radius:4px; cursor:pointer; font-weight:500; display:flex; align-items:center; gap:4px; transition:all 0.15s;">
+                            <span>👍</span> <span id="btn-article-like-text">点赞</span> (<span id="article-like-count">0</span>)
+                        </button>
                         <button type="button" onclick="copyShareLink()" id="btn-share-link" style="font-family:var(--font-sans); font-size:0.78rem; background:var(--bg-subtle); border:1px solid var(--border); color:var(--accent); padding:4px 12px; border-radius:4px; cursor:pointer; font-weight:500; display:flex; align-items:center; gap:4px; transition:all 0.15s;">
                             <span>🔗</span> 生成分享链接
                         </button>
@@ -1628,6 +1747,10 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 viewsSuffix: " 次浏览",
                 badgeBilingual: "🌐 双语",
                 badgeZhOnly: "🔸 仅中文",
+                likesSuffix: " 赞",
+                likeText: "点赞",
+                likedText: "已点赞",
+                likeAlready: "您已经为这篇文章点过赞啦，感谢支持！",
                 toggleText: "English"
             },
             en: {
@@ -1656,6 +1779,10 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 viewsSuffix: " views",
                 badgeBilingual: "🌐 Bilingual",
                 badgeZhOnly: "🔸 Chinese only",
+                likesSuffix: " likes",
+                likeText: "Like",
+                likedText: "Liked",
+                likeAlready: "You have already liked this article. Thank you for the support!",
                 toggleText: "中文"
             }
         };
@@ -1719,6 +1846,7 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             const footerCopy = document.getElementById('art-footer-copy');
             if (footerCopy) footerCopy.innerText = t.copyright;
 
+            updateArticleLikeUI();
             renderList();
 
             if (currentArticleId) {
@@ -1778,11 +1906,13 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 }
 
                 const viewsFormatted = formatViews(art.views);
+                const likesFormatted = formatViews(typeof art.likes === 'number' ? art.likes : (parseInt(art.likes, 10) || 0));
                 return '<div class="article-row" data-id="' + art.id + '" onclick="openArticle(this.dataset.id)">' +
                     '<div>' +
                         '<div class="article-title-text">' + escapeHtml(displayTitle) + langBadge + '</div>' +
                         '<div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-light); margin-top:4px;">' +
                             art.date + ' · ' + (art.readTime || '') + ' · <span style="color:var(--accent);">👁️ ' + viewsFormatted + (currentGlobalLang === 'en' ? ' views' : ' 浏览') + '</span>' +
+                            ' · <span style="color:var(--accent);">👍 ' + likesFormatted + t.likesSuffix + '</span>' +
                         '</div>' +
                     '</div>' +
                     '<span class="article-date-badge">' + art.date + '</span>' +
@@ -1797,6 +1927,10 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
 
             document.getElementById('reader-meta-info').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '');
             document.getElementById('reader-meta-views').innerText = '👁️ ' + formatViews(art.views) + (currentGlobalLang === 'en' ? ' views' : ' 次浏览');
+
+            currentArticleLikeCount = typeof art.likes === 'number' ? art.likes : (parseInt(art.likes, 10) || 0);
+            currentArticleLiked = isArticleLiked(art.id);
+            updateArticleLikeUI();
 
             const hasEnContent = !!(art.content_en && art.content_en.trim()) || !!(art.content && art.content.en && art.content.en.trim());
             const isBilingual = art.isBilingual !== undefined ? !!art.isBilingual : hasEnContent;
@@ -1854,6 +1988,85 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 }
             } catch (e) {
                 console.warn('View count update error:', e);
+            }
+        }
+
+        let currentArticleLikeCount = 0;
+        let currentArticleLiked = false;
+
+        function isArticleLiked(id) {
+            try {
+                const arr = JSON.parse(localStorage.getItem('my_liked_articles') || '[]');
+                return arr.includes(id);
+            } catch(e) { return false; }
+        }
+
+        function markArticleLiked(id) {
+            try {
+                const arr = JSON.parse(localStorage.getItem('my_liked_articles') || '[]');
+                if (!arr.includes(id)) {
+                    arr.push(id);
+                    localStorage.setItem('my_liked_articles', JSON.stringify(arr));
+                }
+            } catch(e) {}
+        }
+
+        function updateArticleLikeUI() {
+            const t = articlesI18n[currentGlobalLang] || articlesI18n.zh;
+            const countEl = document.getElementById('article-like-count');
+            const textEl = document.getElementById('btn-article-like-text');
+            const btn = document.getElementById('btn-article-like');
+            if (countEl) countEl.innerText = (currentArticleLikeCount || 0).toLocaleString();
+            if (textEl) textEl.innerText = currentArticleLiked ? t.likedText : t.likeText;
+            if (btn) {
+                if (currentArticleLiked) {
+                    btn.style.background = 'var(--accent)';
+                    btn.style.color = '#ffffff';
+                    btn.style.borderColor = 'var(--accent)';
+                    btn.style.cursor = 'default';
+                } else {
+                    btn.style.background = 'var(--bg-subtle)';
+                    btn.style.color = 'var(--accent)';
+                    btn.style.borderColor = 'var(--border)';
+                    btn.style.cursor = 'pointer';
+                }
+            }
+        }
+
+        async function toggleArticleLike() {
+            if (!currentArticleId) return;
+            const t = articlesI18n[currentGlobalLang] || articlesI18n.zh;
+
+            if (currentArticleLiked || isArticleLiked(currentArticleId)) {
+                currentArticleLiked = true;
+                updateArticleLikeUI();
+                alert(t.likeAlready);
+                return;
+            }
+
+            currentArticleLiked = true;
+            currentArticleLikeCount = (currentArticleLikeCount || 0) + 1;
+            markArticleLiked(currentArticleId);
+            updateArticleLikeUI();
+
+            const art = ARTICLES.find(a => a.id === currentArticleId);
+            if (art) art.likes = currentArticleLikeCount;
+            renderList();
+
+            try {
+                const res = await fetch('/api/articles/like?id=' + encodeURIComponent(currentArticleId), { method: 'POST' });
+                const data = await res.json();
+                if (data && typeof data.likes === 'number') {
+                    currentArticleLikeCount = data.likes;
+                    if (art) art.likes = data.likes;
+                }
+                if (data && data.alreadyLiked) {
+                    currentArticleLiked = true;
+                }
+                updateArticleLikeUI();
+                renderList();
+            } catch (e) {
+                console.warn('Article like error:', e);
             }
         }
 
@@ -3981,7 +4194,7 @@ function renderAdminLoginHtml() {
 /**
  * 5. 管理后台 CMS 主界面 HTML (/admin 登录后)
  */
-function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, token = '') {
+function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, token = '', settingsJson = '{}') {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -4167,6 +4380,21 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
 
         <!-- 1. 文章管理视图 -->
         <div id="view-posts">
+            <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:14px 18px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span id="sort-label-text" style="font-size:0.85rem; color:var(--text-muted);">文章排序方式：</span>
+                    <select id="sort-field-select" class="form-input" style="width:auto; padding:6px 10px; font-size:0.85rem;" onchange="handleSortChange()">
+                        <option value="date" id="sort-opt-date">按发布时间</option>
+                        <option value="views" id="sort-opt-views">按浏览量</option>
+                        <option value="likes" id="sort-opt-likes">按点赞数</option>
+                    </select>
+                    <select id="sort-order-select" class="form-input" style="width:auto; padding:6px 10px; font-size:0.85rem;" onchange="handleSortChange()">
+                        <option value="desc" id="sort-opt-desc">降序（高 → 低）</option>
+                        <option value="asc" id="sort-opt-asc">升序（低 → 高）</option>
+                    </select>
+                </div>
+                <span id="sort-hint-text" style="font-size:0.78rem; color:var(--text-light);">保存后文章列表页即时按此顺序展示</span>
+            </div>
             <div id="items-list"></div>
         </div>
 
@@ -4357,18 +4585,22 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                         <input type="text" id="item-title-en" class="form-input" placeholder="Article Title (English)" />
                     </div>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:12px;">
                     <div class="form-group">
                         <label class="form-label">自定义发布时间 (Date)</label>
                         <input type="text" id="item-date" class="form-input" placeholder="2025.02" required />
                     </div>
                     <div class="form-group">
                         <label class="form-label">分类标签 (Tag)</label>
-                        <input type="text" id="item-tag" class="form-input" placeholder="LLM, Agent Architecture" required />
+                        <input type="text" id="item-tag" class="form-input" placeholder="LLM, Agent" required />
                     </div>
                     <div class="form-group">
                         <label class="form-label">文章浏览量 (Views)</label>
                         <input type="number" id="item-views" class="form-input" min="0" placeholder="1000" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">文章点赞数 (Likes)</label>
+                        <input type="number" id="item-likes" class="form-input" min="0" placeholder="0" required />
                     </div>
                 </div>
                 <div class="form-group">
@@ -4411,7 +4643,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
-                    <span style="font-size:0.78rem; color:var(--text-light);">💡 浏览量可随意自定义，读者阅读时会在此数值基础上累加递增</span>
+                    <span style="font-size:0.78rem; color:var(--text-light);">💡 浏览量 / 点赞数均可自由自定义，读者互动时会在此数值基础上累加递增</span>
                     <div style="display:flex; gap:10px;">
                         <button type="button" class="btn btn-outline" onclick="closeModal()">取消</button>
                         <button type="submit" class="btn btn-primary">保存发布</button>
@@ -4543,6 +4775,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
         let articles = ${articlesJson};
         let comments = ${commentsJson};
         let currentProfile = ${profileJson};
+        let currentSettings = ${settingsJson};
         let currentAdminTab = 'posts';
 
         function escapeHtml(str) {
@@ -4639,7 +4872,15 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 btnEdit: "编辑",
                 btnDelete: "删除",
                 badgeBilingual: "🌐 双语",
-                badgeZhOnly: "🔸 仅中文"
+                badgeZhOnly: "🔸 仅中文",
+                sortLabel: "文章排序方式：",
+                sortOptDate: "按发布时间",
+                sortOptViews: "按浏览量",
+                sortOptLikes: "按点赞数",
+                sortOptDesc: "降序（高 → 低）",
+                sortOptAsc: "升序（低 → 高）",
+                sortHint: "保存后文章列表页即时按此顺序展示",
+                likesSuffix: " 赞"
             },
             en: {
                 cmsTitle: "Website Console",
@@ -4662,7 +4903,15 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 btnEdit: "Edit",
                 btnDelete: "Delete",
                 badgeBilingual: "🌐 Bilingual",
-                badgeZhOnly: "🔸 Chinese only"
+                badgeZhOnly: "🔸 Chinese only",
+                sortLabel: "Sort articles by:",
+                sortOptDate: "Publish date",
+                sortOptViews: "Views",
+                sortOptLikes: "Likes",
+                sortOptDesc: "Descending (high → low)",
+                sortOptAsc: "Ascending (low → high)",
+                sortHint: "The public article list follows this order immediately",
+                likesSuffix: " likes"
             }
         };
 
@@ -4708,7 +4957,124 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             const btnBanner = document.getElementById('btn-banner-review');
             if (btnBanner) btnBanner.innerText = t.bannerReview;
 
+            const sortLabel = document.getElementById('sort-label-text');
+            if (sortLabel) sortLabel.innerText = t.sortLabel;
+            const sortOptDate = document.getElementById('sort-opt-date');
+            if (sortOptDate) sortOptDate.innerText = t.sortOptDate;
+            const sortOptViews = document.getElementById('sort-opt-views');
+            if (sortOptViews) sortOptViews.innerText = t.sortOptViews;
+            const sortOptLikes = document.getElementById('sort-opt-likes');
+            if (sortOptLikes) sortOptLikes.innerText = t.sortOptLikes;
+            const sortOptDesc = document.getElementById('sort-opt-desc');
+            if (sortOptDesc) sortOptDesc.innerText = t.sortOptDesc;
+            const sortOptAsc = document.getElementById('sort-opt-asc');
+            if (sortOptAsc) sortOptAsc.innerText = t.sortOptAsc;
+            const sortHint = document.getElementById('sort-hint-text');
+            if (sortHint) sortHint.innerText = t.sortHint;
+
             renderAdminList();
+        }
+
+        function parseArticleDateMs(dateStr) {
+            if (!dateStr) return 0;
+            const raw = String(dateStr).trim();
+            const m = raw.match(/(\d{4})\D+(\d{1,2})(?:\D+(\d{1,2}))?/);
+            if (!m) {
+                const y = raw.match(/(\d{4})/);
+                return y ? Date.UTC(parseInt(y[1], 10), 0, 1) : 0;
+            }
+            const year = parseInt(m[1], 10);
+            const month = Math.min(Math.max(parseInt(m[2], 10), 1), 12);
+            const day = m[3] ? Math.min(Math.max(parseInt(m[3], 10), 1), 31) : 1;
+            return Date.UTC(year, month - 1, day);
+        }
+
+        function getSortConfig() {
+            const cfg = (currentSettings && currentSettings.articleSort) || { field: 'date', order: 'desc' };
+            return {
+                field: ['date', 'views', 'likes'].includes(cfg.field) ? cfg.field : 'date',
+                order: cfg.order === 'asc' ? 'asc' : 'desc'
+            };
+        }
+
+        function applySortToLocalList() {
+            const cfg = getSortConfig();
+            const dir = cfg.order === 'asc' ? 1 : -1;
+            articles.sort((a, b) => {
+                let va = 0;
+                let vb = 0;
+                if (cfg.field === 'views') { va = Number(a.views) || 0; vb = Number(b.views) || 0; }
+                else if (cfg.field === 'likes') { va = Number(a.likes) || 0; vb = Number(b.likes) || 0; }
+                else { va = parseArticleDateMs(a.date); vb = parseArticleDateMs(b.date); }
+                if (va === vb) return 0;
+                return dir * (va - vb);
+            });
+        }
+
+        function populateSortControls() {
+            const cfg = getSortConfig();
+            const fieldSel = document.getElementById('sort-field-select');
+            const orderSel = document.getElementById('sort-order-select');
+            if (fieldSel) fieldSel.value = cfg.field;
+            if (orderSel) orderSel.value = cfg.order;
+        }
+
+        async function handleSortChange() {
+            resetInactivityTimer();
+            const fieldSel = document.getElementById('sort-field-select');
+            const orderSel = document.getElementById('sort-order-select');
+            const articleSort = {
+                field: fieldSel ? fieldSel.value : 'date',
+                order: orderSel ? orderSel.value : 'desc'
+            };
+            const previous = getSortConfig();
+
+            currentSettings = Object.assign({}, currentSettings, { articleSort: articleSort });
+            applySortToLocalList();
+            renderAdminList();
+
+            try {
+                const res = await adminFetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ articleSort: articleSort })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.settings) {
+                        currentSettings = data.settings;
+                        applySortToLocalList();
+                        renderAdminList();
+                    }
+                } else {
+                    currentSettings = Object.assign({}, currentSettings, { articleSort: previous });
+                    applySortToLocalList();
+                    populateSortControls();
+                    renderAdminList();
+                    alert('排序设置保存失败，请重新登录后再试。');
+                }
+            } catch (e) {
+                console.error('Save sort settings error:', e);
+                currentSettings = Object.assign({}, currentSettings, { articleSort: previous });
+                applySortToLocalList();
+                populateSortControls();
+                renderAdminList();
+            }
+        }
+
+        async function refreshAdminArticles() {
+            try {
+                // 带时间戳绕过 15 秒公开缓存，确保后台看到的是刚保存的最新数据
+                const res = await adminFetch('/api/articles?ts=' + Date.now());
+                if (!res.ok) return;
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    articles = data;
+                    renderAdminList();
+                }
+            } catch (e) {
+                console.error('Refresh articles error:', e);
+            }
         }
 
         function renderAdminList() {
@@ -4731,6 +5097,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                         '<strong>' + escapeHtml(displayTitle) + '</strong>' + badge +
                         '<div style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">' +
                             (isEn ? 'Date: ' : '发布时间: ') + '<span style="color:var(--accent); font-family:var(--font-mono);">' + a.date + '</span> · ' + (a.tag || '') + ' · <span style="color:var(--accent);">👁️ ' + ((typeof a.views === 'number') ? a.views.toLocaleString() : (a.views || '0')) + (isEn ? ' views' : ' 浏览') + '</span>' +
+                            ' · <span style="color:var(--accent);">👍 ' + ((typeof a.likes === 'number') ? a.likes.toLocaleString() : (parseInt(a.likes, 10) || 0)) + t.likesSuffix + '</span>' +
                         '</div>' +
                     '</div>' +
                     '<div style="display:flex; gap:8px;">' +
@@ -4846,6 +5213,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                         date: document.getElementById('item-date').value,
                         tag: document.getElementById('item-tag').value,
                         views: document.getElementById('item-views').value,
+                        likes: document.getElementById('item-likes').value,
                         content: document.getElementById('item-content').value,
                         content_en: document.getElementById('item-content-en').value,
                         isBilingual: document.getElementById('item-is-bilingual').checked
@@ -4926,6 +5294,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     const curTag = document.getElementById('item-tag').value.trim() || 'AI';
                     const curViewsRaw = document.getElementById('item-views').value.trim();
                     const curCustomViews = parseInt(curViewsRaw, 10);
+                    const curLikesRaw = document.getElementById('item-likes').value.trim();
+                    const curCustomLikes = parseInt(curLikesRaw, 10);
                     const curContentZh = document.getElementById('item-content').value;
                     const curContentEn = document.getElementById('item-content-en').value;
 
@@ -4943,6 +5313,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                         date: curCustomDate,
                         readTime: existing.readTime || '5 min read',
                         views: isNaN(curCustomViews) ? (typeof existing.views === 'number' ? existing.views : 1000) : curCustomViews,
+                        likes: isNaN(curCustomLikes) ? (typeof existing.likes === 'number' ? existing.likes : 0) : curCustomLikes,
                         summary: { zh: curTitleZh, en: curTitleEn }
                     };
 
@@ -4953,11 +5324,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     });
 
                     if (saveRes.ok) {
-                        const idx = articles.findIndex(x => x.id === id);
-                        if (idx >= 0) articles[idx] = autoPayload;
-                        else articles.unshift(autoPayload);
-                        renderAdminList();
                         try { localStorage.removeItem('article_editor_draft'); } catch(e) {}
+                        await refreshAdminArticles();
                         alert('✓ 标题翻译成功并已自动保存！');
                     } else {
                         alert('标题翻译成功已填入！自动保存失败，请稍后点击【保存发布】。');
@@ -5062,6 +5430,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 const curTag = document.getElementById('item-tag').value.trim() || 'AI';
                 const curViewsRaw = document.getElementById('item-views').value.trim();
                 const curCustomViews = parseInt(curViewsRaw, 10);
+                const curLikesRaw = document.getElementById('item-likes').value.trim();
+                const curCustomLikes = parseInt(curLikesRaw, 10);
                 const curContentZh = document.getElementById('item-content').value;
                 const curContentEn = document.getElementById('item-content-en').value;
 
@@ -5079,6 +5449,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     date: curCustomDate,
                     readTime: existing.readTime || '5 min read',
                     views: isNaN(curCustomViews) ? (typeof existing.views === 'number' ? existing.views : 1000) : curCustomViews,
+                    likes: isNaN(curCustomLikes) ? (typeof existing.likes === 'number' ? existing.likes : 0) : curCustomLikes,
                     summary: { zh: curTitleZh, en: curTitleEn }
                 };
 
@@ -5089,11 +5460,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 });
 
                 if (saveRes.ok) {
-                    const idx = articles.findIndex(x => x.id === id);
-                    if (idx >= 0) articles[idx] = autoPayload;
-                    else articles.unshift(autoPayload);
-                    renderAdminList();
                     try { localStorage.removeItem('article_editor_draft'); } catch(e) {}
+                    await refreshAdminArticles();
                     alert('✓ AI 翻译成功！文章（含标题与正文）已自动保存并重新加载到列表中。');
                 } else {
                     alert('AI 翻译完成，但自动保存失败，请检查后手动点击【保存发布】。');
@@ -5120,6 +5488,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             document.getElementById('item-date').value = new Date().toISOString().slice(0,7).replace('-', '.');
             document.getElementById('item-tag').value = 'AI Architecture';
             document.getElementById('item-views').value = '1000';
+            document.getElementById('item-likes').value = '0';
             document.getElementById('item-content').value = '<p>在这里撰写正文内容...</p>';
             document.getElementById('item-content-en').value = '';
             document.getElementById('item-is-bilingual').checked = false;
@@ -5151,6 +5520,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             document.getElementById('item-date').value = a.date || '';
             document.getElementById('item-tag').value = a.tag || '';
             document.getElementById('item-views').value = typeof a.views === 'number' ? a.views : (parseInt(a.views) || 0);
+            document.getElementById('item-likes').value = typeof a.likes === 'number' ? a.likes : (parseInt(a.likes) || 0);
             document.getElementById('item-content').value = contentZh;
             document.getElementById('item-content-en').value = contentEn;
             document.getElementById('item-is-bilingual').checked = isBilingual;
@@ -5182,6 +5552,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             const tag = document.getElementById('item-tag').value.trim();
             const customViewsRaw = document.getElementById('item-views').value.trim();
             const customViews = parseInt(customViewsRaw, 10);
+            const customLikesRaw = document.getElementById('item-likes').value.trim();
+            const customLikes = parseInt(customLikesRaw, 10);
             const contentZh = document.getElementById('item-content').value;
             const contentEn = document.getElementById('item-content-en').value;
             const isBilingual = document.getElementById('item-is-bilingual').checked;
@@ -5202,6 +5574,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 date: customDate || new Date().toISOString().slice(0,7).replace('-', '.'),
                 readTime: existing.readTime || '5 min read',
                 views: isNaN(customViews) ? (typeof existing.views === 'number' ? existing.views : 1000) : customViews,
+                likes: isNaN(customLikes) ? (typeof existing.likes === 'number' ? existing.likes : 0) : customLikes,
                 summary: { zh: titleZh, en: titleEn || titleZh }
             };
 
@@ -5212,13 +5585,10 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     body: JSON.stringify(payload)
                 });
                 if (res.ok) {
-                    const idx = articles.findIndex(x => x.id === id);
-                    if (idx >= 0) articles[idx] = payload;
-                    else articles.unshift(payload);
-                    renderAdminList();
                     try { localStorage.removeItem('article_editor_draft'); } catch(e) {}
                     closeModal();
                     alert('✓ 文章保存并发布成功！');
+                    await refreshAdminArticles();
                 } else {
                     const err = await res.json().catch(() => ({}));
                     alert('保存发布失败：' + (err.error || '权限或网络异常'));
@@ -5564,7 +5934,12 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 if (fm.views) {
                     document.getElementById('item-views').value = fm.views;
                 }
-                
+
+                // 4.5 Likes
+                if (fm.likes) {
+                    document.getElementById('item-likes').value = fm.likes;
+                }
+
                 // 5. Content
                 document.getElementById('item-content').value = result.html;
                 alert('🎉 外部文章【' + (title || file.name) + '】导入成功！已自动转换为标准排版格式。');
@@ -5733,7 +6108,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             }
         }
 
-        ['item-title', 'item-date', 'item-tag', 'item-views', 'item-content'].forEach(id => {
+        ['item-title', 'item-date', 'item-tag', 'item-views', 'item-likes', 'item-content'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', autoSaveArticleDraft);
         });
@@ -5743,6 +6118,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             setTimeout(openCreateModal, 200);
         }
 
+        applySortToLocalList();
+        populateSortControls();
         renderAdminList();
         renderAdminCommentsList();
         populateProfileForm();
@@ -5847,7 +6224,7 @@ export default {
 
     // 3. API: 获取文章列表 GET /api/articles
     if ((path === "/api/articles" || path === "/articles.json") && method === "GET") {
-      const items = await getArticlesWithViews(env);
+      const items = await getArticlesWithMetrics(env);
       return new Response(JSON.stringify(items, null, 2), {
         headers: {
           "Content-Type": "application/json;charset=UTF-8",
@@ -5880,6 +6257,61 @@ export default {
         await saveArticleViews(env, viewsMap);
         return new Response(JSON.stringify({ success: true, id: artId, views: currentViews }), {
           headers: { "Content-Type": "application/json;charset=UTF-8" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+
+    // 3.6. API: 文章点赞 POST /api/articles/like?id=...
+    if (path === "/api/articles/like" && method === "POST") {
+      const artId = url.searchParams.get("id");
+      if (!artId) {
+        return new Response(JSON.stringify({ error: "Missing id" }), { status: 400 });
+      }
+      try {
+        const likesMap = await getArticleLikes(env);
+        let currentLikes = likesMap[artId];
+        if (typeof currentLikes !== 'number') {
+          const allArts = await getArticles(env);
+          const found = allArts.find(a => a.id === artId);
+          if (!found) {
+            return new Response(JSON.stringify({ error: "Article not found" }), { status: 404 });
+          }
+          currentLikes = typeof found.likes === 'number'
+            ? found.likes
+            : (parseInt(String(found.likes || '0').replace(/[^0-9]/g, ''), 10) || 0);
+        }
+
+        // 同一访客对同一篇文章 7 天内只计一次，防止刷新刷赞
+        const clientIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "";
+        let alreadyLiked = false;
+        if (env && env.BLOG_KV && clientIp) {
+          const dedupKey = "LIKE_SEEN_" + artId + "_" + hashVisitorKey(clientIp);
+          try {
+            const seen = await env.BLOG_KV.get(dedupKey);
+            if (seen) {
+              alreadyLiked = true;
+            } else {
+              await env.BLOG_KV.put(dedupKey, "1", { expirationTtl: 604800 });
+            }
+          } catch (e) {
+            console.error("Like dedup error:", e);
+          }
+        }
+
+        if (!alreadyLiked) {
+          currentLikes += 1;
+          likesMap[artId] = currentLikes;
+          await saveArticleLikes(env, likesMap);
+        }
+
+        return new Response(JSON.stringify({ success: true, id: artId, likes: currentLikes, alreadyLiked: alreadyLiked }), {
+          headers: {
+            "Content-Type": "application/json;charset=UTF-8",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-store, no-cache, must-revalidate"
+          }
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
@@ -5942,6 +6374,13 @@ export default {
           await saveArticleViews(env, viewsMap);
         }
 
+        // 点赞数同样独立持久化，便于管理员随时修正
+        if (typeof newItem.likes === 'number') {
+          const likesMap = await getArticleLikes(env);
+          likesMap[newItem.id] = newItem.likes;
+          await saveArticleLikes(env, likesMap);
+        }
+
         return new Response(JSON.stringify({ success: true, article: newItem }), {
           headers: { "Content-Type": "application/json;charset=UTF-8" }
         });
@@ -5959,6 +6398,29 @@ export default {
       let items = await getArticles(env);
       items = items.filter(a => a.id !== deleteId);
       await saveArticles(env, items);
+
+      // 同步清理该文章遗留的浏览量、点赞数与访客去重标记，避免 KV 残留脏数据
+      if (deleteId) {
+        try {
+          const viewsMap = await getArticleViews(env);
+          if (viewsMap[deleteId] !== undefined) {
+            delete viewsMap[deleteId];
+            await saveArticleViews(env, viewsMap);
+          }
+        } catch (e) {
+          console.error("Cleanup views error:", e);
+        }
+        try {
+          const likesMap = await getArticleLikes(env);
+          if (likesMap[deleteId] !== undefined) {
+            delete likesMap[deleteId];
+            await saveArticleLikes(env, likesMap);
+          }
+        } catch (e) {
+          console.error("Cleanup likes error:", e);
+        }
+      }
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { "Content-Type": "application/json;charset=UTF-8" }
       });
@@ -6327,9 +6789,50 @@ export default {
       }
     }
 
+    // 10.9. API: 读取站点设置（文章排序方式）GET /api/settings
+    if (path === "/api/settings" && method === "GET") {
+      if (!await checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      const settings = await getBlogSettings(env);
+      return new Response(JSON.stringify(settings), {
+        headers: {
+          "Content-Type": "application/json;charset=UTF-8",
+          "Cache-Control": "no-store, no-cache, must-revalidate"
+        }
+      });
+    }
+
+    // 10.95. API: 保存站点设置（文章排序方式）POST /api/settings
+    if (path === "/api/settings" && method === "POST") {
+      if (!await checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      try {
+        const body = await request.json();
+        const current = await getBlogSettings(env);
+        const next = Object.assign({}, current);
+        if (body && body.articleSort) {
+          const incoming = body.articleSort;
+          next.articleSort = normalizeSortConfig({
+            articleSort: {
+              field: ARTICLE_SORT_FIELDS.includes(incoming.field) ? incoming.field : current.articleSort.field,
+              order: incoming.order === "asc" ? "asc" : (incoming.order === "desc" ? "desc" : current.articleSort.order)
+            }
+          });
+        }
+        await saveBlogSettings(env, next);
+        return new Response(JSON.stringify({ success: true, settings: next }), {
+          headers: { "Content-Type": "application/json;charset=UTF-8" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+
     // 11. 独立文章列表页面 GET /articles 或 /blog
     if (path === "/articles" || path === "/blog") {
-      const items = await getArticlesWithViews(env);
+      const items = await getArticlesWithMetrics(env);
       const prof = await getProfile(env);
       return new Response(renderArticlesPageHtml(JSON.stringify(items), prof.rewardQrCode), {
         headers: {
@@ -6417,11 +6920,12 @@ export default {
           } catch(e) {}
         }
       }
-      const items = await getArticlesWithViews(env);
+      const items = await getArticlesWithMetrics(env);
       const commentsData = await getCommentsWithAutoExpiry(env);
       const prof = await getProfile(env);
+      const settings = await getBlogSettings(env);
       const hasKv = Boolean(env && env.BLOG_KV);
-      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv, activeToken), {
+      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv, activeToken, JSON.stringify(settings)), {
         headers: { 
           "Content-Type": "text/html;charset=UTF-8",
           "Cache-Control": "no-store, no-cache, must-revalidate",

@@ -37,6 +37,9 @@ Everything—frontend pages, an interactive guestbook, an authenticated bilingua
   - Independent articles view (`/articles`) and interactive article reader.
   - Automatic view counts tracking (`👁️ Views`) with live increments.
   - **Editable View Counts**: Admins can freely set or adjust baseline view counts in the editor.
+  - **Reader Likes**: A one-click 👍 button on every article, with visitor de-duplication and server-side rate limiting to prevent refresh-spamming.
+  - **Editable Like Counts**: Admins can set or correct like counts directly in the article editor.
+  - **Configurable Article Ordering**: Admins choose how the public list is sorted — by publish date, views, or likes, in ascending or descending order.
   - **1-Click Shareable Link**: Generates an instant share link copied to clipboard.
 - **📥 Cross-Platform Article Import**:
   - One-click import for external `.md` (Markdown) files from **WeChat Official Account, Zhihu, Obsidian, Notion, GitHub**.
@@ -132,6 +135,9 @@ npm run deploy
   - 独立文章索引页（`/articles`）与单篇沉浸阅读模式。
   - **真实阅读量统计（Views）**：读者阅读自动递增。
   - **自由修改浏览量**：管理员发布或编辑文章时，可自由设定初始基数或修正浏览量。
+  - **读者点赞互动**：每篇文章内置 👍 点赞按钮，带访客去重与服务端限流，杜绝刷新刷赞。
+  - **自由修改点赞数**：管理员可在文章编辑器中直接设定或修正点赞数。
+  - **可配置文章排序**：管理员可自由选择按发布时间、浏览量或点赞数排列，并支持升序 / 降序。
   - **一键分享链接**：一键生成分发链接并复制到剪贴板。
 - **📥 跨平台文章一键导入**：
   - 支持从 **微信公众号、知乎、Obsidian、Notion、掘金、GitHub** 导出的 `.md`（Markdown）文件一键导入。
