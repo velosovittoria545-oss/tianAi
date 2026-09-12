@@ -11,3 +11,7 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
+
+# AI 助手工作区（本地记忆与开发脚本，不纳入版本控制）
+.freebuff/
+.workbuddy-ai/
