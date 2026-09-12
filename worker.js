@@ -1191,24 +1191,149 @@ async function getUploadedImage(env, imgId) {
   return null;
 }
 
-function extractRequestToken(request) {
-  let token = "";
-  const authHeader = request.headers.get("Authorization") || "";
-  if (authHeader.startsWith("Bearer ")) {
-    token = authHeader.slice(7).trim();
-  }
-  if (!token) {
+/* ============================================================================
+ * 会话：无状态 HMAC 签名令牌
+ *
+ * 令牌 = base64url(iat.exp.ver) + "." + base64url(HMAC-SHA256(载荷, 密钥))
+ * 鉴权只验签名与有效期，**完全不读写 KV**——避免鉴权把 KV 免费版每日写额度烧光。
+ * 代价：服务端不再记录 lastActive，因此用「绝对有效期 30 分钟」替代原来的「2 分钟不活跃超时」。
+ * 吊销：KV 里存一个只读整数 ADMIN_SESSION_VER，令牌带 ver；不匹配即失效。
+ *       读额度（10 万/天）远宽于写额度（1 千/天），所以只读版本号是划算的。
+ * ========================================================================== */
+
+const SESSION_COOKIE = "tianai_session";
+const SESSION_FLAG_COOKIE = "tianai_admin";
+const SESSION_TTL_SEC = 30 * 60;              // 会话绝对有效期：30 分钟
+const SESSION_VER_KEY = "ADMIN_SESSION_VER";  // 只读版本号，改大即可吊销全部会话
+const SESSION_VER_DEFAULT = "1";
+const SESSION_CLOCK_SKEW_SEC = 60;
+
+// 签名密钥：优先独立的 SESSION_SECRET；否则退化为「密码派生」；都没有则用固定串（仅本地开发）
+function getSessionSecret(env) {
+  const s = (env && env.SESSION_SECRET) ? String(env.SESSION_SECRET) : "";
+  if (s) return s;
+  const p = getAdminPassword(env);
+  if (p) return "pw-derived:" + p;
+  return "tianai-insecure-local-dev-only";
+}
+
+function b64urlEncode(bytes) {
+  const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let bin = "";
+  for (let i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function b64urlDecodeToBytes(str) {
+  const pad = str.length % 4 === 0 ? "" : "=".repeat(4 - (str.length % 4));
+  const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/") + pad);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function b64urlDecodeToString(str) {
+  return new TextDecoder().decode(b64urlDecodeToBytes(str));
+}
+
+async function importHmacKey(secret) {
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"]
+  );
+}
+
+async function getSessionVersion(env) {
+  if (env && env.BLOG_KV) {
     try {
-      const url = new URL(request.url);
-      token = url.searchParams.get("auth_token") || url.searchParams.get("token") || "";
-    } catch(e) {}
+      const raw = await env.BLOG_KV.get(SESSION_VER_KEY);
+      if (raw !== null && raw !== undefined && String(raw).trim() !== "") return String(raw).trim();
+    } catch (e) {
+      console.error("Session version read error:", e);
+    }
   }
-  if (!token) {
-    const cookieHeader = request.headers.get("Cookie") || "";
-    const match = cookieHeader.match(/tianai_session=([^;]+)/);
-    if (match) token = match[1].trim();
+  return SESSION_VER_DEFAULT;
+}
+
+async function signSessionToken(env, ver) {
+  const iat = Math.floor(Date.now() / 1000);
+  const exp = iat + SESSION_TTL_SEC;
+  const payload = b64urlEncode(new TextEncoder().encode(iat + "." + exp + "." + ver));
+  const sig = await crypto.subtle.sign(
+    "HMAC",
+    await importHmacKey(getSessionSecret(env)),
+    new TextEncoder().encode(payload)
+  );
+  return payload + "." + b64urlEncode(sig);
+}
+
+async function verifySessionToken(env, token) {
+  if (!token || typeof token !== "string") return false;
+  const dot = token.indexOf(".");
+  if (dot <= 0 || dot >= token.length - 1) return false;
+  const payload = token.slice(0, dot);
+
+  let sig;
+  try { sig = b64urlDecodeToBytes(token.slice(dot + 1)); } catch (e) { return false; }
+
+  try {
+    // crypto.subtle.verify 内部为常数时间比较，避免签名比对的计时侧信道
+    const ok = await crypto.subtle.verify(
+      "HMAC",
+      await importHmacKey(getSessionSecret(env)),
+      sig,
+      new TextEncoder().encode(payload)
+    );
+    if (!ok) return false;
+  } catch (e) {
+    return false;
   }
-  return token;
+
+  let iat, exp, ver;
+  try {
+    const parts = b64urlDecodeToString(payload).split(".");
+    if (parts.length !== 3) return false;
+    iat = parseInt(parts[0], 10);
+    exp = parseInt(parts[1], 10);
+    ver = parts[2];
+  } catch (e) {
+    return false;
+  }
+  if (!Number.isFinite(iat) || !Number.isFinite(exp)) return false;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (now > exp) return false;                                            // 绝对有效期到点
+  if (iat > now + SESSION_CLOCK_SKEW_SEC) return false;                   // 签发时间落在未来
+  if (exp - iat > SESSION_TTL_SEC + SESSION_CLOCK_SKEW_SEC) return false; // 有效期跨度不得超过配置上限
+  if (now - iat > SESSION_TTL_SEC + SESSION_CLOCK_SKEW_SEC) return false; // 令牌年龄不得超过配置上限
+
+  if (String(ver) !== await getSessionVersion(env)) return false;         // 版本号不匹配 ⇒ 已吊销
+  return true;
+}
+
+function buildSessionCookie(token) {
+  return SESSION_COOKIE + "=" + token + "; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=" + SESSION_TTL_SEC;
+}
+
+// 这个 cookie 不含任何凭据，只用来让前台判断是否显示「管理员」浮标，故故意不加 HttpOnly
+function buildAdminFlagCookie() {
+  return SESSION_FLAG_COOKIE + "=1; Path=/; Secure; SameSite=Strict; Max-Age=" + SESSION_TTL_SEC;
+}
+
+function buildClearCookie(name, httpOnly) {
+  return name + "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Secure; SameSite=Strict"
+    + (httpOnly ? "; HttpOnly" : "");
+}
+
+// 会话令牌只从 cookie 读取。不再接受 Authorization 头与 URL 参数：
+// 那两条路径会让令牌进入浏览器历史、Referer 头与中间代理日志。
+function extractRequestToken(request) {
+  const cookieHeader = request.headers.get("Cookie") || "";
+  const match = cookieHeader.match(/(?:^|;\s*)tianai_session=([^;]*)/);
+  return match ? match[1].trim() : "";
 }
 
 async function checkAuth(request, env) {
@@ -1219,36 +1344,28 @@ async function checkAuth(request, env) {
     return true;
   }
 
-  const token = extractRequestToken(request);
-  if (!token) return false;
-
-  // 独立会话隔离校验：每个 Token 在 KV 中拥有唯一的 ADMIN_SESS_<token> 键
-  if (env && env.BLOG_KV) {
-    try {
-      const sessKey = "ADMIN_SESS_" + token;
-      const sess = await env.BLOG_KV.get(sessKey, "json");
-      if (!sess) return false;
-
-      // 服务端 2 分钟无操作超时强校验（120 秒）
-      const INACTIVITY_LIMIT_MS = 2 * 60 * 1000;
-      if (Date.now() - sess.lastActive > INACTIVITY_LIMIT_MS) {
-        await env.BLOG_KV.delete(sessKey);
-        return false;
-      }
-      // 活跃时间戳续期
-      sess.lastActive = Date.now();
-      await env.BLOG_KV.put(sessKey, JSON.stringify(sess), { expirationTtl: 86400 });
-      return true;
-    } catch(e) {
-      console.error("Auth session check error:", e);
-    }
-  }
-
-  return false;
+  // 2. 无状态签名令牌：只验签名与有效期，不读写 KV
+  return await verifySessionToken(env, extractRequestToken(request));
 }
 
-function generateSessionToken() {
-  return "sess_" + Date.now() + "_" + Math.random().toString(36).substring(2, 12);
+/* CSRF：改用纯 cookie 认证后浏览器会自动带上凭据，因此写操作必须校验 Origin。
+ * 同源放行；localhost / 127.0.0.1 放行（本地开发）。
+ * 没有 Origin 头的是非浏览器客户端（curl、脚本），不存在被 CSRF 利用的场景，放行。 */
+function isWriteOriginAllowed(request) {
+  const origin = request.headers.get("Origin");
+  if (!origin) return true;
+  let originHost;
+  try {
+    originHost = new URL(origin).hostname.toLowerCase();
+  } catch (e) {
+    return false;
+  }
+  let selfHost = "";
+  try {
+    selfHost = new URL(request.url).hostname.toLowerCase();
+  } catch (e) {}
+  if (selfHost && originHost === selfHost) return true;
+  return originHost === "localhost" || originHost === "127.0.0.1" || originHost === "::1";
 }
 
 // 通用极简 CSS
@@ -2519,8 +2636,9 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
     </script>
     <script>
         (function() {
-            const token = localStorage.getItem('tianai_token');
-            if (token) {
+            // 会话 cookie 是 HttpOnly，JS 读不到；改用不含任何凭据的标记 cookie 判断是否显示管理浮标
+            const isAdmin = document.cookie.split('; ').indexOf('tianai_admin=1') !== -1;
+            if (isAdmin) {
                 const bar = document.createElement('div');
                 bar.id = 'admin-floating-badge';
                 bar.style.cssText = 'position:fixed; bottom:24px; right:24px; background:#191919; color:#ffffff; padding:8px 16px; border-radius:30px; font-size:0.84rem; box-shadow:0 4px 20px rgba(0,0,0,0.25); z-index:9999; display:flex; align-items:center; gap:12px; font-family:var(--font-sans); border:1px solid rgba(255,255,255,0.15);';
@@ -2530,13 +2648,12 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
         })();
 
         async function quickLogout() {
-            const token = localStorage.getItem('tianai_token') || '';
             try {
-                await fetch('/api/logout?token=' + encodeURIComponent(token), { method: 'POST', credentials: 'include' });
+                await fetch('/api/logout', { method: 'POST', credentials: 'include' });
             } catch(e) {}
             try { localStorage.removeItem('tianai_token'); } catch(e) {}
-            try { sessionStorage.clear(); } catch(e) {}
-            document.cookie = "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Secure; SameSite=Lax";
+            try { sessionStorage.removeItem('tianai_token'); } catch(e) {}
+            document.cookie = "tianai_admin=; Path=/; Max-Age=0; Secure; SameSite=Strict";
             window.location.reload();
         }
     </script>
@@ -4165,13 +4282,9 @@ function renderAdminLoginHtml() {
                     body: JSON.stringify({ username: u, password: p })
                 });
                 const data = await res.json();
-                if (data.success && data.token) {
-                    try {
-                        localStorage.setItem('tianai_token', data.token);
-                        sessionStorage.setItem('tianai_token', data.token);
-                    } catch(e) {}
-                    document.cookie = "tianai_session=" + data.token + "; Path=/; Max-Age=604800; Secure; SameSite=Lax";
-                    window.location.href = '/admin?auth_token=' + encodeURIComponent(data.token);
+                if (data.success) {
+                    // 令牌已由服务端写入 HttpOnly cookie，前端不接触它，直接跳转即可
+                    window.location.href = '/admin';
                 } else {
                     err.style.display = 'block';
                     err.innerText = d.errAuth;
@@ -4186,10 +4299,10 @@ function renderAdminLoginHtml() {
             }
         }
 
-        // 无论何种情况，登录页均主动清理过期凭证，不自动回跳
+        // 登录页主动清理历史遗留的本地令牌（旧版本会把 token 存在这两个地方）
         try {
             localStorage.removeItem('tianai_token');
-            sessionStorage.clear();
+            sessionStorage.removeItem('tianai_token');
         } catch(e) {}
     </script>
 </body>
@@ -4199,7 +4312,7 @@ function renderAdminLoginHtml() {
 /**
  * 5. 管理后台 CMS 主界面 HTML (/admin 登录后)
  */
-function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, token = '', settingsJson = '{}') {
+function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, settingsJson = '{}') {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -4702,54 +4815,21 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
     </div>
 
     <script>
-        // 1. 同步管理会话令牌
-        const currentToken = '${token}';
-        if (currentToken) {
-            try {
-                localStorage.setItem('tianai_token', currentToken);
-                sessionStorage.setItem('tianai_token', currentToken);
-            } catch(e) {}
-            document.cookie = "tianai_session=" + currentToken + "; Path=/; Max-Age=604800; Secure; SameSite=Lax";
-        }
+        // 1. 会话凭据只存在于 HttpOnly cookie 里，前端既拿不到也不需要拿到。
+        //    刷新页面后由服务端 checkAuth 判定是否仍处于登录态。
 
-        // 清理 URL 参数，保持地址栏干净整洁
-        if (window.location.search.includes('auth_token=')) {
-            window.history.replaceState({}, document.title, '/admin');
-        }
-
-        // 2. 2分钟无操作自动安全登出机制 + 用户操作时自动轻量心跳续期
+        // 2. 无操作自动安全登出（与服务端 30 分钟绝对有效期配套，作为第二道保险）
         let inactivityTimer = null;
-        let lastUserActionTime = Date.now();
-        let lastKeepaliveTime = 0;
-        const INACTIVITY_MS = 2 * 60 * 1000; // 2 分钟 (120,000ms)
-        const KEEPALIVE_THROTTLE_MS = 30 * 1000; // 用户在操作时每 30 秒向服务端同步一次心跳
+        const INACTIVITY_MS = 30 * 60 * 1000; // 30 分钟
 
         function onUserInteraction() {
-            lastUserActionTime = Date.now();
             resetInactivityTimer();
-            const now = Date.now();
-            if (now - lastKeepaliveTime > KEEPALIVE_THROTTLE_MS) {
-                lastKeepaliveTime = now;
-                sendKeepalive();
-            }
-        }
-
-        async function sendKeepalive() {
-            try {
-                const tok = localStorage.getItem('tianai_token') || currentToken || '';
-                if (!tok) return;
-                await fetch('/api/auth/keepalive', {
-                    method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
-                    credentials: 'include'
-                });
-            } catch(e) {}
         }
 
         function resetInactivityTimer() {
             if (inactivityTimer) clearTimeout(inactivityTimer);
             inactivityTimer = setTimeout(async () => {
-                alert('您已超过 2 分钟未进行任何操作，系统已自动安全登出以保障账户安全。');
+                alert('您已超过 30 分钟未进行任何操作，系统已自动安全登出以保障账户安全。');
                 await handleLogout();
             }, INACTIVITY_MS);
         }
@@ -4759,15 +4839,10 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
         });
         resetInactivityTimer();
 
-        // 3. 通用安全请求封装（自动附加 Bearer Token 与凭据）
+        // 3. 通用安全请求封装（凭据由浏览器自动携带 cookie，无需附加任何自定义头）
         async function adminFetch(url, options = {}) {
             resetInactivityTimer();
-            const tok = localStorage.getItem('tianai_token') || currentToken || '';
             options.credentials = 'include';
-            options.headers = {
-                ...(options.headers || {}),
-                'Authorization': 'Bearer ' + tok
-            };
             const res = await fetch(url, options);
             if (res.status === 401) {
                 alert('管理员登录凭证失效或已超时，请重新登录。');
@@ -4775,6 +4850,19 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 throw new Error('Unauthorized');
             }
             return res;
+        }
+
+        // 失败时把服务端的真实原因摊开给管理员看。以前只提示「操作失败」，
+        // 让人误以为是隐藏按钮坏了，其实常常是 KV 每日写入配额耗尽。
+        function describeAdminError(err, prefix) {
+            const t = cmsI18n[currentCmsLang] || cmsI18n.zh;
+            const fallback = currentCmsLang === 'en' ? 'Operation failed, please retry' : '操作失败，请重试';
+            const detail = (err && err.error) ? String(err.error) : '';
+            let msg = (prefix ? prefix + '：' : '✗ ') + (detail || fallback);
+            if (/limit exceeded|usage limit|10048/i.test(detail)) {
+                msg += '\\n\\n' + t.kvQuotaHint;
+            }
+            return msg;
         }
 
         let articles = ${articlesJson};
@@ -4893,7 +4981,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 hideConfirm: "确定要隐藏这篇文章吗？隐藏后公开列表页不再展示，访客也无法通过链接打开。",
                 showConfirm: "确定要恢复展示这篇文章吗？",
                 hideDone: "✓ 文章已隐藏，公开列表不再展示",
-                showDone: "✓ 文章已恢复展示"
+                showDone: "✓ 文章已恢复展示",
+                kvQuotaHint: "原因：云端 KV 的每日写入配额已用尽（免费版 1000 次/天），所有保存类操作都会失败。请等配额重置（UTC 00:00，即太平洋时间 17:00）后再试；本站只有在写文章、切隐藏、审核留言时才写 KV，重置后不会立即再次耗尽。"
             },
             en: {
                 cmsTitle: "Website Console",
@@ -4932,7 +5021,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 hideConfirm: "Hide this article? It will no longer appear in the public list, and visitors will not be able to open it via a direct link.",
                 showConfirm: "Restore this article to public view?",
                 hideDone: "✓ Article hidden from the public list",
-                showDone: "✓ Article is public again"
+                showDone: "✓ Article is public again",
+                kvQuotaHint: "Cause: the daily Cloudflare KV write quota (1,000/day on the free plan) is used up, so every save-style action fails. Please retry after the quota resets at 00:00 UTC. This site only writes to KV when publishing, toggling visibility, or moderating comments, so it should not run out again immediately."
             }
         };
 
@@ -5328,6 +5418,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     const existing = articles.find(x => x.id === id) || {};
                     const autoPayload = {
                         id: id,
+                        // 自动保存同样保留隐藏状态，翻译不会让文章「偷偷上线」
+                        hidden: existing.hidden === true,
                         title_zh: curTitleZh,
                         title_en: curTitleEn,
                         content_zh: curContentZh,
@@ -5589,6 +5681,8 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             const existing = articles.find(x => x.id === id) || {};
             const payload = {
                 id: id,
+                // 编辑表单里没有隐藏开关，但必须原样带回，否则保存会把隐藏文章重新公开
+                hidden: existing.hidden === true,
                 title_zh: titleZh,
                 title_en: titleEn,
                 content_zh: contentZh,
@@ -5617,7 +5711,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     await refreshAdminArticles();
                 } else {
                     const err = await res.json().catch(() => ({}));
-                    alert('保存发布失败：' + (err.error || '权限或网络异常'));
+                    alert(describeAdminError(err, currentCmsLang === 'en' ? 'Save failed' : '保存发布失败'));
                 }
             } catch(ex) {
                 console.error(ex);
@@ -5660,7 +5754,9 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     await refreshAdminArticles();
                     alert(nextHidden ? t.hideDone : t.showDone);
                 } else {
-                    alert(currentCmsLang === 'en' ? '✗ Operation failed, please retry' : '✗ 操作失败，请重试');
+                    let err = null;
+                    try { err = await res.json(); } catch(e) {}
+                    alert(describeAdminError(err));
                 }
             } catch(e) {
                 console.error(e);
@@ -5669,26 +5765,17 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
 
         async function handleLogout() {
             if (inactivityTimer) clearTimeout(inactivityTimer);
-            const tok = localStorage.getItem('tianai_token') || currentToken || '';
 
             try {
-                await fetch('/api/logout?token=' + encodeURIComponent(tok), { 
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + tok
-                    },
-                    body: JSON.stringify({ token: tok }),
-                    credentials: 'include'
-                });
+                // 由服务端下发清除 cookie 的响应头；前端无法也不该直接改会话 cookie
+                await fetch('/api/logout', { method: 'POST', credentials: 'include' });
             } catch(e) {
                 console.error("Logout error:", e);
             }
 
             try { localStorage.removeItem('tianai_token'); } catch(e) {}
-            try { sessionStorage.clear(); } catch(e) {}
-            document.cookie = "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Secure; SameSite=Lax";
-            window.location.replace('/admin?logout=true&token=' + encodeURIComponent(tok));
+            try { sessionStorage.removeItem('tianai_token'); } catch(e) {}
+            window.location.replace('/admin');
         }
 
         let localExperiences = [];
@@ -6194,6 +6281,14 @@ export default {
     const path = url.pathname;
     const method = request.method;
 
+    // CSRF 防护：所有写操作校验 Origin（同源与本地开发放行，无 Origin 的非浏览器客户端放行）
+    if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && !isWriteOriginAllowed(request)) {
+      return new Response(JSON.stringify({ error: "跨站请求被拒绝" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json;charset=UTF-8" }
+      });
+    }
+
     // 1. API: 登录 POST /api/login
     if (path === "/api/login" && method === "POST") {
       try {
@@ -6207,20 +6302,15 @@ export default {
         // 宽容适配：用户名支持 'admin'、配置用户名及管理员邮箱（不区分大小写）
         const userMatches = (inputUser === configuredUser || inputUser === configuredEmail || inputUser === "admin");
         if (userMatches && inputPass === configuredPass) {
-          const token = generateSessionToken();
-          if (env && env.BLOG_KV) {
-            await env.BLOG_KV.put("ADMIN_SESS_" + token, JSON.stringify({
-              token: token,
-              createdAt: Date.now(),
-              lastActive: Date.now()
-            }), { expirationTtl: 86400 });
-          }
-          return new Response(JSON.stringify({ success: true, token }), {
-            headers: {
-              "Content-Type": "application/json;charset=UTF-8",
-              "Set-Cookie": "tianai_session=" + token + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400"
-            }
+          // 无状态签名令牌：只放进 HttpOnly cookie，响应体不再回传 token（避免被 JS 读取）
+          const token = await signSessionToken(env, await getSessionVersion(env));
+          const headers = new Headers({
+            "Content-Type": "application/json;charset=UTF-8",
+            "Cache-Control": "no-store, no-cache, must-revalidate"
           });
+          headers.append("Set-Cookie", buildSessionCookie(token));
+          headers.append("Set-Cookie", buildAdminFlagCookie());
+          return new Response(JSON.stringify({ success: true, expiresIn: SESSION_TTL_SEC }), { headers });
         }
         return new Response(JSON.stringify({ success: false, error: "用户名或密码错误，请核对后重试。" }), {
           status: 401,
@@ -6231,47 +6321,16 @@ export default {
       }
     }
 
-    // 1.5 API: 会话活跃保活 POST /api/auth/keepalive
-    if (path === "/api/auth/keepalive" && (method === "POST" || method === "GET")) {
-      if (!await checkAuth(request, env)) {
-        return new Response(JSON.stringify({ error: "Session expired or invalid" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json;charset=UTF-8" }
-        });
-      }
-      return new Response(JSON.stringify({ success: true, refreshed: true }), {
-        headers: { "Content-Type": "application/json;charset=UTF-8" }
-      });
-    }
-
     // 2. API: 登出 POST/GET /api/logout
+    // 无状态会话没有服务端记录可删，登出 = 让浏览器丢掉 cookie
     if (path === "/api/logout" && (method === "POST" || method === "GET")) {
-      let token = extractRequestToken(request);
-      if (!token) {
-        try {
-          const urlObj = new URL(request.url);
-          token = urlObj.searchParams.get("token") || urlObj.searchParams.get("auth_token") || "";
-        } catch(e) {}
-      }
-      if (!token && method === "POST") {
-        try {
-          const body = await request.clone().json();
-          if (body && body.token) token = body.token;
-        } catch(e) {}
-      }
-      if (token && env && env.BLOG_KV) {
-        try { await env.BLOG_KV.delete("ADMIN_SESS_" + token); } catch(e) {}
-      }
-      if (env && env.BLOG_KV) {
-        try { await env.BLOG_KV.delete("ADMIN_SESSION"); } catch(e) {}
-      }
-      return new Response(JSON.stringify({ success: true, deletedToken: token }), {
-        headers: {
-          "Content-Type": "application/json;charset=UTF-8",
-          "Set-Cookie": "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=Lax",
-          "Cache-Control": "no-store, no-cache, must-revalidate"
-        }
+      const headers = new Headers({
+        "Content-Type": "application/json;charset=UTF-8",
+        "Cache-Control": "no-store, no-cache, must-revalidate"
       });
+      headers.append("Set-Cookie", buildClearCookie(SESSION_COOKIE, true));
+      headers.append("Set-Cookie", buildClearCookie(SESSION_FLAG_COOKIE, false));
+      return new Response(JSON.stringify({ success: true }), { headers });
     }
 
     // 3. API: 获取文章列表 GET /api/articles
@@ -6448,8 +6507,16 @@ export default {
         const newItem = normalizeArticle(rawItem);
         let items = await getArticles(env);
         const idx = items.findIndex(a => a.id === newItem.id);
-        if (idx >= 0) items[idx] = newItem;
-        else items.unshift(newItem);
+        if (idx >= 0) {
+          // 隐藏开关只由 /api/articles/hide 维护：保存正文时若前端没有显式携带 hidden，
+          // 必须沿用服务端已存的状态，否则一次编辑（或 AI 翻译自动保存）就会把隐藏文章重新公开。
+          const keepsStoredHidden = !Object.prototype.hasOwnProperty.call(rawItem, "hidden");
+          items[idx] = keepsStoredHidden
+            ? Object.assign({}, newItem, { hidden: items[idx].hidden === true })
+            : newItem;
+        } else {
+          items.unshift(newItem);
+        }
         await saveArticles(env, items);
 
         // Also persist views in viewsMap
@@ -6965,25 +7032,15 @@ export default {
 
     // 13. 管理后台 GET /admin (未登录显示登录页面，已登录显示 CMS)
     if (path === "/admin") {
-      const isLogout = url.searchParams.get("logout") === "true";
-      if (isLogout) {
-        let token = extractRequestToken(request);
-        if (!token) {
-          token = url.searchParams.get("token") || url.searchParams.get("auth_token") || "";
-        }
-        if (token && env && env.BLOG_KV) {
-          try { await env.BLOG_KV.delete("ADMIN_SESS_" + token); } catch(e) {}
-        }
-        if (env && env.BLOG_KV) {
-          try { await env.BLOG_KV.delete("ADMIN_SESSION"); } catch(e) {}
-        }
-        return new Response(renderAdminLoginHtml(), {
-          headers: { 
-            "Content-Type": "text/html;charset=UTF-8",
-            "Cache-Control": "no-store, no-cache, must-revalidate",
-            "Set-Cookie": "tianai_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
-          }
+      if (url.searchParams.get("logout") === "true") {
+        // 无状态会话：登出只需让浏览器丢掉 cookie，没有服务端记录要删
+        const headers = new Headers({
+          "Content-Type": "text/html;charset=UTF-8",
+          "Cache-Control": "no-store, no-cache, must-revalidate"
         });
+        headers.append("Set-Cookie", buildClearCookie(SESSION_COOKIE, true));
+        headers.append("Set-Cookie", buildClearCookie(SESSION_FLAG_COOKIE, false));
+        return new Response(renderAdminLoginHtml(), { headers });
       }
       const isAuthed = await checkAuth(request, env);
       if (!isAuthed) {
@@ -6994,29 +7051,16 @@ export default {
           }
         });
       }
-      let activeToken = extractRequestToken(request);
-      if (!activeToken) {
-        activeToken = generateSessionToken();
-        if (env && env.BLOG_KV) {
-          try {
-            await env.BLOG_KV.put("ADMIN_SESS_" + activeToken, JSON.stringify({
-              token: activeToken,
-              createdAt: Date.now(),
-              lastActive: Date.now()
-            }), { expirationTtl: 86400 });
-          } catch(e) {}
-        }
-      }
       const items = await getArticlesWithMetrics(env);
       const commentsData = await getCommentsWithAutoExpiry(env);
       const prof = await getProfile(env);
       const settings = await getBlogSettings(env);
       const hasKv = Boolean(env && env.BLOG_KV);
-      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv, activeToken, JSON.stringify(settings)), {
+      // 不再下发任何 cookie：令牌本来就只存在于 HttpOnly cookie 里，页面无需知道它
+      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv, JSON.stringify(settings)), {
         headers: { 
           "Content-Type": "text/html;charset=UTF-8",
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-          "Set-Cookie": "tianai_session=" + activeToken + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400"
+          "Cache-Control": "no-store, no-cache, must-revalidate"
         }
       });
     }
