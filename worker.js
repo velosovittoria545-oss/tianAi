@@ -1560,6 +1560,9 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 if (!isNaN(n)) return n.toLocaleString();
                 return v;
             }
+            return '0';
+        }
+
         function switchArticleLang(lang) {
             try { localStorage.setItem('preferredLang', lang); } catch(e) {}
             const art = ARTICLES.find(a => a.id === currentArticleId);
