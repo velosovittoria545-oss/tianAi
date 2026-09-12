@@ -1295,6 +1295,33 @@ const COMMON_CSS = `
         padding: 10px 12px;
         margin-top: 10px;
     }
+    .top-actions-bar {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    .lang-switch-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        padding: 4px 14px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 0.84rem;
+        font-family: var(--font-sans);
+        font-weight: 500;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .lang-switch-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(204, 120, 92, 0.06);
+    }
 `;
 
 /**
@@ -1445,21 +1472,22 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
 <body>
     <div class="container">
         <div class="top-nav-bar">
-            <a href="/" class="back-btn">← 返回主页</a>
-            <div style="display: flex; gap: 16px; align-items: center;">
-                <a href="/guestbook" style="font-size: 0.88rem; color: var(--accent); text-decoration: underline;">留言板</a>
-                <a href="/admin" class="admin-link">[管理员登录]</a>
+            <a href="/" class="back-btn" id="art-back-btn">← 返回主页</a>
+            <div style="display: flex; gap: 14px; align-items: center;">
+                <a href="/guestbook" id="art-nav-guestbook" style="font-size: 0.88rem; color: var(--accent); text-decoration: underline;">留言板</a>
+                <a href="/admin" id="art-nav-admin" class="admin-link">[管理员登录]</a>
+                <button type="button" class="lang-switch-btn" onclick="toggleGlobalLang()" id="btn-lang-toggle">English</button>
             </div>
         </div>
 
         <header class="page-header">
-            <h1 class="page-title">文章</h1>
-            <p class="page-subtitle">维托里奥 崔的技术随笔、架构实践与前沿思考</p>
+            <h1 class="page-title" id="art-page-title">文章</h1>
+            <p class="page-subtitle" id="art-page-subtitle">维托里奥 崔的技术随笔、架构实践与前沿思考</p>
         </header>
 
         <!-- 单篇阅读器 -->
         <div id="reader-view">
-            <span class="reader-close-btn" onclick="closeReader()">← 返回文章列表</span>
+            <span class="reader-close-btn" id="art-close-reader-btn" onclick="closeReader()">← 返回文章列表</span>
             <h1 class="reader-article-title" id="reader-title"></h1>
             <div id="article-lang-switcher" class="article-lang-switch" style="display:none;">
                 <button type="button" id="lang-btn-zh" class="lang-btn active" onclick="switchArticleLang('zh')">中文</button>
@@ -1483,24 +1511,24 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
 
             <!-- 读者赞赏打赏区域 -->
             <div id="reward-section" style="margin-top: 36px; padding: 22px 20px; background: var(--bg-subtle); border: 1px dashed var(--border); border-radius: 6px; text-align: center;">
-                <div style="font-family: var(--font-serif); font-size: 1.15rem; font-weight: 500; color: var(--text-main); margin-bottom: 6px;">
+                <div id="reward-title-text" style="font-family: var(--font-serif); font-size: 1.15rem; font-weight: 500; color: var(--text-main); margin-bottom: 6px;">
                     ☕ 觉得有启发？欢迎打赏支持作者
                 </div>
-                <div style="font-size: 0.84rem; color: var(--text-light); margin-bottom: 16px;">
+                <div id="reward-sub-text" style="font-size: 0.84rem; color: var(--text-light); margin-bottom: 16px;">
                     如果本文对您的架构设计或工程实践有所帮助，欢迎微信扫码赞赏，感谢您的支持与鼓励！
                 </div>
                 <div style="display: inline-block; padding: 12px; background: #ffffff; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
                     <img src="${activeRewardQr}" alt="微信赞赏码 / Reward QR Code" style="width: 175px; height: 175px; display: block; object-fit: contain; border-radius: 4px;" />
-                    <div style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;">微信扫一扫 · 赞赏码</div>
+                    <div id="reward-scan-text" style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;">微信扫一扫 · 赞赏码</div>
                 </div>
             </div>
 
             <!-- 读者留言板 -->
             <div id="comments-section" style="margin-top: 36px; padding-top: 24px; border-top: 1px dashed var(--border);">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
-                    <h3 style="font-family: var(--font-serif); font-size: 1.25rem; font-weight: 500; color: var(--text-main); margin: 0;">💬 读者留言 (<span id="comments-count">0</span>)</h3>
+                    <h3 style="font-family: var(--font-serif); font-size: 1.25rem; font-weight: 500; color: var(--text-main); margin: 0;"><span id="comments-head-title">💬 读者留言</span> (<span id="comments-count">0</span>)</h3>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 0.78rem; color: var(--text-light);">排序：</span>
+                        <span id="art-sort-label" style="font-size: 0.78rem; color: var(--text-light);">排序：</span>
                         <button type="button" id="art-sort-desc-btn" class="sort-tab-btn active" onclick="switchArtSortOrder('desc')">▼ 最新优先</button>
                         <button type="button" id="art-sort-asc-btn" class="sort-tab-btn" onclick="switchArtSortOrder('asc')">▲ 最早优先</button>
                     </div>
@@ -1511,19 +1539,19 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
 
                 <!-- 读者留言表单 -->
                 <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 6px; padding: 18px 20px;">
-                    <div style="font-size: 0.9rem; font-weight: 500; margin-bottom: 12px; color: var(--text-main);">发表留言</div>
+                    <div id="leave-comment-title" style="font-size: 0.9rem; font-weight: 500; margin-bottom: 12px; color: var(--text-main);">发表留言</div>
                     <form id="comment-form" onsubmit="handleCommentSubmit(event)">
                         <input type="hidden" id="comment-article-id" />
                         <input type="hidden" id="comment-article-title" />
                         <div style="margin-bottom: 10px; display: flex; gap: 8px; align-items: center;">
-                            <label style="font-size: 0.82rem; color: var(--text-muted); white-space: nowrap;">您的称呼:</label>
+                            <label id="lbl-author-name" style="font-size: 0.82rem; color: var(--text-muted); white-space: nowrap;">您的称呼:</label>
                             <input type="text" id="comment-author" placeholder="例如: 某技术同行 (可自定义，默认匿名读者)" style="flex: 1; padding: 7px 10px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); color: var(--text-main);" />
                         </div>
                         <div style="margin-bottom: 6px;">
                             <textarea id="comment-content" required rows="3" placeholder="写下您的技术探讨、阅读感受或问题交流...（中文字数 ≤ 140字，英文 ≤ 200词；留言需经管理员审核后公开展示）" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 0.88rem; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); color: var(--text-main); font-family: var(--font-sans); resize: vertical;"></textarea>
                         </div>
                         <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-light); margin-bottom:10px;">
-                            <span>字数限制：中文 ≤ 140字 / 英文 ≤ 200词</span>
+                            <span id="char-limit-hint">字数限制：中文 ≤ 140字 / 英文 ≤ 200词</span>
                             <span id="comment-char-counter">已输入: 0 汉字, 0 单词</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -1539,8 +1567,8 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
         <div id="articles-list-box"></div>
 
         <footer>
-            <span>© 2026 维托里奥 崔 · All Rights Reserved</span>
-            <a href="/admin" class="admin-link">[管理员登录]</a>
+            <span id="art-footer-copy">© 2026 维托里奥 崔 · All Rights Reserved</span>
+            <a href="/admin" id="art-footer-admin" class="admin-link">[管理员登录]</a>
         </footer>
     </div>
 
@@ -1563,11 +1591,138 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             return '0';
         }
 
+        let currentGlobalLang = 'zh';
+
+        const articlesI18n = {
+            zh: {
+                pageTitle: "文章",
+                pageSubtitle: "维托里奥 崔的技术随笔、架构实践与前沿思考",
+                backHome: "← 返回主页",
+                navGuestbook: "留言板",
+                navAdmin: "[管理员登录]",
+                backToList: "← 返回文章列表",
+                shareBtn: "<span>🔗</span> 生成分享链接",
+                shareToast: "✓ 已复制分享链接!",
+                rewardTitle: "☕ 觉得有启发？欢迎打赏支持作者",
+                rewardSubtitle: "如果本文对您的架构设计或工程实践有所帮助，欢迎微信扫码赞赏，感谢您的支持与鼓励！",
+                rewardWeChat: "微信扫一扫 · 赞赏码",
+                commentsTitle: "💬 读者留言",
+                sortLabel: "排序：",
+                sortDesc: "▼ 最新优先",
+                sortAsc: "▲ 最早优先",
+                leaveComment: "发表留言",
+                yourName: "您的称呼:",
+                namePlaceholder: "例如: 某技术同行 (可自定义，默认匿名读者)",
+                contentPlaceholder: "写下您的技术探讨、阅读感受或问题交流...（中文字数 ≤ 140字，英文 ≤ 200词；留言需经管理员审核后公开展示）",
+                charLimit: "字数限制：中文 ≤ 140字 / 英文 ≤ 200词",
+                submitComment: "提交留言",
+                copyright: "© 2026 维托里奥 崔 · All Rights Reserved",
+                viewsSuffix: " 次浏览",
+                badgeBilingual: "🌐 双语",
+                badgeZhOnly: "🔸 仅中文",
+                toggleText: "English"
+            },
+            en: {
+                pageTitle: "Articles",
+                pageSubtitle: "Technical essays, architecture practices & thoughts by Vittorio Cui",
+                backHome: "← Back to Home",
+                navGuestbook: "Guestbook",
+                navAdmin: "[Admin Login]",
+                backToList: "← Back to Articles",
+                shareBtn: "<span>🔗</span> Share Link",
+                shareToast: "✓ Link copied!",
+                rewardTitle: "☕ Found this helpful? Support the author",
+                rewardSubtitle: "If this article helped with your architecture or practices, feel free to support via WeChat Pay. Thank you!",
+                rewardWeChat: "Scan with WeChat · Reward Code",
+                commentsTitle: "💬 Reader Comments",
+                sortLabel: "Sort:",
+                sortDesc: "▼ Newest first",
+                sortAsc: "▲ Oldest first",
+                leaveComment: "Leave a Comment",
+                yourName: "Your Name:",
+                namePlaceholder: "e.g. Peer Engineer (Anonymous by default)",
+                contentPlaceholder: "Write your thoughts, questions, or comments... (Chinese ≤ 140 chars, English ≤ 200 words; published upon review)",
+                charLimit: "Length: Chinese ≤ 140 chars / English ≤ 200 words",
+                submitComment: "Submit Comment",
+                copyright: "© 2026 Vittorio Cui · All Rights Reserved",
+                viewsSuffix: " views",
+                badgeBilingual: "🌐 Bilingual",
+                badgeZhOnly: "🔸 Chinese only",
+                toggleText: "中文"
+            }
+        };
+
+        function toggleGlobalLang() {
+            setGlobalLang(currentGlobalLang === 'zh' ? 'en' : 'zh');
+        }
+
+        function setGlobalLang(lang) {
+            currentGlobalLang = lang;
+            try {
+                localStorage.setItem('preferredLang', lang);
+                localStorage.setItem('site_lang', lang);
+            } catch(e) {}
+            document.cookie = "preferredLang=" + lang + "; Path=/; Max-Age=31536000; SameSite=Lax";
+
+            const t = articlesI18n[lang] || articlesI18n.zh;
+            const toggleBtn = document.getElementById('btn-lang-toggle');
+            if (toggleBtn) toggleBtn.innerText = t.toggleText;
+
+            const backBtn = document.getElementById('art-back-btn');
+            if (backBtn) backBtn.innerText = t.backHome;
+            const navGb = document.getElementById('art-nav-guestbook');
+            if (navGb) navGb.innerText = t.navGuestbook;
+            const navAdmin = document.getElementById('art-nav-admin');
+            if (navAdmin) navAdmin.innerText = t.navAdmin;
+            const pageTitle = document.getElementById('art-page-title');
+            if (pageTitle) pageTitle.innerText = t.pageTitle;
+            const pageSub = document.getElementById('art-page-subtitle');
+            if (pageSub) pageSub.innerText = t.pageSubtitle;
+            const closeReaderBtn = document.getElementById('art-close-reader-btn');
+            if (closeReaderBtn) closeReaderBtn.innerText = t.backToList;
+            const shareBtn = document.getElementById('btn-share-link');
+            if (shareBtn) shareBtn.innerHTML = t.shareBtn;
+            const rewardTitle = document.getElementById('reward-title-text');
+            if (rewardTitle) rewardTitle.innerText = t.rewardTitle;
+            const rewardSub = document.getElementById('reward-sub-text');
+            if (rewardSub) rewardSub.innerText = t.rewardSubtitle;
+            const rewardScan = document.getElementById('reward-scan-text');
+            if (rewardScan) rewardScan.innerText = t.rewardWeChat;
+            const commentsHead = document.getElementById('comments-head-title');
+            if (commentsHead) commentsHead.innerText = t.commentsTitle;
+            const sortLabel = document.getElementById('art-sort-label');
+            if (sortLabel) sortLabel.innerText = t.sortLabel;
+            const sortDescBtn = document.getElementById('art-sort-desc-btn');
+            if (sortDescBtn) sortDescBtn.innerText = t.sortDesc;
+            const sortAscBtn = document.getElementById('art-sort-asc-btn');
+            if (sortAscBtn) sortAscBtn.innerText = t.sortAsc;
+            const leaveCommTitle = document.getElementById('leave-comment-title');
+            if (leaveCommTitle) leaveCommTitle.innerText = t.leaveComment;
+            const lblAuthor = document.getElementById('lbl-author-name');
+            if (lblAuthor) lblAuthor.innerText = t.yourName;
+            const inputAuthor = document.getElementById('comment-author');
+            if (inputAuthor) inputAuthor.placeholder = t.namePlaceholder;
+            const inputContent = document.getElementById('comment-content');
+            if (inputContent) inputContent.placeholder = t.contentPlaceholder;
+            const charLimitEl = document.getElementById('char-limit-hint');
+            if (charLimitEl) charLimitEl.innerText = t.charLimit;
+            const submitBtn = document.getElementById('comment-btn-submit');
+            if (submitBtn) submitBtn.innerText = t.submitComment;
+            const footerCopy = document.getElementById('art-footer-copy');
+            if (footerCopy) footerCopy.innerText = t.copyright;
+
+            renderList();
+
+            if (currentArticleId) {
+                const art = ARTICLES.find(a => a.id === currentArticleId);
+                if (art) {
+                    updateReaderContent(art, lang);
+                }
+            }
+        }
+
         function switchArticleLang(lang) {
-            try { localStorage.setItem('preferredLang', lang); } catch(e) {}
-            const art = ARTICLES.find(a => a.id === currentArticleId);
-            if (!art) return;
-            updateReaderContent(art, lang);
+            setGlobalLang(lang);
         }
 
         function updateReaderContent(art, lang) {
@@ -1598,26 +1753,28 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
 
         function renderList() {
             const box = document.getElementById('articles-list-box');
+            if (!box) return;
+            const t = articlesI18n[currentGlobalLang] || articlesI18n.zh;
             box.innerHTML = ARTICLES.map(art => {
                 const title_zh = art.title_zh || (art.title && (art.title.zh || art.title.en)) || (typeof art.title === 'string' ? art.title : art.id);
                 const title_en = art.title_en || (art.title && art.title.en) || '';
-                const displayTitle = title_zh || title_en || art.id;
+                const displayTitle = (currentGlobalLang === 'en' && title_en) ? title_en : (title_zh || title_en || art.id);
                 const hasEnContent = !!(art.content_en && art.content_en.trim()) || !!(art.content && art.content.en && art.content.en.trim());
                 const isBilingual = art.isBilingual !== undefined ? !!art.isBilingual : hasEnContent;
 
                 let langBadge = '';
                 if (isBilingual && hasEnContent) {
-                    langBadge = '<span class="badge badge-bilingual" style="background:var(--bg-subtle); border:1px solid var(--accent); color:var(--accent); font-size:0.72rem; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:normal;">🌐 双语</span>';
+                    langBadge = '<span class="badge badge-bilingual" style="background:var(--bg-subtle); border:1px solid var(--accent); color:var(--accent); font-size:0.72rem; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:normal;">' + t.badgeBilingual + '</span>';
                 } else {
-                    langBadge = '<span class="badge badge-zh-only" style="background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-light); font-size:0.72rem; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:normal;">🔸 仅中文</span>';
+                    langBadge = '<span class="badge badge-zh-only" style="background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-light); font-size:0.72rem; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:normal;">' + t.badgeZhOnly + '</span>';
                 }
 
                 const viewsFormatted = formatViews(art.views);
                 return '<div class="article-row" data-id="' + art.id + '" onclick="openArticle(this.dataset.id)">' +
                     '<div>' +
-                        '<div class="article-title-text">' + displayTitle + langBadge + '</div>' +
+                        '<div class="article-title-text">' + escapeHtml(displayTitle) + langBadge + '</div>' +
                         '<div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-light); margin-top:4px;">' +
-                            art.date + ' · ' + (art.readTime || '') + ' · <span style="color:var(--accent);">👁️ ' + viewsFormatted + ' 浏览</span>' +
+                            art.date + ' · ' + (art.readTime || '') + ' · <span style="color:var(--accent);">👁️ ' + viewsFormatted + (currentGlobalLang === 'en' ? ' views' : ' 浏览') + '</span>' +
                         '</div>' +
                     '</div>' +
                     '<span class="article-date-badge">' + art.date + '</span>' +
@@ -1631,18 +1788,15 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             currentArticleId = id;
 
             document.getElementById('reader-meta-info').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '');
-            document.getElementById('reader-meta-views').innerText = '👁️ ' + formatViews(art.views) + ' 次浏览';
+            document.getElementById('reader-meta-views').innerText = '👁️ ' + formatViews(art.views) + (currentGlobalLang === 'en' ? ' views' : ' 次浏览');
 
             const hasEnContent = !!(art.content_en && art.content_en.trim()) || !!(art.content && art.content.en && art.content.en.trim());
             const isBilingual = art.isBilingual !== undefined ? !!art.isBilingual : hasEnContent;
             const switcher = document.getElementById('article-lang-switcher');
 
-            let prefLang = 'zh';
-            try { prefLang = localStorage.getItem('preferredLang') || 'zh'; } catch(e) {}
-
             if (isBilingual && hasEnContent) {
                 if (switcher) switcher.style.display = 'flex';
-                updateReaderContent(art, prefLang);
+                updateReaderContent(art, currentGlobalLang);
             } else {
                 if (switcher) switcher.style.display = 'none';
                 updateReaderContent(art, 'zh');
@@ -2112,9 +2266,15 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
         }
 
         window.addEventListener('DOMContentLoaded', () => {
+            let savedLang = 'zh';
+            try {
+                savedLang = localStorage.getItem('preferredLang') || (document.cookie.match(/preferredLang=([^;]+)/) ? RegExp.$1 : 'zh');
+            } catch(e) {}
+            if (savedLang !== 'zh' && savedLang !== 'en') savedLang = 'zh';
+            setGlobalLang(savedLang);
+
             const params = new URLSearchParams(window.location.search);
             const targetId = params.get('id');
-            renderList();
             if (targetId) {
                 openArticle(targetId, false);
             }
@@ -2245,31 +2405,33 @@ function renderGuestbookHtml(initialJson) {
 <body>
     <div class="container">
         <div class="top-nav-bar">
-            <a href="/" class="back-btn">← 返回主页</a>
-            <div style="display:flex; gap:16px; align-items:center;">
-                <a href="/articles" style="font-size:0.88rem; color:var(--accent); text-decoration:underline;">文章列表</a>
-                <a href="/admin" class="admin-link">[管理员登录]</a>
+            <a href="/" class="back-btn" id="gb-back-btn">← 返回主页</a>
+            <div style="display:flex; gap:14px; align-items:center;">
+                <a href="/articles" id="gb-nav-articles" style="font-size:0.88rem; color:var(--accent); text-decoration:underline;">文章列表</a>
+                <a href="/experience" id="gb-nav-experience" style="font-size:0.88rem; color:var(--accent); text-decoration:underline;">工作经历</a>
+                <a href="/admin" id="gb-nav-admin" class="admin-link">[管理员登录]</a>
+                <button type="button" class="lang-switch-btn" onclick="toggleGbLang()" id="btn-gb-lang-toggle">English</button>
             </div>
         </div>
 
         <header class="page-header">
-            <h1 class="page-title">留言板</h1>
-            <p class="page-subtitle">欢迎在此交流探讨、留下您的想法或建议（留言经管理员审核后公开展示）</p>
+            <h1 class="page-title" id="gb-page-title">留言板</h1>
+            <p class="page-subtitle" id="gb-page-subtitle">欢迎在此交流探讨、留下您的想法或建议（留言经管理员审核后公开展示）</p>
         </header>
 
         <!-- 发表留言表单 -->
         <div class="guestbook-form-box">
-            <h3 style="font-family:var(--font-serif); font-size:1.15rem; font-weight:500; margin-bottom:14px; color:var(--text-main);">发表留言</h3>
+            <h3 style="font-family:var(--font-serif); font-size:1.15rem; font-weight:500; margin-bottom:14px; color:var(--text-main);" id="gb-form-title">发表留言</h3>
             <form onsubmit="handleGuestbookSubmit(event)">
                 <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center;">
-                    <label style="font-size:0.85rem; color:var(--text-muted); white-space:nowrap;">您的称呼:</label>
+                    <label style="font-size:0.85rem; color:var(--text-muted); white-space:nowrap;" id="gb-lbl-author">您的称呼:</label>
                     <input type="text" id="gb-author" placeholder="例如: 某技术同行 (可自定义，默认: 匿名读者)" style="flex:1; padding:8px 12px; font-size:0.88rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main);" />
                 </div>
                 <div style="margin-bottom:6px;">
                     <textarea id="gb-content" required rows="4" placeholder="写下您的技术探讨、阅读感受或问题交流...（中文字数 ≤ 140字，英文 ≤ 200词；留言将在管理员审核通过后公开展示）" style="width:100%; box-sizing:border-box; padding:10px 12px; font-size:0.9rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main); font-family:var(--font-sans); resize:vertical;"></textarea>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-light); margin-bottom:12px;">
-                    <span>字数限制：中文 ≤ 140字 / 英文 ≤ 200词</span>
+                    <span id="gb-limit-hint">字数限制：中文 ≤ 140字 / 英文 ≤ 200词</span>
                     <span id="gb-counter">已输入: 0 汉字, 0 单词</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -2286,7 +2448,7 @@ function renderGuestbookHtml(initialJson) {
                 <div id="gb-hint" style="font-size:0.78rem; color:var(--text-light); margin-top:2px;"></div>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:0.78rem; color:var(--text-light);">排序：</span>
+                <span id="gb-sort-label" style="font-size:0.78rem; color:var(--text-light);">排序：</span>
                 <button type="button" id="sort-desc-btn" class="sort-tab-btn active" onclick="switchSortOrder('desc')">▼ 最新优先</button>
                 <button type="button" id="sort-asc-btn" class="sort-tab-btn" onclick="switchSortOrder('asc')">▲ 最早优先</button>
             </div>
@@ -2294,11 +2456,11 @@ function renderGuestbookHtml(initialJson) {
 
         <!-- 按周查找工具栏 -->
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:10px 14px;">
-            <span style="font-size:0.85rem; color:var(--text-muted);">🔍 按周查找（固定 7 天区间，最多显示 20 条）：</span>
+            <span id="gb-search-label" style="font-size:0.85rem; color:var(--text-muted);">🔍 按周查找（固定 7 天区间，最多显示 20 条）：</span>
             <input type="date" id="gb-week-from" style="padding:6px 10px; font-size:0.85rem; border:1px solid var(--border); border-radius:4px; background:var(--bg-page); color:var(--text-main);" />
-            <button type="button" class="action-btn" onclick="searchByWeek()">查找</button>
-            <button type="button" class="action-btn" onclick="shiftWeek(-1)">◀ 上一周</button>
-            <button type="button" class="action-btn" onclick="shiftWeek(1)">下一周 ▶</button>
+            <button type="button" class="action-btn" id="gb-btn-search" onclick="searchByWeek()">查找</button>
+            <button type="button" class="action-btn" id="gb-btn-prev" onclick="shiftWeek(-1)">◀ 上一周</button>
+            <button type="button" class="action-btn" id="gb-btn-next" onclick="shiftWeek(1)">下一周 ▶</button>
             <button type="button" class="action-btn" id="gb-clear-btn" onclick="clearWeekSearch()" style="display:none;">✕ 清除查找</button>
             <span id="gb-search-status" style="font-size:0.8rem; color:var(--text-light);"></span>
         </div>
@@ -2309,8 +2471,8 @@ function renderGuestbookHtml(initialJson) {
         </div>
 
         <footer>
-            <span>© 2026 维托里奥 崔 · All Rights Reserved</span>
-            <a href="/admin" class="admin-link">[管理员登录]</a>
+            <span id="gb-footer-copy">© 2026 维托里奥 崔 · All Rights Reserved</span>
+            <a href="/admin" class="admin-link" id="gb-footer-admin">[管理员登录]</a>
         </footer>
     </div>
 
@@ -2321,6 +2483,140 @@ function renderGuestbookHtml(initialJson) {
         }
 
         window.__INITIAL_GUESTBOOK__ = ${initialJson};
+
+        let currentGbLang = 'zh';
+
+        const gbI18n = {
+            zh: {
+                docTitle: "留言板 — 维托里奥 崔",
+                pageTitle: "留言板",
+                pageSubtitle: "欢迎在此交流探讨、留下您的想法或建议（留言经管理员审核后公开展示）",
+                formTitle: "发表留言",
+                lblAuthor: "您的称呼:",
+                authorPlaceholder: "例如: 某技术同行 (可自定义，默认: 匿名读者)",
+                contentPlaceholder: "写下您的技术探讨、阅读感受或问题交流...（中文字数 ≤ 140字，英文 ≤ 200词；留言将在管理员审核通过后公开展示）",
+                limitHint: "字数限制：中文 ≤ 140字 / 英文 ≤ 200词",
+                submitBtn: "提交留言",
+                listTitle: "💬 全部公开留言",
+                searchTitlePrefix: "📅 按周查找：",
+                sortLabel: "排序：",
+                sortDesc: "▼ 最新优先",
+                sortAsc: "▲ 最早优先",
+                searchLabel: "🔍 按周查找（固定 7 天区间，最多显示 20 条）：",
+                btnSearch: "查找",
+                btnPrev: "◀ 上一周",
+                btnNext: "下一周 ▶",
+                btnClear: "✕ 清除查找",
+                backHome: "← 返回主页",
+                navArticles: "文章列表",
+                navExperience: "工作经历",
+                navAdmin: "[管理员登录]",
+                copyright: "© 2026 维托里奥 崔 · All Rights Reserved",
+                hintCapped: "共 {total} 条公开留言，仅展示最新 10 条 · 可用'按周查找'浏览更多",
+                hintWeekCapped: "该周共 {total} 条留言，仅显示前 20 条",
+                toggleText: "English"
+            },
+            en: {
+                docTitle: "Guestbook — Vittorio Cui",
+                pageTitle: "Guestbook",
+                pageSubtitle: "Welcome to share your thoughts, questions, or ideas (published upon admin review)",
+                formTitle: "Leave a Message",
+                lblAuthor: "Your Name:",
+                authorPlaceholder: "e.g. Peer Engineer (Anonymous by default)",
+                contentPlaceholder: "Write your thoughts, questions, or comments... (Chinese ≤ 140 chars, English ≤ 200 words; published upon review)",
+                limitHint: "Word limit: Chinese ≤ 140 chars / English ≤ 200 words",
+                submitBtn: "Submit Message",
+                listTitle: "💬 Public Messages",
+                searchTitlePrefix: "📅 Search by Week: ",
+                sortLabel: "Sort:",
+                sortDesc: "▼ Newest first",
+                sortAsc: "▲ Oldest first",
+                searchLabel: "🔍 Search by Week (7-day window, max 20):",
+                btnSearch: "Search",
+                btnPrev: "◀ Prev Week",
+                btnNext: "Next Week ▶",
+                btnClear: "✕ Clear",
+                backHome: "← Back to Home",
+                navArticles: "Articles",
+                navExperience: "Experience",
+                navAdmin: "[Admin Login]",
+                copyright: "© 2026 Vittorio Cui · All Rights Reserved",
+                hintCapped: "{total} public comments in total, showing top 10 · Use week search to browse more",
+                hintWeekCapped: "{total} comments this week, showing top 20",
+                toggleText: "中文"
+            }
+        };
+
+        function toggleGbLang() {
+            applyGbLang(currentGbLang === 'zh' ? 'en' : 'zh');
+        }
+
+        function applyGbLang(lang) {
+            currentGbLang = lang;
+            try {
+                localStorage.setItem('preferredLang', lang);
+                localStorage.setItem('site_lang', lang);
+            } catch(e) {}
+            document.cookie = "preferredLang=" + lang + "; Path=/; Max-Age=31536000; SameSite=Lax";
+
+            const t = gbI18n[lang] || gbI18n.zh;
+            document.title = t.docTitle;
+
+            const toggleBtn = document.getElementById('btn-gb-lang-toggle');
+            if (toggleBtn) toggleBtn.innerText = t.toggleText;
+
+            const backBtn = document.getElementById('gb-back-btn');
+            if (backBtn) backBtn.innerText = t.backHome;
+            const navArticles = document.getElementById('gb-nav-articles');
+            if (navArticles) navArticles.innerText = t.navArticles;
+            const navExp = document.getElementById('gb-nav-experience');
+            if (navExp) navExp.innerText = t.navExperience;
+            const navAdmin = document.getElementById('gb-nav-admin');
+            if (navAdmin) navAdmin.innerText = t.navAdmin;
+            const footerAdmin = document.getElementById('gb-footer-admin');
+            if (footerAdmin) footerAdmin.innerText = t.navAdmin;
+
+            const pageTitle = document.getElementById('gb-page-title');
+            if (pageTitle) pageTitle.innerText = t.pageTitle;
+            const pageSub = document.getElementById('gb-page-subtitle');
+            if (pageSub) pageSub.innerText = t.pageSubtitle;
+
+            const formTitle = document.getElementById('gb-form-title');
+            if (formTitle) formTitle.innerText = t.formTitle;
+            const lblAuthor = document.getElementById('gb-lbl-author');
+            if (lblAuthor) lblAuthor.innerText = t.lblAuthor;
+            const inputAuthor = document.getElementById('gb-author');
+            if (inputAuthor) inputAuthor.placeholder = t.authorPlaceholder;
+            const inputContent = document.getElementById('gb-content');
+            if (inputContent) inputContent.placeholder = t.contentPlaceholder;
+            const limitHint = document.getElementById('gb-limit-hint');
+            if (limitHint) limitHint.innerText = t.limitHint;
+            const submitBtn = document.getElementById('gb-submit-btn');
+            if (submitBtn) submitBtn.innerText = t.submitBtn;
+
+            const sortLabel = document.getElementById('gb-sort-label');
+            if (sortLabel) sortLabel.innerText = t.sortLabel;
+            const sortDescBtn = document.getElementById('sort-desc-btn');
+            if (sortDescBtn) sortDescBtn.innerText = t.sortDesc;
+            const sortAscBtn = document.getElementById('sort-asc-btn');
+            if (sortAscBtn) sortAscBtn.innerText = t.sortAsc;
+
+            const searchLabel = document.getElementById('gb-search-label');
+            if (searchLabel) searchLabel.innerText = t.searchLabel;
+            const btnSearch = document.getElementById('gb-btn-search');
+            if (btnSearch) btnSearch.innerText = t.btnSearch;
+            const btnPrev = document.getElementById('gb-btn-prev');
+            if (btnPrev) btnPrev.innerText = t.btnPrev;
+            const btnNext = document.getElementById('gb-btn-next');
+            if (btnNext) btnNext.innerText = t.btnNext;
+            const btnClear = document.getElementById('gb-clear-btn');
+            if (btnClear) btnClear.innerText = t.btnClear;
+
+            const footerCopy = document.getElementById('gb-footer-copy');
+            if (footerCopy) footerCopy.innerText = t.copyright;
+
+            renderGuestbookList();
+        }
 
         let allApprovedComments = [];
         let currentSort = 'desc';
@@ -2456,6 +2752,7 @@ function renderGuestbookHtml(initialJson) {
             const countEl = document.getElementById('gb-count');
             const titleEl = document.getElementById('gb-title');
             const hintEl = document.getElementById('gb-hint');
+            const t = gbI18n[currentGbLang] || gbI18n.zh;
             const clearBtn = document.getElementById('gb-clear-btn');
             if (clearBtn) clearBtn.style.display = currentFrom ? '' : 'none';
             if (titleEl) {
@@ -2463,16 +2760,16 @@ function renderGuestbookHtml(initialJson) {
                     const startMs = new Date(currentFrom + 'T00:00:00+08:00').getTime();
                     const endD = new Date(startMs + 7 * 24 * 60 * 60 * 1000);
                     const endStr = endD.getFullYear() + '-' + String(endD.getMonth() + 1).padStart(2, '0') + '-' + String(endD.getDate()).padStart(2, '0');
-                    titleEl.textContent = '📅 按周查找：' + currentFrom + ' ~ ' + endStr;
+                    titleEl.textContent = t.searchTitlePrefix + currentFrom + ' ~ ' + endStr;
                 } else {
-                    titleEl.textContent = '💬 全部公开留言';
+                    titleEl.textContent = t.listTitle;
                 }
             }
             if (countEl) countEl.innerText = gbTotal;
             if (hintEl) {
                 hintEl.textContent = currentFrom
-                    ? (currentCapped ? '该周共 ' + gbTotal + ' 条留言，仅显示前 20 条' : '')
-                    : (currentCapped ? '共 ' + gbTotal + ' 条公开留言，仅展示最新 10 条 · 可用"按周查找"浏览更多' : '');
+                    ? (currentCapped ? t.hintWeekCapped.replace('{total}', gbTotal) : '')
+                    : (currentCapped ? t.hintCapped.replace('{total}', gbTotal) : '');
             }
 
             let localPending = [];
@@ -2771,6 +3068,13 @@ function renderGuestbookHtml(initialJson) {
         }
 
         (function initGuestbook() {
+            let savedLang = 'zh';
+            try {
+                savedLang = localStorage.getItem('preferredLang') || (document.cookie.match(/preferredLang=([^;]+)/) ? RegExp.$1 : 'zh');
+            } catch(e) {}
+            if (savedLang !== 'zh' && savedLang !== 'en') savedLang = 'zh';
+            applyGbLang(savedLang);
+
             const initial = window.__INITIAL_GUESTBOOK__;
             if (initial && Array.isArray(initial.items)) {
                 allApprovedComments = initial.items;
@@ -2795,16 +3099,26 @@ function renderExperienceHtml(profile) {
     ? profile.experiences
     : DEFAULT_EXPERIENCES;
 
-  const expCardsHtml = exps.map(exp => `
+  const expDataJson = JSON.stringify(exps.map((e, idx) => ({
+    id: idx,
+    company: e.company || '',
+    roleZh: e.role ? ('· ' + e.role) : '',
+    roleEn: (e.roleEn || e.role) ? ('· ' + (e.roleEn || e.role)) : '',
+    period: e.period || '',
+    detailsZh: formatExpText(e.details || ''),
+    detailsEn: formatExpText(e.detailsEn || e.details || '')
+  })));
+
+  const expCardsHtml = exps.map((exp, idx) => `
         <div class="exp-card">
             <div class="exp-card-header">
                 <div>
                     <span class="exp-company">${escapeHtml(exp.company || '')}</span>
-                    ${exp.role ? `<span class="exp-role-title">· ${escapeHtml(exp.role)}</span>` : ''}
+                    <span class="exp-role-title" id="exp-card-role-${idx}">${exp.role ? ('· ' + escapeHtml(exp.role)) : ''}</span>
                 </div>
                 <span class="exp-period">${escapeHtml(exp.period || '')}</span>
             </div>
-            <div class="exp-detail-text">
+            <div class="exp-detail-text" id="exp-card-desc-${idx}">
                 ${formatExpText(exp.details || '')}
             </div>
         </div>
@@ -2908,13 +3222,18 @@ function renderExperienceHtml(profile) {
 <body>
     <div class="container">
         <div class="top-nav-bar">
-            <a href="/" class="back-btn">← 返回主页</a>
-            <a href="/admin" class="admin-link">[管理员登录]</a>
+            <a href="/" class="back-btn" id="exp-back-btn">← 返回主页</a>
+            <div style="display:flex; gap:14px; align-items:center;">
+                <a href="/articles" id="exp-nav-articles" style="font-size:0.88rem; color:var(--accent); text-decoration:underline;">文章</a>
+                <a href="/guestbook" id="exp-nav-guestbook" style="font-size:0.88rem; color:var(--accent); text-decoration:underline;">留言板</a>
+                <a href="/admin" id="exp-nav-admin" class="admin-link">[管理员登录]</a>
+                <button type="button" class="lang-switch-btn" onclick="toggleExpLang()" id="btn-exp-lang-toggle">English</button>
+            </div>
         </div>
 
         <header class="page-header">
-            <h1 class="page-title">工作经历与工程履历</h1>
-            <p class="page-subtitle">
+            <h1 class="page-title" id="exp-page-title">工作经历与工程履历</h1>
+            <p class="page-subtitle" id="exp-page-subtitle">
                 <strong>${escapeHtml(profile.nameZh)} (${escapeHtml(profile.nameEn)})</strong> · ${escapeHtml(profile.positionZh)}。<br>
                 ${escapeHtml(profile.introZh)}
             </p>
@@ -2924,8 +3243,8 @@ function renderExperienceHtml(profile) {
 
         <!-- 战略级客户服务履历 -->
         <div class="clients-box">
-            <div class="clients-title">🏛️ 深度赋能的重要机构与客户</div>
-            <p style="font-size:0.9rem; color:var(--text-muted); line-height:1.6;">
+            <div class="clients-title" id="exp-clients-title">🏛️ 深度赋能的重要机构与客户</div>
+            <p style="font-size:0.9rem; color:var(--text-muted); line-height:1.6;" id="exp-clients-desc">
                 ${escapeHtml(profile.clientsZh)}
             </p>
         </div>
@@ -2934,17 +3253,116 @@ function renderExperienceHtml(profile) {
 
         <!-- 教育背景 -->
         <section>
-            <h2 class="sec-title">教育背景 (Education)</h2>
-            <div style="font-size:0.92rem; color:var(--text-main); margin-top:10px; line-height:1.8;">
+            <h2 class="sec-title" id="exp-edu-title">教育背景 (Education)</h2>
+            <div style="font-size:0.92rem; color:var(--text-main); margin-top:10px; line-height:1.8;" id="exp-edu-desc">
                 <strong>${escapeHtml(profile.eduZh)}</strong>
             </div>
         </section>
 
         <footer>
-            <a href="/" class="back-btn">← 返回主页</a>
-            <a href="/admin" class="admin-link">[管理员登录]</a>
+            <a href="/" class="back-btn" id="exp-footer-back">← 返回主页</a>
+            <a href="/admin" class="admin-link" id="exp-footer-admin">[管理员登录]</a>
         </footer>
     </div>
+
+    <script>
+        const EXPS = ${expDataJson};
+        let currentExpLang = 'zh';
+
+        const expI18n = {
+            zh: {
+                pageTitle: "工作经历与工程履历",
+                docTitle: "工作经历 (Work Experience) — " + ${JSON.stringify(profile.nameZh)},
+                subtitleHtml: "<strong>" + ${JSON.stringify(profile.nameZh)} + " (" + ${JSON.stringify(profile.nameEn)} + ")</strong> · " + ${JSON.stringify(profile.positionZh)} + "。<br>" + ${JSON.stringify(profile.introZh)},
+                clientsTitle: "🏛️ 深度赋能的重要机构与客户",
+                clientsDesc: ${JSON.stringify(profile.clientsZh)},
+                eduTitle: "教育背景 (Education)",
+                eduDesc: "<strong>" + ${JSON.stringify(profile.eduZh)} + "</strong>",
+                backHome: "← 返回主页",
+                navArticles: "文章",
+                navGuestbook: "留言板",
+                navAdmin: "[管理员登录]",
+                toggleText: "English"
+            },
+            en: {
+                pageTitle: "Work Experience & Engineering Track Record",
+                docTitle: "Work Experience — " + ${JSON.stringify(profile.nameEn)},
+                subtitleHtml: "<strong>" + ${JSON.stringify(profile.nameEn)} + " (" + ${JSON.stringify(profile.nameZh)} + ")</strong> · " + ${JSON.stringify(profile.positionEn)} + "。<br>" + ${JSON.stringify(profile.introEn)},
+                clientsTitle: "🏛️ Key Institutions & Strategic Clients Empowered",
+                clientsDesc: ${JSON.stringify(profile.clientsEn)},
+                eduTitle: "Education Background",
+                eduDesc: "<strong>" + ${JSON.stringify(profile.eduEn)} + "</strong>",
+                backHome: "← Back to Home",
+                navArticles: "Articles",
+                navGuestbook: "Guestbook",
+                navAdmin: "[Admin Login]",
+                toggleText: "中文"
+            }
+        };
+
+        function toggleExpLang() {
+            applyExpLang(currentExpLang === 'zh' ? 'en' : 'zh');
+        }
+
+        function applyExpLang(lang) {
+            currentExpLang = lang;
+            try {
+                localStorage.setItem('preferredLang', lang);
+                localStorage.setItem('site_lang', lang);
+            } catch(e) {}
+            document.cookie = "preferredLang=" + lang + "; Path=/; Max-Age=31536000; SameSite=Lax";
+
+            const t = expI18n[lang] || expI18n.zh;
+            document.title = t.docTitle;
+            const btn = document.getElementById('btn-exp-lang-toggle');
+            if (btn) btn.innerText = t.toggleText;
+
+            const pageTitleEl = document.getElementById('exp-page-title');
+            if (pageTitleEl) pageTitleEl.innerText = t.pageTitle;
+            const subTitleEl = document.getElementById('exp-page-subtitle');
+            if (subTitleEl) subTitleEl.innerHTML = t.subtitleHtml;
+
+            const clientsTitleEl = document.getElementById('exp-clients-title');
+            if (clientsTitleEl) clientsTitleEl.innerText = t.clientsTitle;
+            const clientsDescEl = document.getElementById('exp-clients-desc');
+            if (clientsDescEl) clientsDescEl.innerText = t.clientsDesc;
+
+            const eduTitleEl = document.getElementById('exp-edu-title');
+            if (eduTitleEl) eduTitleEl.innerText = t.eduTitle;
+            const eduDescEl = document.getElementById('exp-edu-desc');
+            if (eduDescEl) eduDescEl.innerHTML = t.eduDesc;
+
+            const backBtn = document.getElementById('exp-back-btn');
+            if (backBtn) backBtn.innerText = t.backHome;
+            const footerBack = document.getElementById('exp-footer-back');
+            if (footerBack) footerBack.innerText = t.backHome;
+
+            const navArt = document.getElementById('exp-nav-articles');
+            if (navArt) navArt.innerText = t.navArticles;
+            const navGb = document.getElementById('exp-nav-guestbook');
+            if (navGb) navGb.innerText = t.navGuestbook;
+            const navAdm = document.getElementById('exp-nav-admin');
+            if (navAdm) navAdm.innerText = t.navAdmin;
+            const footerAdm = document.getElementById('exp-footer-admin');
+            if (footerAdm) footerAdm.innerText = t.navAdmin;
+
+            EXPS.forEach(exp => {
+                const roleEl = document.getElementById('exp-card-role-' + exp.id);
+                if (roleEl) roleEl.innerText = lang === 'en' ? exp.roleEn : exp.roleZh;
+                const descEl = document.getElementById('exp-card-desc-' + exp.id);
+                if (descEl) descEl.innerHTML = lang === 'en' ? exp.detailsEn : exp.detailsZh;
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            let savedLang = 'zh';
+            try {
+                savedLang = localStorage.getItem('preferredLang') || (document.cookie.match(/preferredLang=([^;]+)/) ? RegExp.$1 : 'zh');
+            } catch(e) {}
+            if (savedLang !== 'zh' && savedLang !== 'en') savedLang = 'zh';
+            applyExpLang(savedLang);
+        });
+    </script>
 </body>
 </html>`;
 }
@@ -3272,8 +3690,21 @@ ${homeExpCardsHtml}
         };
 
         function toggleLanguage() {
-            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            applyLanguage(currentLang === 'zh' ? 'en' : 'zh');
+        }
+
+        function applyLanguage(lang) {
+            currentLang = lang;
+            try {
+                localStorage.setItem('preferredLang', lang);
+                localStorage.setItem('site_lang', lang);
+            } catch(e) {}
+            document.cookie = "preferredLang=" + lang + "; Path=/; Max-Age=31536000; SameSite=Lax";
+            const toggleBtn = document.getElementById('btn-lang-toggle');
+            if (toggleBtn) toggleBtn.innerText = lang === 'zh' ? 'English' : '中文';
+
             const data = i18n[currentLang];
+            if (!data) return;
             document.getElementById('author-display-name').innerText = data.displayName;
             document.getElementById('header-intro-text').innerText = data.intro;
             document.getElementById('link-articles').innerText = data.linkArticles;
@@ -3303,6 +3734,15 @@ ${homeExpCardsHtml}
             }
             document.getElementById('footer-copyright').innerText = data.footerCopyright;
         }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            let savedLang = 'zh';
+            try {
+                savedLang = localStorage.getItem('preferredLang') || localStorage.getItem('site_lang') || (document.cookie.match(/preferredLang=([^;]+)/) ? RegExp.$1 : 'zh');
+            } catch(e) {}
+            if (savedLang !== 'zh' && savedLang !== 'en') savedLang = 'zh';
+            applyLanguage(savedLang);
+        });
     </script>
 </body>
 </html>`;
@@ -3439,20 +3879,49 @@ function renderAdminLoginHtml() {
         }
 
         function toggleAdminLang() {
-            adminLang = adminLang === 'zh' ? 'en' : 'zh';
-            const d = adminI18n[adminLang];
-            document.title = d.pageTitle;
-            document.getElementById('admin-title').innerText = d.title;
-            document.getElementById('admin-subtitle').innerText = d.subtitle;
-            document.getElementById('lbl-username').innerText = d.lblUser;
-            document.getElementById('lbl-password').innerText = d.lblPass;
-            document.getElementById('lbl-show-pwd').innerText = d.showPass;
-            document.getElementById('btn-toggle-eye').title = d.showPass;
-            document.getElementById('password').placeholder = d.passPlaceholder;
-            document.getElementById('login-btn').innerText = d.btnText;
-            document.getElementById('link-back-home').innerText = d.backText;
-            document.getElementById('admin-lang-toggle').innerText = d.langToggle;
+            applyAdminLang(adminLang === 'zh' ? 'en' : 'zh');
         }
+
+        function applyAdminLang(lang) {
+            adminLang = lang;
+            try {
+                localStorage.setItem('preferredLang', lang);
+                localStorage.setItem('site_lang', lang);
+            } catch(e) {}
+            document.cookie = "preferredLang=" + lang + "; Path=/; Max-Age=31536000; SameSite=Lax";
+
+            const d = adminI18n[lang] || adminI18n.zh;
+            document.title = d.pageTitle;
+            const titleEl = document.getElementById('admin-title');
+            if (titleEl) titleEl.innerText = d.title;
+            const subTitleEl = document.getElementById('admin-subtitle');
+            if (subTitleEl) subTitleEl.innerText = d.subtitle;
+            const lblUser = document.getElementById('lbl-username');
+            if (lblUser) lblUser.innerText = d.lblUser;
+            const lblPass = document.getElementById('lbl-password');
+            if (lblPass) lblPass.innerText = d.lblPass;
+            const lblShowPwd = document.getElementById('lbl-show-pwd');
+            if (lblShowPwd) lblShowPwd.innerText = d.showPass;
+            const btnEye = document.getElementById('btn-toggle-eye');
+            if (btnEye) btnEye.title = d.showPass;
+            const pwdInput = document.getElementById('password');
+            if (pwdInput) pwdInput.placeholder = d.passPlaceholder;
+            const loginBtn = document.getElementById('login-btn');
+            if (loginBtn) loginBtn.innerText = d.btnText;
+            const backHome = document.getElementById('link-back-home');
+            if (backHome) backHome.innerText = d.backText;
+            const toggleBtn = document.getElementById('admin-lang-toggle');
+            if (toggleBtn) toggleBtn.innerText = d.langToggle;
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            let savedLang = 'zh';
+            try {
+                savedLang = localStorage.getItem('preferredLang') || (document.cookie.match(/preferredLang=([^;]+)/) ? RegExp.$1 : 'zh');
+            } catch(e) {}
+            if (savedLang !== 'zh' && savedLang !== 'en') savedLang = 'zh';
+            applyAdminLang(savedLang);
+        });
 
         async function handleLogin(e) {
             e.preventDefault();
@@ -3656,16 +4125,17 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
     <div class="cms-container">
         <div class="top-bar">
             <div>
-                <span style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">网站控制台</span>
-                <span style="font-size:0.8rem; color:var(--text-light); margin-left:10px;">${hasKv ? '🟢 Cloudflare KV 实时持久化' : '🟡 体验模式'}</span>
+                <span id="cms-title" style="font-family:var(--font-serif); font-size:1.6rem; font-weight:500;">网站控制台</span>
+                <span id="cms-kv-badge" style="font-size:0.8rem; color:var(--text-light); margin-left:10px;">${hasKv ? '🟢 Cloudflare KV 实时持久化' : '🟡 体验模式'}</span>
             </div>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <span id="inactivity-indicator" style="font-size:0.75rem; color:var(--text-light); border:1px solid var(--border); padding:3px 8px; border-radius:12px; background:var(--bg-subtle);" title="为了保障安全，若无操作将在2分钟后自动登出">⏱️ 2分钟无操作自动登出保护中</span>
-                <button class="btn btn-primary" onclick="openCreateModal()">➕ 发布新文章</button>
-                <button class="btn btn-outline" onclick="openPasswordModal()">🔑 修改密码</button>
-                <a href="/articles" class="btn btn-outline" style="text-decoration:none;">文章列表</a>
-                <a href="/" class="btn btn-outline" style="text-decoration:none;">主页</a>
-                <button class="btn btn-outline" style="border-color:#dc3545; color:#dc3545;" onclick="handleLogout()">登出</button>
+                <button class="btn btn-primary" id="btn-create-post" onclick="openCreateModal()">➕ 发布新文章</button>
+                <button class="btn btn-outline" id="btn-change-pwd" onclick="openPasswordModal()">🔑 修改密码</button>
+                <a href="/articles" class="btn btn-outline" id="link-cms-articles" style="text-decoration:none;">文章列表</a>
+                <a href="/" class="btn btn-outline" id="link-cms-home" style="text-decoration:none;">主页</a>
+                <button class="btn btn-outline" id="btn-cms-logout" style="border-color:#dc3545; color:#dc3545;" onclick="handleLogout()">登出</button>
+                <button type="button" class="lang-switch-btn" onclick="toggleCmsLang()" id="btn-cms-lang-toggle">English</button>
             </div>
         </div>
 
@@ -3677,14 +4147,14 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     系统收到 <span id="banner-pending-count" style="font-weight:bold; color:#b45309; text-decoration:underline;">0</span> 条读者新留言等待审核！
                 </span>
             </div>
-            <button class="btn btn-primary" style="background:#d97706; padding:6px 16px; font-size:0.85rem;" onclick="switchAdminTab('comments')">👉 立即前往审核</button>
+            <button class="btn btn-primary" id="btn-banner-review" style="background:#d97706; padding:6px 16px; font-size:0.85rem;" onclick="switchAdminTab('comments')">👉 立即前往审核</button>
         </div>
 
         <!-- 功能选项卡 -->
         <div class="tabs-bar">
-            <button id="tab-btn-posts" class="btn btn-primary" onclick="switchAdminTab('posts')">📝 文章管理 (<span id="cnt-articles">0</span>)</button>
-            <button id="tab-btn-comments" class="btn btn-outline" onclick="switchAdminTab('comments')">💬 留言审核 (<span id="cnt-pending" style="font-weight:bold; color:var(--accent);">0</span> 待审)</button>
-            <button id="tab-btn-profile" class="btn btn-outline" onclick="switchAdminTab('profile')">👤 简历与打赏设置</button>
+            <button id="tab-btn-posts" class="btn btn-primary" onclick="switchAdminTab('posts')"><span id="tab-text-posts">📝 文章管理</span> (<span id="cnt-articles">0</span>)</button>
+            <button id="tab-btn-comments" class="btn btn-outline" onclick="switchAdminTab('comments')"><span id="tab-text-comments">💬 留言审核</span> (<span id="cnt-pending" style="font-weight:bold; color:var(--accent);">0</span> <span id="tab-text-pending">待审</span>)</button>
+            <button id="tab-btn-profile" class="btn btn-outline" onclick="switchAdminTab('profile')"><span id="tab-text-profile">👤 简历与打赏设置</span></button>
         </div>
 
         <!-- 1. 文章管理视图 -->
@@ -4131,21 +4601,127 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             if (tab === 'profile') populateProfileForm();
         }
 
+        let currentCmsLang = 'zh';
+
+        const cmsI18n = {
+            zh: {
+                cmsTitle: "网站控制台",
+                inactivity: "⏱️ 2分钟无操作自动登出保护中",
+                createPost: "➕ 发布新文章",
+                changePwd: "🔑 修改密码",
+                navArticles: "文章列表",
+                navHome: "主页",
+                logout: "登出",
+                bannerReview: "👉 立即前往审核",
+                tabPosts: "📝 文章管理",
+                tabComments: "💬 留言审核",
+                tabPending: "待审",
+                tabProfile: "👤 简历与打赏设置",
+                filterPending: "🟡 待审核",
+                filterApproved: "🟢 已通过展示",
+                filterRejected: "🔴 超过24h/已驳回",
+                filterAll: "全部留言",
+                toggleText: "English",
+                btnEdit: "编辑",
+                btnDelete: "删除",
+                badgeBilingual: "🌐 双语",
+                badgeZhOnly: "🔸 仅中文"
+            },
+            en: {
+                cmsTitle: "Website Console",
+                inactivity: "⏱️ Protected by 2min auto-logout",
+                createPost: "➕ New Article",
+                changePwd: "🔑 Password",
+                navArticles: "Articles",
+                navHome: "Home",
+                logout: "Sign Out",
+                bannerReview: "👉 Review Now",
+                tabPosts: "📝 Articles",
+                tabComments: "💬 Comments",
+                tabPending: "pending",
+                tabProfile: "👤 Profile & Settings",
+                filterPending: "🟡 Pending",
+                filterApproved: "🟢 Approved",
+                filterRejected: "🔴 Over 24h / Rejected",
+                filterAll: "All Comments",
+                toggleText: "中文",
+                btnEdit: "Edit",
+                btnDelete: "Delete",
+                badgeBilingual: "🌐 Bilingual",
+                badgeZhOnly: "🔸 Chinese only"
+            }
+        };
+
+        function toggleCmsLang() {
+            applyCmsLang(currentCmsLang === 'zh' ? 'en' : 'zh');
+        }
+
+        function applyCmsLang(lang) {
+            currentCmsLang = lang;
+            try {
+                localStorage.setItem('preferredLang', lang);
+                localStorage.setItem('site_lang', lang);
+            } catch(e) {}
+            document.cookie = "preferredLang=" + lang + "; Path=/; Max-Age=31536000; SameSite=Lax";
+
+            const t = cmsI18n[lang] || cmsI18n.zh;
+            const toggleBtn = document.getElementById('btn-cms-lang-toggle');
+            if (toggleBtn) toggleBtn.innerText = t.toggleText;
+
+            const titleEl = document.getElementById('cms-title');
+            if (titleEl) titleEl.innerText = t.cmsTitle;
+            const inactEl = document.getElementById('inactivity-indicator');
+            if (inactEl) inactEl.innerText = t.inactivity;
+            const btnCreate = document.getElementById('btn-create-post');
+            if (btnCreate) btnCreate.innerText = t.createPost;
+            const btnPwd = document.getElementById('btn-change-pwd');
+            if (btnPwd) btnPwd.innerText = t.changePwd;
+            const linkArticles = document.getElementById('link-cms-articles');
+            if (linkArticles) linkArticles.innerText = t.navArticles;
+            const linkHome = document.getElementById('link-cms-home');
+            if (linkHome) linkHome.innerText = t.navHome;
+            const btnLogout = document.getElementById('btn-cms-logout');
+            if (btnLogout) btnLogout.innerText = t.logout;
+
+            const tabPosts = document.getElementById('tab-text-posts');
+            if (tabPosts) tabPosts.innerText = t.tabPosts;
+            const tabComments = document.getElementById('tab-text-comments');
+            if (tabComments) tabComments.innerText = t.tabComments;
+            const tabPending = document.getElementById('tab-text-pending');
+            if (tabPending) tabPending.innerText = t.tabPending;
+            const tabProfile = document.getElementById('tab-text-profile');
+            if (tabProfile) tabProfile.innerText = t.tabProfile;
+            const btnBanner = document.getElementById('btn-banner-review');
+            if (btnBanner) btnBanner.innerText = t.bannerReview;
+
+            renderAdminList();
+        }
+
         function renderAdminList() {
             updateCounts();
             const list = document.getElementById('items-list');
+            const isEn = currentCmsLang === 'en';
+            const t = cmsI18n[currentCmsLang] || cmsI18n.zh;
             list.innerHTML = articles.map(a => {
-                const title = (a.title && (a.title.zh || a.title.en)) || a.id;
+                const titleZh = a.title_zh || (a.title && (a.title.zh || a.title.en)) || (typeof a.title === 'string' ? a.title : a.id);
+                const titleEn = a.title_en || (a.title && a.title.en) || '';
+                const displayTitle = (isEn && titleEn) ? titleEn : (titleZh || titleEn || a.id);
+                const hasEn = !!(a.content_en && a.content_en.trim()) || !!(a.content && a.content.en && a.content.en.trim());
+                const isBilingual = a.isBilingual !== undefined ? !!a.isBilingual : hasEn;
+                const badge = (isBilingual && hasEn)
+                    ? (' <span style="background:var(--bg-subtle); border:1px solid var(--accent); color:var(--accent); font-size:0.7rem; padding:1px 6px; border-radius:10px;">' + t.badgeBilingual + '</span>')
+                    : (' <span style="background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-light); font-size:0.7rem; padding:1px 6px; border-radius:10px;">' + t.badgeZhOnly + '</span>');
+
                 return '<div class="item-card">' +
                     '<div>' +
-                        '<strong>' + title + '</strong>' +
+                        '<strong>' + escapeHtml(displayTitle) + '</strong>' + badge +
                         '<div style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">' +
-                            '发布时间: <span style="color:var(--accent); font-family:var(--font-mono);">' + a.date + '</span> · ' + (a.tag || '') + ' · <span style="color:var(--accent);">👁️ ' + ((typeof a.views === 'number') ? a.views.toLocaleString() : (a.views || '0')) + ' 浏览</span>' +
+                            (isEn ? 'Date: ' : '发布时间: ') + '<span style="color:var(--accent); font-family:var(--font-mono);">' + a.date + '</span> · ' + (a.tag || '') + ' · <span style="color:var(--accent);">👁️ ' + ((typeof a.views === 'number') ? a.views.toLocaleString() : (a.views || '0')) + (isEn ? ' views' : ' 浏览') + '</span>' +
                         '</div>' +
                     '</div>' +
                     '<div style="display:flex; gap:8px;">' +
-                        '<button class="btn btn-outline" data-id="' + a.id + '" onclick="openEditModal(this.dataset.id)">编辑</button>' +
-                        '<button class="btn btn-danger" data-id="' + a.id + '" onclick="deleteArticle(this.dataset.id)">删除</button>' +
+                        '<button class="btn btn-outline" data-id="' + a.id + '" onclick="openEditModal(this.dataset.id)">' + t.btnEdit + '</button>' +
+                        '<button class="btn btn-danger" data-id="' + a.id + '" onclick="deleteArticle(this.dataset.id)">' + t.btnDelete + '</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -4296,10 +4872,11 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             const origText = btn ? btn.textContent : '';
             if (btn) {
                 btn.disabled = true;
-                btn.textContent = '翻译中...';
+                btn.textContent = from === 'zh' ? '正在翻译并自动保存...' : 'Translating & auto-saving...';
             }
 
             try {
+                // 1. 翻译正文
                 const res = await adminFetch('/api/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -4322,40 +4899,88 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
 
                 document.getElementById(targetElId).value = data.translatedText;
 
-                // 自动翻译未填写的标题
+                // 2. 自动翻译未填写的标题
                 if (from === 'zh') {
                     const titleZh = document.getElementById('item-title').value.trim();
                     const titleEnInput = document.getElementById('item-title-en');
                     if (titleZh && titleEnInput && !titleEnInput.value.trim()) {
-                        adminFetch('/api/translate', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text: titleZh, from: 'zh', to: 'en' })
-                        }).then(r => r.json()).then(d => {
+                        try {
+                            const r = await adminFetch('/api/translate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ text: titleZh, from: 'zh', to: 'en' })
+                            });
+                            const d = await r.json();
                             if (d && d.translatedText) titleEnInput.value = d.translatedText;
-                        }).catch(() => {});
+                        } catch(e) {}
                     }
                 } else {
                     const titleEn = document.getElementById('item-title-en').value.trim();
                     const titleZhInput = document.getElementById('item-title');
                     if (titleEn && titleZhInput && !titleZhInput.value.trim()) {
-                        adminFetch('/api/translate', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text: titleEn, from: 'en', to: 'zh' })
-                        }).then(r => r.json()).then(d => {
+                        try {
+                            const r = await adminFetch('/api/translate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ text: titleEn, from: 'en', to: 'zh' })
+                            });
+                            const d = await r.json();
                             if (d && d.translatedText) titleZhInput.value = d.translatedText;
-                        }).catch(() => {});
+                        } catch(e) {}
                     }
                 }
 
-                // 自动勾选双语标记
+                // 3. 自动勾选双语标记
                 const chk = document.getElementById('item-is-bilingual');
                 if (chk) chk.checked = true;
 
-                // 切换 Tab 以供审核
+                // 4. 切换 Tab 以供查看
                 switchAdminEditorTab(to);
-                alert('✓ AI 翻译完成！请在【' + (to === 'en' ? 'English Content' : '中文内容') + '】Tab 中审核编辑。');
+
+                // 5. 核心要求：翻译后文章自动保存并加载入系统
+                const id = document.getElementById('item-id').value;
+                const curTitleZh = document.getElementById('item-title').value.trim() || '未命名文章';
+                const curTitleEn = document.getElementById('item-title-en').value.trim() || curTitleZh;
+                const curCustomDate = document.getElementById('item-date').value.trim() || new Date().toISOString().slice(0,7).replace('-', '.');
+                const curTag = document.getElementById('item-tag').value.trim() || 'AI';
+                const curViewsRaw = document.getElementById('item-views').value.trim();
+                const curCustomViews = parseInt(curViewsRaw, 10);
+                const curContentZh = document.getElementById('item-content').value;
+                const curContentEn = document.getElementById('item-content-en').value;
+
+                const existing = articles.find(x => x.id === id) || {};
+                const autoPayload = {
+                    id: id,
+                    title_zh: curTitleZh,
+                    title_en: curTitleEn,
+                    content_zh: curContentZh,
+                    content_en: curContentEn,
+                    isBilingual: true,
+                    title: { zh: curTitleZh, en: curTitleEn },
+                    content: { zh: curContentZh, en: curContentEn },
+                    tag: curTag,
+                    date: curCustomDate,
+                    readTime: existing.readTime || '5 min read',
+                    views: isNaN(curCustomViews) ? (typeof existing.views === 'number' ? existing.views : 1000) : curCustomViews,
+                    summary: { zh: curTitleZh, en: curTitleEn }
+                };
+
+                const saveRes = await adminFetch('/api/articles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(autoPayload)
+                });
+
+                if (saveRes.ok) {
+                    const idx = articles.findIndex(x => x.id === id);
+                    if (idx >= 0) articles[idx] = autoPayload;
+                    else articles.unshift(autoPayload);
+                    renderAdminList();
+                    try { localStorage.removeItem('article_editor_draft'); } catch(e) {}
+                    alert('✓ AI 翻译成功！文章已自动保存并重新加载到列表中。');
+                } else {
+                    alert('AI 翻译完成，但自动保存失败，请检查后手动点击【保存发布文章】。');
+                }
 
             } catch (error) {
                 alert('翻译失败：' + error.message);
@@ -4999,6 +5624,13 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
         renderAdminCommentsList();
         populateProfileForm();
         updateCounts();
+
+        let savedCmsLang = 'zh';
+        try {
+            savedCmsLang = localStorage.getItem('preferredLang') || (document.cookie.match(/preferredLang=([^;]+)/) ? RegExp.$1 : 'zh');
+        } catch(e) {}
+        if (savedCmsLang !== 'zh' && savedCmsLang !== 'en') savedCmsLang = 'zh';
+        applyCmsLang(savedCmsLang);
     </script>
 </body>
 </html>`;
