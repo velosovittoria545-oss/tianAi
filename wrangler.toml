@@ -12,3 +12,8 @@ routes = [
 [[kv_namespaces]]
 binding = "BLOG_KV"
 id = "6ef43971a8554502b81e24c10e077a25"
+
+# Cloudflare Workers AI 绑定
+[ai]
+binding = "AI"
+

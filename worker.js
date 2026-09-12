@@ -745,16 +745,62 @@ function getAdminPassword(env) {
   return (env && env.ADMIN_PASSWORD) ? env.ADMIN_PASSWORD : "";
 }
 
+function normalizeArticle(a) {
+  if (!a) return a;
+  let title_zh = "";
+  let title_en = "";
+  if (typeof a.title_zh === "string" && a.title_zh) {
+    title_zh = a.title_zh;
+  } else if (a.title && typeof a.title === "object") {
+    title_zh = a.title.zh || "";
+    title_en = a.title.en || "";
+  } else if (typeof a.title === "string") {
+    title_zh = a.title;
+  }
+
+  if (typeof a.title_en === "string" && a.title_en) {
+    title_en = a.title_en;
+  }
+
+  let content_zh = "";
+  let content_en = "";
+  if (typeof a.content_zh === "string" && a.content_zh) {
+    content_zh = a.content_zh;
+  } else if (a.content && typeof a.content === "object") {
+    content_zh = a.content.zh || "";
+    content_en = a.content.en || "";
+  } else if (typeof a.content === "string") {
+    content_zh = a.content;
+  }
+
+  if (typeof a.content_en === "string" && a.content_en) {
+    content_en = a.content_en;
+  }
+
+  const isBilingual = a.isBilingual !== undefined ? !!a.isBilingual : !!(content_en && content_en.trim());
+
+  return Object.assign({}, a, {
+    title_zh,
+    title_en,
+    content_zh,
+    content_en,
+    isBilingual,
+    title: typeof a.title === "object" ? a.title : { zh: title_zh, en: title_en || title_zh },
+    content: typeof a.content === "object" ? a.content : { zh: content_zh, en: content_en || content_zh }
+  });
+}
+
 async function getArticles(env) {
+  let items = DEFAULT_ARTICLES;
   if (env && env.BLOG_KV) {
     try {
       const data = await env.BLOG_KV.get("ARTICLES_DATA", "json");
-      if (data && Array.isArray(data) && data.length > 0) return data;
+      if (data && Array.isArray(data) && data.length > 0) items = data;
     } catch (e) {
       console.error("KV Read Error:", e);
     }
   }
-  return DEFAULT_ARTICLES;
+  return items.map(normalizeArticle);
 }
 
 async function saveArticles(env, articles) {
@@ -1326,6 +1372,29 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             margin-bottom: 24px;
             box-shadow: 0 4px 14px rgba(0,0,0,0.03);
         }
+        .article-lang-switch {
+            display: flex;
+            gap: 8px;
+            margin: 12px 0 16px 0;
+        }
+        .lang-btn {
+            padding: 4px 14px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 0.84rem;
+            color: var(--text-main);
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .lang-btn.active {
+            background: var(--accent);
+            color: #ffffff;
+        }
+        .lang-btn:hover:not(.active) {
+            background: rgba(204, 120, 92, 0.1);
+        }
         .reader-close-btn {
             display: inline-block;
             font-size: 0.84rem;
@@ -1392,6 +1461,10 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
         <div id="reader-view">
             <span class="reader-close-btn" onclick="closeReader()">← 返回文章列表</span>
             <h1 class="reader-article-title" id="reader-title"></h1>
+            <div id="article-lang-switcher" class="article-lang-switch" style="display:none;">
+                <button type="button" id="lang-btn-zh" class="lang-btn active" onclick="switchArticleLang('zh')">中文</button>
+                <button type="button" id="lang-btn-en" class="lang-btn" onclick="switchArticleLang('en')">English</button>
+            </div>
             <div class="reader-meta-bar" id="reader-meta">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -1487,17 +1560,59 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
                 if (!isNaN(n)) return n.toLocaleString();
                 return v;
             }
-            return '0';
+        function switchArticleLang(lang) {
+            try { localStorage.setItem('preferredLang', lang); } catch(e) {}
+            const art = ARTICLES.find(a => a.id === currentArticleId);
+            if (!art) return;
+            updateReaderContent(art, lang);
+        }
+
+        function updateReaderContent(art, lang) {
+            let title = '';
+            let content = '';
+            if (lang === 'en') {
+                title = art.title_en || (art.title && art.title.en) || art.title_zh || (art.title && art.title.zh) || '';
+                content = art.content_en || (art.content && art.content.en) || art.content_zh || (art.content && art.content.zh) || '';
+            } else {
+                title = art.title_zh || (art.title && art.title.zh) || (typeof art.title === 'string' ? art.title : '');
+                content = art.content_zh || (art.content && art.content.zh) || (typeof art.content === 'string' ? art.content : '');
+            }
+            document.getElementById('reader-title').innerText = title;
+            document.getElementById('reader-content').innerHTML = content;
+
+            const btnZh = document.getElementById('lang-btn-zh');
+            const btnEn = document.getElementById('lang-btn-en');
+            if (btnZh && btnEn) {
+                if (lang === 'en') {
+                    btnZh.classList.remove('active');
+                    btnEn.classList.add('active');
+                } else {
+                    btnEn.classList.remove('active');
+                    btnZh.classList.add('active');
+                }
+            }
         }
 
         function renderList() {
             const box = document.getElementById('articles-list-box');
             box.innerHTML = ARTICLES.map(art => {
-                const title = (art.title && (art.title.zh || art.title.en)) || art.id;
+                const title_zh = art.title_zh || (art.title && (art.title.zh || art.title.en)) || (typeof art.title === 'string' ? art.title : art.id);
+                const title_en = art.title_en || (art.title && art.title.en) || '';
+                const displayTitle = title_zh || title_en || art.id;
+                const hasEnContent = !!(art.content_en && art.content_en.trim()) || !!(art.content && art.content.en && art.content.en.trim());
+                const isBilingual = art.isBilingual !== undefined ? !!art.isBilingual : hasEnContent;
+
+                let langBadge = '';
+                if (isBilingual && hasEnContent) {
+                    langBadge = '<span class="badge badge-bilingual" style="background:var(--bg-subtle); border:1px solid var(--accent); color:var(--accent); font-size:0.72rem; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:normal;">🌐 双语</span>';
+                } else {
+                    langBadge = '<span class="badge badge-zh-only" style="background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-light); font-size:0.72rem; padding:1px 6px; border-radius:10px; margin-left:6px; font-weight:normal;">🔸 仅中文</span>';
+                }
+
                 const viewsFormatted = formatViews(art.views);
                 return '<div class="article-row" data-id="' + art.id + '" onclick="openArticle(this.dataset.id)">' +
                     '<div>' +
-                        '<div class="article-title-text">' + title + '</div>' +
+                        '<div class="article-title-text">' + displayTitle + langBadge + '</div>' +
                         '<div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-light); margin-top:4px;">' +
                             art.date + ' · ' + (art.readTime || '') + ' · <span style="color:var(--accent);">👁️ ' + viewsFormatted + ' 浏览</span>' +
                         '</div>' +
@@ -1511,14 +1626,27 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             const art = ARTICLES.find(a => a.id === id);
             if (!art) return;
             currentArticleId = id;
-            const title = (art.title && (art.title.zh || art.title.en)) || '';
-            document.getElementById('reader-title').innerText = title;
+
             document.getElementById('reader-meta-info').innerText = art.date + ' · ' + (art.readTime || '') + ' · ' + (art.tag || '');
             document.getElementById('reader-meta-views').innerText = '👁️ ' + formatViews(art.views) + ' 次浏览';
-            document.getElementById('reader-content').innerHTML = (art.content && (art.content.zh || art.content.en)) || '';
+
+            const hasEnContent = !!(art.content_en && art.content_en.trim()) || !!(art.content && art.content.en && art.content.en.trim());
+            const isBilingual = art.isBilingual !== undefined ? !!art.isBilingual : hasEnContent;
+            const switcher = document.getElementById('article-lang-switcher');
+
+            let prefLang = 'zh';
+            try { prefLang = localStorage.getItem('preferredLang') || 'zh'; } catch(e) {}
+
+            if (isBilingual && hasEnContent) {
+                if (switcher) switcher.style.display = 'flex';
+                updateReaderContent(art, prefLang);
+            } else {
+                if (switcher) switcher.style.display = 'none';
+                updateReaderContent(art, 'zh');
+            }
             
             document.getElementById('comment-article-id').value = art.id;
-            document.getElementById('comment-article-title').value = title;
+            document.getElementById('comment-article-title').value = art.title_zh || (art.title && art.title.zh) || '';
             document.getElementById('comment-status-msg').innerText = '';
             
             // 自动累加浏览量（会话去重防刷）
@@ -3416,6 +3544,29 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             border-bottom: 1px solid var(--border);
             padding-bottom: 12px;
         }
+        .content-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .tab-btn {
+            padding: 5px 12px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .tab-btn.active {
+            border-bottom-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
         .item-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -3699,7 +3850,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
 
     <!-- 新建/编辑文章 Modal -->
     <div id="modal" class="modal-mask">
-        <div class="modal-card" style="max-width:720px; width:95%;">
+        <div class="modal-card" style="max-width:760px; width:95%;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                 <h3 id="modal-title" style="font-family:var(--font-serif); font-size:1.4rem; margin:0;">编辑文章</h3>
                 <div style="display:flex; gap:8px;">
@@ -3709,9 +3860,15 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             </div>
             <form id="post-form" onsubmit="handleSave(event)">
                 <input type="hidden" id="item-id" />
-                <div class="form-group">
-                    <label class="form-label">文章中文标题 (Title)</label>
-                    <input type="text" id="item-title" class="form-input" required />
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">标题（中文）</label>
+                        <input type="text" id="item-title" class="form-input" placeholder="文章标题" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Title (English)</label>
+                        <input type="text" id="item-title-en" class="form-input" placeholder="Article Title (optional)" />
+                    </div>
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
                     <div class="form-group">
@@ -3729,7 +3886,10 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 </div>
                 <div class="form-group">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
-                        <label class="form-label" style="margin-bottom:0;">正文内容 HTML / Markdown</label>
+                        <div class="content-tabs">
+                            <button type="button" class="tab-btn active" id="admin-tab-zh-btn" onclick="switchAdminEditorTab('zh')">中文内容</button>
+                            <button type="button" class="tab-btn" id="admin-tab-en-btn" onclick="switchAdminEditorTab('en')">English Content</button>
+                        </div>
                         <div style="display:flex; gap:6px; flex-wrap:wrap;">
                             <button type="button" class="btn btn-outline" style="font-size:0.75rem; padding:3px 8px;" onclick="convertContentMarkdownToHtml()" title="若在下方粘贴了 Markdown 语法，点击一键转为标准 HTML">🔄 MD 转 HTML</button>
                             <input type="file" id="article-img-file" accept="image/*" style="display:none;" onchange="handleArticleImageUpload(event)" />
@@ -3737,8 +3897,32 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                             <button type="button" class="btn btn-outline" style="font-size:0.75rem; padding:3px 8px;" onclick="insertArticleExternalImg()">🔗 插入外链图片</button>
                         </div>
                     </div>
-                    <textarea id="item-content" class="form-textarea" rows="10" placeholder="<p>正文段落内容...</p>" required></textarea>
+
+                    <div id="admin-tab-content-zh" class="tab-content active">
+                        <textarea id="item-content" class="form-textarea" rows="10" placeholder="<p>中文正文段落内容...</p>" required></textarea>
+                        <div style="margin-top:6px; display:flex; justify-content:flex-end;">
+                            <button type="button" id="translateToEn" class="btn btn-primary" style="font-size:0.8rem; padding:5px 12px; background:var(--accent);" onclick="handleTranslateAI('zh', 'en')">🤖 AI生成英文版</button>
+                        </div>
+                    </div>
+
+                    <div id="admin-tab-content-en" class="tab-content">
+                        <div style="padding:6px 10px; background:#fff3cd; color:#856404; border-left:3px solid var(--accent); margin-bottom:8px; font-size:0.82rem; border-radius:4px;">
+                            ⚠️ AI生成内容，请人工审核后再发布
+                        </div>
+                        <textarea id="item-content-en" class="form-textarea" rows="10" placeholder="<p>English article content...</p>"></textarea>
+                        <div style="margin-top:6px; display:flex; justify-content:flex-end;">
+                            <button type="button" id="translateToZh" class="btn btn-primary" style="font-size:0.8rem; padding:5px 12px; background:var(--accent);" onclick="handleTranslateAI('en', 'zh')">🤖 AI生成中文版</button>
+                        </div>
+                    </div>
                 </div>
+
+                <div style="margin-top: 10px; margin-bottom: 14px;">
+                    <label style="font-size: 0.88rem; color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="item-is-bilingual" style="accent-color: var(--accent);" />
+                        <span>标记为双语文章（前端将显示语言切换按钮）</span>
+                    </label>
+                </div>
+
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
                     <span style="font-size:0.78rem; color:var(--text-light);">💡 浏览量可随意自定义，读者阅读时会在此数值基础上累加递增</span>
                     <div style="display:flex; gap:10px;">
@@ -4075,36 +4259,126 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             }
         }
 
+        function switchAdminEditorTab(tab) {
+            const btnZh = document.getElementById('admin-tab-zh-btn');
+            const btnEn = document.getElementById('admin-tab-en-btn');
+            const contentZh = document.getElementById('admin-tab-content-zh');
+            const contentEn = document.getElementById('admin-tab-content-en');
+            if (tab === 'en') {
+                if (btnZh) btnZh.classList.remove('active');
+                if (btnEn) btnEn.classList.add('active');
+                if (contentZh) { contentZh.classList.remove('active'); contentZh.style.display = 'none'; }
+                if (contentEn) { contentEn.classList.add('active'); contentEn.style.display = 'block'; }
+            } else {
+                if (btnEn) btnEn.classList.remove('active');
+                if (btnZh) btnZh.classList.add('active');
+                if (contentEn) { contentEn.classList.remove('active'); contentEn.style.display = 'none'; }
+                if (contentZh) { contentZh.classList.add('active'); contentZh.style.display = 'block'; }
+            }
+        }
+
+        async function handleTranslateAI(from, to) {
+            resetInactivityTimer();
+            const sourceElId = from === 'zh' ? 'item-content' : 'item-content-en';
+            const targetElId = to === 'en' ? 'item-content-en' : 'item-content';
+            const btnId = from === 'zh' ? 'translateToEn' : 'translateToZh';
+            
+            const sourceContent = document.getElementById(sourceElId).value;
+            if (!sourceContent || !sourceContent.trim()) {
+                alert(from === 'zh' ? '请先输入中文内容' : 'Please enter English content first');
+                return;
+            }
+
+            const btn = document.getElementById(btnId);
+            const origText = btn ? btn.textContent : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '翻译中...';
+            }
+
+            try {
+                const res = await adminFetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: sourceContent,
+                        from: from,
+                        to: to
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || ('HTTP ' + res.status));
+                }
+
+                const data = await res.json();
+                if (!data.translatedText) {
+                    throw new Error('未收到有效翻译文本');
+                }
+
+                document.getElementById(targetElId).value = data.translatedText;
+
+                // 自动翻译未填写的标题
+                if (from === 'zh') {
+                    const titleZh = document.getElementById('item-title').value.trim();
+                    const titleEnInput = document.getElementById('item-title-en');
+                    if (titleZh && titleEnInput && !titleEnInput.value.trim()) {
+                        adminFetch('/api/translate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: titleZh, from: 'zh', to: 'en' })
+                        }).then(r => r.json()).then(d => {
+                            if (d && d.translatedText) titleEnInput.value = d.translatedText;
+                        }).catch(() => {});
+                    }
+                } else {
+                    const titleEn = document.getElementById('item-title-en').value.trim();
+                    const titleZhInput = document.getElementById('item-title');
+                    if (titleEn && titleZhInput && !titleZhInput.value.trim()) {
+                        adminFetch('/api/translate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: titleEn, from: 'en', to: 'zh' })
+                        }).then(r => r.json()).then(d => {
+                            if (d && d.translatedText) titleZhInput.value = d.translatedText;
+                        }).catch(() => {});
+                    }
+                }
+
+                // 自动勾选双语标记
+                const chk = document.getElementById('item-is-bilingual');
+                if (chk) chk.checked = true;
+
+                // 切换 Tab 以供审核
+                switchAdminEditorTab(to);
+                alert('✓ AI 翻译完成！请在【' + (to === 'en' ? 'English Content' : '中文内容') + '】Tab 中审核编辑。');
+
+            } catch (error) {
+                alert('翻译失败：' + error.message);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = origText;
+                }
+            }
+        }
+
         function openCreateModal() {
             resetInactivityTimer();
             document.getElementById('modal-title').innerText = '新建文章';
             document.getElementById('item-id').value = 'post-' + Date.now();
+            switchAdminEditorTab('zh');
             
-            let restored = false;
-            try {
-                const draftRaw = localStorage.getItem('article_editor_draft');
-                if (draftRaw) {
-                    const draft = JSON.parse(draftRaw);
-                    if (draft && (draft.title || (draft.content && draft.content.length > 30))) {
-                        if (confirm('发现您之前撰写但未保存的文章草稿【' + (draft.title || '未命名草稿') + '】，是否恢复继续编辑？')) {
-                            document.getElementById('item-title').value = draft.title || '';
-                            document.getElementById('item-date').value = draft.date || new Date().toISOString().slice(0,7).replace('-', '.');
-                            document.getElementById('item-tag').value = draft.tag || 'AI Architecture';
-                            document.getElementById('item-views').value = draft.views || '1000';
-                            document.getElementById('item-content').value = draft.content || '<p>在这里撰写正文内容...</p>';
-                            restored = true;
-                        }
-                    }
-                }
-            } catch(e) {}
+            document.getElementById('item-title').value = '';
+            document.getElementById('item-title-en').value = '';
+            document.getElementById('item-date').value = new Date().toISOString().slice(0,7).replace('-', '.');
+            document.getElementById('item-tag').value = 'AI Architecture';
+            document.getElementById('item-views').value = '1000';
+            document.getElementById('item-content').value = '<p>在这里撰写正文内容...</p>';
+            document.getElementById('item-content-en').value = '';
+            document.getElementById('item-is-bilingual').checked = false;
 
-            if (!restored) {
-                document.getElementById('item-title').value = '';
-                document.getElementById('item-date').value = new Date().toISOString().slice(0,7).replace('-', '.');
-                document.getElementById('item-tag').value = 'AI Architecture';
-                document.getElementById('item-views').value = '1000';
-                document.getElementById('item-content').value = '<p>在这里撰写正文内容...</p>';
-            }
             document.getElementById('modal').style.display = 'flex';
         }
 
@@ -4114,11 +4388,23 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             if (!a) return;
             document.getElementById('modal-title').innerText = '编辑文章';
             document.getElementById('item-id').value = a.id;
-            document.getElementById('item-title').value = (a.title && a.title.zh) || '';
+            
+            const titleZh = a.title_zh || (a.title && a.title.zh) || (typeof a.title === 'string' ? a.title : '');
+            const titleEn = a.title_en || (a.title && a.title.en) || '';
+            const contentZh = a.content_zh || (a.content && a.content.zh) || (typeof a.content === 'string' ? a.content : '');
+            const contentEn = a.content_en || (a.content && a.content.en) || '';
+            const isBilingual = a.isBilingual !== undefined ? !!a.isBilingual : !!(contentEn && contentEn.trim());
+
+            document.getElementById('item-title').value = titleZh;
+            document.getElementById('item-title-en').value = titleEn;
             document.getElementById('item-date').value = a.date || '';
             document.getElementById('item-tag').value = a.tag || '';
             document.getElementById('item-views').value = typeof a.views === 'number' ? a.views : (parseInt(a.views) || 0);
-            document.getElementById('item-content').value = (a.content && a.content.zh) || '';
+            document.getElementById('item-content').value = contentZh;
+            document.getElementById('item-content-en').value = contentEn;
+            document.getElementById('item-is-bilingual').checked = isBilingual;
+
+            switchAdminEditorTab('zh');
             document.getElementById('modal').style.display = 'flex';
         }
 
@@ -4140,24 +4426,32 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
             resetInactivityTimer();
             const id = document.getElementById('item-id').value;
             const titleZh = document.getElementById('item-title').value.trim();
+            const titleEn = document.getElementById('item-title-en').value.trim();
             const customDate = document.getElementById('item-date').value.trim();
             const tag = document.getElementById('item-tag').value.trim();
             const customViewsRaw = document.getElementById('item-views').value.trim();
             const customViews = parseInt(customViewsRaw, 10);
             const contentZh = document.getElementById('item-content').value;
+            const contentEn = document.getElementById('item-content-en').value;
+            const isBilingual = document.getElementById('item-is-bilingual').checked;
 
-            if (!titleZh) { alert('请输入文章标题'); return; }
+            if (!titleZh) { alert('请输入文章中文标题'); return; }
 
             const existing = articles.find(x => x.id === id) || {};
             const payload = {
                 id: id,
-                title: { zh: titleZh, en: (existing.title && existing.title.en) || titleZh },
+                title_zh: titleZh,
+                title_en: titleEn,
+                content_zh: contentZh,
+                content_en: contentEn,
+                isBilingual: isBilingual,
+                title: { zh: titleZh, en: titleEn || titleZh },
+                content: { zh: contentZh, en: contentEn || contentZh },
                 tag: tag || 'AI',
                 date: customDate || new Date().toISOString().slice(0,7).replace('-', '.'),
                 readTime: existing.readTime || '5 min read',
                 views: isNaN(customViews) ? (typeof existing.views === 'number' ? existing.views : 1000) : customViews,
-                summary: { zh: titleZh, en: titleZh },
-                content: { zh: contentZh, en: (existing.content && existing.content.en) || contentZh }
+                summary: { zh: titleZh, en: titleEn || titleZh }
             };
 
             try {
@@ -4834,16 +5128,49 @@ export default {
       }
     }
 
+    // 3.9 API: AI 翻译 POST /api/translate
+    if (path === "/api/translate" && method === "POST") {
+      if (!await checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      try {
+        const body = await request.json();
+        const { text, from, to } = body || {};
+        if (!text || !text.trim()) {
+          return new Response(JSON.stringify({ error: "Missing text to translate" }), { status: 400 });
+        }
+        if (!env.AI) {
+          return new Response(JSON.stringify({ error: "Workers AI binding (env.AI) is not configured in wrangler.toml" }), { status: 500 });
+        }
+        const source_lang = (from === 'en') ? 'en' : 'zh';
+        const target_lang = (to === 'zh') ? 'zh' : 'en';
+
+        const aiResponse = await env.AI.run('@cf/meta/m2m100-1.2b', {
+          text: text,
+          source_lang: source_lang,
+          target_lang: target_lang
+        });
+
+        const translatedText = aiResponse ? (aiResponse.translated_text || aiResponse.response || "") : "";
+        return new Response(JSON.stringify({ translatedText: translatedText }), {
+          headers: { "Content-Type": "application/json;charset=UTF-8" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message || "Translation failed" }), { status: 500 });
+      }
+    }
+
     // 4. API: 保存/更新文章 POST /api/articles
     if (path === "/api/articles" && method === "POST") {
       if (!await checkAuth(request, env)) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       try {
-        const newItem = await request.json();
-        if (!newItem || !newItem.id || !newItem.title) {
+        let rawItem = await request.json();
+        if (!rawItem || !rawItem.id || !(rawItem.title || rawItem.title_zh)) {
           return new Response(JSON.stringify({ error: "Invalid article payload" }), { status: 400 });
         }
+        const newItem = normalizeArticle(rawItem);
         let items = await getArticles(env);
         const idx = items.findIndex(a => a.id === newItem.id);
         if (idx >= 0) items[idx] = newItem;
