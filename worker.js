@@ -793,12 +793,16 @@ function normalizeArticle(a) {
 
   const isBilingual = a.isBilingual !== undefined ? !!a.isBilingual : !!(content_en && content_en.trim());
 
+  // 隐藏开关：仅 true / "true" / 1 / "1" 视为隐藏；缺省及其余取值一律视为正常展示
+  const hidden = a.hidden === true || a.hidden === "true" || a.hidden === 1 || a.hidden === "1";
+
   return Object.assign({}, a, {
     title_zh,
     title_en,
     content_zh,
     content_en,
     isBilingual,
+    hidden,
     title: { zh: title_zh, en: title_en || title_zh },
     content: { zh: content_zh, en: content_en || content_zh }
   });
@@ -1891,7 +1895,8 @@ function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
             const box = document.getElementById('articles-list-box');
             if (!box) return;
             const t = articlesI18n[currentGlobalLang] || articlesI18n.zh;
-            box.innerHTML = ARTICLES.map(art => {
+            // 防御性过滤：即使数据源未过滤，被隐藏的文章也不进入公开列表
+            box.innerHTML = ARTICLES.filter(art => !art.hidden).map(art => {
                 const title_zh = art.title_zh || (art.title && (art.title.zh || art.title.en)) || (typeof art.title === 'string' ? art.title : art.id);
                 const title_en = art.title_en || (art.title && art.title.en) || '';
                 const displayTitle = (currentGlobalLang === 'en' && title_en) ? title_en : (title_zh || title_en || art.id);
@@ -4880,7 +4885,15 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 sortOptDesc: "降序（高 → 低）",
                 sortOptAsc: "升序（低 → 高）",
                 sortHint: "保存后文章列表页即时按此顺序展示",
-                likesSuffix: " 赞"
+                likesSuffix: " 赞",
+                btnHide: "隐藏",
+                btnShow: "显示",
+                badgeHidden: "🙈 已隐藏",
+                badgeVisible: "👁 展示中",
+                hideConfirm: "确定要隐藏这篇文章吗？隐藏后公开列表页不再展示，访客也无法通过链接打开。",
+                showConfirm: "确定要恢复展示这篇文章吗？",
+                hideDone: "✓ 文章已隐藏，公开列表不再展示",
+                showDone: "✓ 文章已恢复展示"
             },
             en: {
                 cmsTitle: "Website Console",
@@ -4911,7 +4924,15 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                 sortOptDesc: "Descending (high → low)",
                 sortOptAsc: "Ascending (low → high)",
                 sortHint: "The public article list follows this order immediately",
-                likesSuffix: " likes"
+                likesSuffix: " likes",
+                btnHide: "Hide",
+                btnShow: "Show",
+                badgeHidden: "🙈 Hidden",
+                badgeVisible: "👁 Visible",
+                hideConfirm: "Hide this article? It will no longer appear in the public list, and visitors will not be able to open it via a direct link.",
+                showConfirm: "Restore this article to public view?",
+                hideDone: "✓ Article hidden from the public list",
+                showDone: "✓ Article is public again"
             }
         };
 
@@ -5092,15 +5113,20 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     ? (' <span style="background:var(--bg-subtle); border:1px solid var(--accent); color:var(--accent); font-size:0.7rem; padding:1px 6px; border-radius:10px;">' + t.badgeBilingual + '</span>')
                     : (' <span style="background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-light); font-size:0.7rem; padding:1px 6px; border-radius:10px;">' + t.badgeZhOnly + '</span>');
 
-                return '<div class="item-card">' +
+                const hideBadge = a.hidden
+                    ? (' <span style="background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; font-size:0.7rem; padding:1px 6px; border-radius:10px;">' + t.badgeHidden + '</span>')
+                    : (' <span style="background:#d4edda; border:1px solid #c3e6cb; color:#155724; font-size:0.7rem; padding:1px 6px; border-radius:10px;">' + t.badgeVisible + '</span>');
+
+                return '<div class="item-card"' + (a.hidden ? ' style="opacity:0.72;"' : '') + '>' +
                     '<div>' +
-                        '<strong>' + escapeHtml(displayTitle) + '</strong>' + badge +
+                        '<strong>' + escapeHtml(displayTitle) + '</strong>' + badge + hideBadge +
                         '<div style="font-size:0.8rem; color:var(--text-light); margin-top:4px;">' +
                             (isEn ? 'Date: ' : '发布时间: ') + '<span style="color:var(--accent); font-family:var(--font-mono);">' + a.date + '</span> · ' + (a.tag || '') + ' · <span style="color:var(--accent);">👁️ ' + ((typeof a.views === 'number') ? a.views.toLocaleString() : (a.views || '0')) + (isEn ? ' views' : ' 浏览') + '</span>' +
                             ' · <span style="color:var(--accent);">👍 ' + ((typeof a.likes === 'number') ? a.likes.toLocaleString() : (parseInt(a.likes, 10) || 0)) + t.likesSuffix + '</span>' +
                         '</div>' +
                     '</div>' +
                     '<div style="display:flex; gap:8px;">' +
+                        '<button class="btn btn-outline" data-id="' + a.id + '" data-hidden="' + (a.hidden ? '1' : '0') + '" onclick="toggleArticleHidden(this.dataset.id, this.dataset.hidden)">' + (a.hidden ? t.btnShow : t.btnHide) + '</button>' +
                         '<button class="btn btn-outline" data-id="' + a.id + '" onclick="openEditModal(this.dataset.id)">' + t.btnEdit + '</button>' +
                         '<button class="btn btn-danger" data-id="' + a.id + '" onclick="deleteArticle(this.dataset.id)">' + t.btnDelete + '</button>' +
                     '</div>' +
@@ -5609,6 +5635,32 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, toke
                     alert('✓ 文章已彻底删除');
                 } else {
                     alert('删除失败');
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function toggleArticleHidden(id, currentlyHidden) {
+            resetInactivityTimer();
+            const isHidden = currentlyHidden === '1' || currentlyHidden === 1 || currentlyHidden === true;
+            const nextHidden = !isHidden;
+            const t = cmsI18n[currentCmsLang] || cmsI18n.zh;
+
+            if (!confirm(nextHidden ? t.hideConfirm : t.showConfirm)) return;
+
+            try {
+                const res = await adminFetch('/api/articles/hide?id=' + encodeURIComponent(id), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hidden: nextHidden })
+                });
+                if (res.ok) {
+                    // 与文章保存一致：重新拉取列表而不是本地打补丁，避免前后端状态漂移
+                    await refreshAdminArticles();
+                    alert(nextHidden ? t.hideDone : t.showDone);
+                } else {
+                    alert(currentCmsLang === 'en' ? '✗ Operation failed, please retry' : '✗ 操作失败，请重试');
                 }
             } catch(e) {
                 console.error(e);
@@ -6224,12 +6276,15 @@ export default {
 
     // 3. API: 获取文章列表 GET /api/articles
     if ((path === "/api/articles" || path === "/articles.json") && method === "GET") {
-      const items = await getArticlesWithMetrics(env);
+      let items = await getArticlesWithMetrics(env);
+      // 未登录访客看不到被隐藏的文章；管理员登录后可见全部（后台需要展示并切换隐藏状态）
+      const isAdminView = await checkAuth(request, env);
+      if (!isAdminView) items = items.filter(a => !a.hidden);
       return new Response(JSON.stringify(items, null, 2), {
         headers: {
           "Content-Type": "application/json;charset=UTF-8",
           "Access-Control-Allow-Origin": "*",
-          "Cache-Control": "public, max-age=15"
+          "Cache-Control": isAdminView ? "no-store" : "public, max-age=15"
         }
       });
     }
@@ -6347,6 +6402,36 @@ export default {
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message || "Translation failed" }), { status: 500 });
+      }
+    }
+
+    // 3.9. API: 切换文章隐藏状态 POST /api/articles/hide?id=...  body: { hidden: true|false }
+    if (path === "/api/articles/hide" && method === "POST") {
+      if (!await checkAuth(request, env)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      const hideId = url.searchParams.get("id");
+      if (!hideId) {
+        return new Response(JSON.stringify({ error: "Missing article id" }), { status: 400 });
+      }
+      try {
+        let body = {};
+        try { body = await request.json(); } catch (e) { body = {}; }
+        const nextHidden = body.hidden === true || body.hidden === "true" || body.hidden === 1 || body.hidden === "1";
+
+        let items = await getArticles(env);
+        const hIdx = items.findIndex(a => a.id === hideId);
+        if (hIdx < 0) {
+          return new Response(JSON.stringify({ error: "Article not found" }), { status: 404 });
+        }
+        items[hIdx] = Object.assign({}, items[hIdx], { hidden: nextHidden });
+        await saveArticles(env, items);
+
+        return new Response(JSON.stringify({ success: true, id: hideId, hidden: nextHidden }), {
+          headers: { "Content-Type": "application/json;charset=UTF-8" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
       }
     }
 
@@ -6832,7 +6917,9 @@ export default {
 
     // 11. 独立文章列表页面 GET /articles 或 /blog
     if (path === "/articles" || path === "/blog") {
-      const items = await getArticlesWithMetrics(env);
+      const allItems = await getArticlesWithMetrics(env);
+      // 公开列表页不展示被隐藏的文章（管理员在 /admin 可见全部并随时切换）
+      const items = allItems.filter(a => !a.hidden);
       const prof = await getProfile(env);
       return new Response(renderArticlesPageHtml(JSON.stringify(items), prof.rewardQrCode), {
         headers: {
