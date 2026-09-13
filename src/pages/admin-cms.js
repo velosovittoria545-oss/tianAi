@@ -3,8 +3,6 @@ import { parseArticleDateMs } from "../store.js";
 import { COMMON_CSS } from "./common.js";
 import { escapeHtml } from "../util.js";
 
-import { CONFIG } from "../config.js";
-
 // GET /admin（登录后的 CMS 主界面）
 function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, settingsJson = '{}') {
   return `<!DOCTYPE html>
@@ -1623,7 +1621,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, sett
             if (p.rewardQrCode) {
                 qrImg.src = p.rewardQrCode;
             } else {
-                qrImg.src = "data:image/jpeg;base64," + CONFIG.rewardQrBase64;
+                qrImg.src = '/assets/reward-qr';
             }
         }
 
@@ -1829,7 +1827,7 @@ function renderAdminCmsHtml(articlesJson, commentsJson, profileJson, hasKv, sett
 
         function resetRewardQrToDefault() {
             currentProfile.rewardQrCode = "";
-            document.getElementById('preview-reward-qr').src = "data:image/jpeg;base64," + CONFIG.rewardQrBase64;
+            document.getElementById('preview-reward-qr').src = '/assets/reward-qr';
             document.getElementById('qr-upload-status').innerText = '已恢复为默认收款码，请点击下方保存';
         }
 

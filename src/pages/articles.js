@@ -1,12 +1,12 @@
 import { COMMON_CSS } from "./common.js";
 import { recordArticleView } from "../store.js";
 
-import { CONFIG } from "../config.js";
 import { escapeHtml } from "../util.js";
 
 // GET /articles
 function renderArticlesPageHtml(articlesJson, rewardQrSrc) {
-  const activeRewardQr = rewardQrSrc || ("data:image/jpeg;base64," + CONFIG.rewardQrBase64);
+  // 管理员若上传过自定义赞赏码就用它，否则用内置那张（走独立图片路由，不再内联 base64）
+  const activeRewardQr = rewardQrSrc || "/assets/reward-qr";
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>

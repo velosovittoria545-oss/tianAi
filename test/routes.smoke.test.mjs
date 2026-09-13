@@ -95,6 +95,36 @@ test("GET /api/images/<不存在> 返回 404", async () => {
   assert.equal(res.status, 404);
 });
 
+test("GET /assets/reward-qr 返回可长缓存的 JPEG", async () => {
+  const res = await request(worker, env, "/assets/reward-qr");
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("Content-Type"), "image/jpeg");
+  assert.match(res.headers.get("Cache-Control") || "", /immutable/);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  assert.ok(bytes.length > 1000, `赞赏码图片只有 ${bytes.length} 字节，八成是空的`);
+  // JPEG 魔数
+  assert.equal(bytes[0], 0xff);
+  assert.equal(bytes[1], 0xd8);
+});
+
+test("赞赏码不再内联进页面（页面体积不该被一张图吃掉一半）", async () => {
+  const html = await (await request(worker, env, "/articles")).text();
+  assert.ok(
+    !/data:image\/jpeg;base64/.test(html),
+    "/articles 又出现了内联的 base64 图片——赞赏码应当走 /assets/reward-qr"
+  );
+  assert.match(html, /src="\/assets\/reward-qr"/);
+  assert.ok(html.length < 120000, `/articles 页面膨胀到 ${html.length} 字符`);
+});
+
+test("后台页面不再引用客户端未定义的 CONFIG（恢复默认收款码按钮曾经会抛 ReferenceError）", async () => {
+  const { login, authed } = await import("./helpers/env.mjs");
+  const { cookie } = await login(worker, env);
+  const html = await (await request(worker, env, "/admin", { headers: authed(cookie) })).text();
+  assert.ok(!/CONFIG\./.test(html), "后台页面里残留了 CONFIG 引用，浏览器端没有这个变量");
+  assert.match(html, /\/assets\/reward-qr/);
+});
+
 test("只读 GET 流程不会写 KV（访客浏览不该消耗每日写额度）", async () => {
   const fresh = createEnv();
   await request(worker, fresh, "/api/articles");

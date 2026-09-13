@@ -2,7 +2,7 @@ import { COMMON_CSS } from "./common.js";
 import { DEFAULT_EXPERIENCES, DEFAULT_PROFILE } from "../seed-data.js";
 
 import { CONFIG } from "../config.js";
-import { escapeHtml, formatExpText } from "../util.js";
+import { escapeHtml, formatExpText, safeJsonForScript } from "../util.js";
 
 // GET /
 function renderPublicHtml(profile) {
@@ -270,8 +270,8 @@ ${homeExpCardsHtml}
 
         const i18n = {
             zh: {
-                displayName: ${JSON.stringify(profile.nameZh)},
-                intro: ${JSON.stringify(profile.introZh)},
+                displayName: ${safeJsonForScript(profile.nameZh)},
+                intro: ${safeJsonForScript(profile.introZh)},
                 linkArticles: "文章",
                 linkGuestbook: "留言板",
                 linkAdmin: "[管理员登录]",
@@ -284,20 +284,20 @@ ${homeExpCardsHtml}
                 lblEmail: "联系邮箱:",
                 titleExperience: "经历",
                 linkFullExp: "完整工作履历与客户详情 →",
-                valPosition: ${JSON.stringify(profile.positionZh)},
-                valFocus: ${JSON.stringify(profile.focusZh)},
-                valTech: ${JSON.stringify(profile.techZh)},
-                valEducation: ${JSON.stringify(profile.eduZh)},
-                valLanguages: ${JSON.stringify(profile.langZh)},
-                experiences: ${JSON.stringify(exps.map(e => ({
+                valPosition: ${safeJsonForScript(profile.positionZh)},
+                valFocus: ${safeJsonForScript(profile.focusZh)},
+                valTech: ${safeJsonForScript(profile.techZh)},
+                valEducation: ${safeJsonForScript(profile.eduZh)},
+                valLanguages: ${safeJsonForScript(profile.langZh)},
+                experiences: ${safeJsonForScript(exps.map(e => ({
                   role: e.role ? ('· ' + e.role) : '',
                   detailsHtml: formatExpText(e.details || '')
                 })))},
-                footerCopyright: "© 2026 " + ${JSON.stringify(profile.nameZh)} + " · All Rights Reserved"
+                footerCopyright: "© 2026 " + ${safeJsonForScript(profile.nameZh)} + " · All Rights Reserved"
             },
             en: {
-                displayName: ${JSON.stringify(profile.nameEn)},
-                intro: ${JSON.stringify(profile.introEn)},
+                displayName: ${safeJsonForScript(profile.nameEn)},
+                intro: ${safeJsonForScript(profile.introEn)},
                 linkArticles: "Articles",
                 linkGuestbook: "Guestbook",
                 linkAdmin: "[Admin Login]",
@@ -310,16 +310,16 @@ ${homeExpCardsHtml}
                 lblEmail: "Email:",
                 titleExperience: "Experience",
                 linkFullExp: "Full work experience & client record →",
-                valPosition: ${JSON.stringify(profile.positionEn)},
-                valFocus: ${JSON.stringify(profile.focusEn)},
-                valTech: ${JSON.stringify(profile.techEn)},
-                valEducation: ${JSON.stringify(profile.eduEn)},
-                valLanguages: ${JSON.stringify(profile.langEn)},
-                experiences: ${JSON.stringify(exps.map(e => ({
+                valPosition: ${safeJsonForScript(profile.positionEn)},
+                valFocus: ${safeJsonForScript(profile.focusEn)},
+                valTech: ${safeJsonForScript(profile.techEn)},
+                valEducation: ${safeJsonForScript(profile.eduEn)},
+                valLanguages: ${safeJsonForScript(profile.langEn)},
+                experiences: ${safeJsonForScript(exps.map(e => ({
                   role: (e.roleEn || e.role) ? ('· ' + (e.roleEn || e.role)) : '',
                   detailsHtml: formatExpText(e.detailsEn || e.details || '')
                 })))},
-                footerCopyright: "© 2026 " + ${JSON.stringify(profile.nameEn)} + " · All Rights Reserved"
+                footerCopyright: "© 2026 " + ${safeJsonForScript(profile.nameEn)} + " · All Rights Reserved"
             }
         };
 

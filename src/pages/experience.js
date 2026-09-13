@@ -2,7 +2,7 @@ import { COMMON_CSS } from "./common.js";
 import { DEFAULT_EXPERIENCES, DEFAULT_PROFILE } from "../seed-data.js";
 
 import { CONFIG } from "../config.js";
-import { escapeHtml, formatExpText } from "../util.js";
+import { escapeHtml, formatExpText, safeJsonForScript } from "../util.js";
 
 // GET /experience
 function renderExperienceHtml(profile) {
@@ -11,7 +11,7 @@ function renderExperienceHtml(profile) {
     ? profile.experiences
     : DEFAULT_EXPERIENCES;
 
-  const expDataJson = JSON.stringify(exps.map((e, idx) => ({
+  const expDataJson = safeJsonForScript(exps.map((e, idx) => ({
     id: idx,
     company: e.company || '',
     roleZh: e.role ? ('· ' + e.role) : '',
@@ -184,12 +184,12 @@ function renderExperienceHtml(profile) {
         const expI18n = {
             zh: {
                 pageTitle: "工作经历与工程履历",
-                docTitle: "工作经历 (Work Experience) — " + ${JSON.stringify(profile.nameZh)},
-                subtitleHtml: "<strong>" + ${JSON.stringify(profile.nameZh)} + " (" + ${JSON.stringify(profile.nameEn)} + ")</strong> · " + ${JSON.stringify(profile.positionZh)} + "。<br>" + ${JSON.stringify(profile.introZh)},
+                docTitle: "工作经历 (Work Experience) — " + ${safeJsonForScript(profile.nameZh)},
+                subtitleHtml: "<strong>" + ${safeJsonForScript(profile.nameZh)} + " (" + ${safeJsonForScript(profile.nameEn)} + ")</strong> · " + ${safeJsonForScript(profile.positionZh)} + "。<br>" + ${safeJsonForScript(profile.introZh)},
                 clientsTitle: "🏛️ 深度赋能的重要机构与客户",
-                clientsDesc: ${JSON.stringify(profile.clientsZh)},
+                clientsDesc: ${safeJsonForScript(profile.clientsZh)},
                 eduTitle: "教育背景 (Education)",
-                eduDesc: "<strong>" + ${JSON.stringify(profile.eduZh)} + "</strong>",
+                eduDesc: "<strong>" + ${safeJsonForScript(profile.eduZh)} + "</strong>",
                 backHome: "← 返回主页",
                 navArticles: "文章",
                 navGuestbook: "留言板",
@@ -198,12 +198,12 @@ function renderExperienceHtml(profile) {
             },
             en: {
                 pageTitle: "Work Experience & Engineering Track Record",
-                docTitle: "Work Experience — " + ${JSON.stringify(profile.nameEn)},
-                subtitleHtml: "<strong>" + ${JSON.stringify(profile.nameEn)} + " (" + ${JSON.stringify(profile.nameZh)} + ")</strong> · " + ${JSON.stringify(profile.positionEn)} + "。<br>" + ${JSON.stringify(profile.introEn)},
+                docTitle: "Work Experience — " + ${safeJsonForScript(profile.nameEn)},
+                subtitleHtml: "<strong>" + ${safeJsonForScript(profile.nameEn)} + " (" + ${safeJsonForScript(profile.nameZh)} + ")</strong> · " + ${safeJsonForScript(profile.positionEn)} + "。<br>" + ${safeJsonForScript(profile.introEn)},
                 clientsTitle: "🏛️ Key Institutions & Strategic Clients Empowered",
-                clientsDesc: ${JSON.stringify(profile.clientsEn)},
+                clientsDesc: ${safeJsonForScript(profile.clientsEn)},
                 eduTitle: "Education Background",
-                eduDesc: "<strong>" + ${JSON.stringify(profile.eduEn)} + "</strong>",
+                eduDesc: "<strong>" + ${safeJsonForScript(profile.eduEn)} + "</strong>",
                 backHome: "← Back to Home",
                 navArticles: "Articles",
                 navGuestbook: "Guestbook",

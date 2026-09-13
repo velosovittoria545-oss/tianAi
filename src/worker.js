@@ -1,9 +1,10 @@
 import { ARTICLE_SORT_FIELDS, commentTimestampMs, hashVisitorKey, normalizeArticle, normalizeSortConfig, pendingViewDelta } from "./store.js";
 import { SESSION_TTL_SEC, getSessionVersion } from "./auth.js";
 
-import { CONFIG } from "./config.js";
+import { CONFIG, getRewardQrBytes } from "./config.js";
 import { SESSION_COOKIE, SESSION_FLAG_COOKIE } from "./auth.js";
 import { flushPendingViews, getAdminPassword, getArticles } from "./store.js";
+import { safeJsonForScript } from "./util.js";
 
 import {
   getArticlesWithMetrics, getBlogSettings, getCommentsWithAutoExpiry, getProfile,
@@ -701,6 +702,21 @@ export default {
       });
     }
 
+    // 10.65. 内置赞赏码图片 GET /assets/reward-qr
+    // 以前这张图是以 base64 内联进 /articles 的，116KB 占了整页体积的一半，
+    // 而展示尺寸只有 175px。改成独立请求 + 一年不可变缓存：每个访客只真正下载一次，
+    // 且不再随 HTML 一起重复传输。
+    if (path === "/assets/reward-qr") {
+      const qrBytes = getRewardQrBytes();
+      return new Response(qrBytes, {
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Content-Length": String(qrBytes.byteLength),
+          "Cache-Control": "public, max-age=31536000, immutable"
+        }
+      });
+    }
+
     // 10.7. API: 获取个人简历配置 GET /api/profile
     if (path === "/api/profile" && method === "GET") {
       const prof = await getProfile(env);
@@ -780,7 +796,9 @@ export default {
       ]);
       // 公开列表页不展示被隐藏的文章（管理员在 /admin 可见全部并随时切换）
       const items = allItems.filter(a => !a.hidden);
-      return new Response(renderArticlesPageHtml(JSON.stringify(items), prof.rewardQrCode), {
+      // 文章数据要嵌进内联 <script>，必须走 safeJsonForScript（JSON.stringify 不转义 `<`，
+      // 文章正文里出现 </script> 就会提前闭合脚本块）
+      return new Response(renderArticlesPageHtml(safeJsonForScript(items), prof.rewardQrCode), {
         headers: {
           "Content-Type": "text/html;charset=UTF-8",
           "Cache-Control": "public, max-age=15"
@@ -810,10 +828,8 @@ export default {
         from: null,
         capped: gbApproved.length > 10
       };
-      const gbInitialJson = JSON.stringify(gbInitial)
-        .replace(/</g, "\\u003c")
-        .replace(/\u2028/g, "\\u2028")
-        .replace(/\u2029/g, "\\u2029");
+      // 留言正文完全由读者控制，这是最需要转义的注入点：统一走 safeJsonForScript
+      const gbInitialJson = safeJsonForScript(gbInitial);
       return new Response(renderGuestbookHtml(gbInitialJson), {
         headers: {
           "Content-Type": "text/html;charset=UTF-8",
@@ -851,8 +867,11 @@ export default {
         getBlogSettings(env)
       ]);
       const hasKv = Boolean(env && env.BLOG_KV);
+      // 后台把文章 / 留言 / 简历 / 设置四份数据都嵌进内联 <script>。
+      // 其中 commentsData 含读者提交的原文（且待审核的也在里面），必须逐个转义，
+      // 否则一条含 </script> 的留言就能在管理员会话下执行任意脚本。
       // 不再下发任何 cookie：令牌本来就只存在于 HttpOnly cookie 里，页面无需知道它
-      return new Response(renderAdminCmsHtml(JSON.stringify(items), JSON.stringify(commentsData), JSON.stringify(prof), hasKv, JSON.stringify(settings)), {
+      return new Response(renderAdminCmsHtml(safeJsonForScript(items), safeJsonForScript(commentsData), safeJsonForScript(prof), hasKv, safeJsonForScript(settings)), {
         headers: { 
           "Content-Type": "text/html;charset=UTF-8",
           "Cache-Control": "no-store, no-cache, must-revalidate"
